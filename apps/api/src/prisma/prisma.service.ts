@@ -5,8 +5,9 @@ import {
   type OnModuleInit,
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import type { Env } from '@/config/env.schema'
+import { tenantExtension } from './tenant.extension'
 
 /**
  * Ulanishlar puli chegarasi.
@@ -45,9 +46,48 @@ export class PrismaService
     })
   }
 
+  /**
+   * Tenant filtri qo'shilgan mijoz.
+   *
+   * BARCHA domen so'rovlari SHU orqali bajarilishi kerak. `this` (xom
+   * klient) faqat migratsiya, sog'liq tekshiruvi va tizim ishlari uchun.
+   */
+  get scoped(): ReturnType<typeof buildScoped> {
+    this.scopedClient ??= buildScoped(this)
+    return this.scopedClient
+  }
+
+  private scopedClient?: ReturnType<typeof buildScoped>
+
   async onModuleInit(): Promise<void> {
     await this.$connect()
     this.logger.log('Bazaga ulanildi')
+  }
+
+  /**
+   * Tenant kontekstidagi TRANZAKSIYA.
+   *
+   * `SET LOCAL app.tenant_id` qo'yiladi — shundan keyin RLS siyosatlari
+   * ishlaydi va ilova kodidagi xato ham boshqa tenant qatoriga tegolmaydi.
+   *
+   * NEGA aynan tranzaksiya: ulanishlar puli ulashiladi, `SET` (LOCAL'siz)
+   * esa ulanishda qolib ketib, keyingi so'rovga o'tib ketardi. `SET LOCAL`
+   * tranzaksiya tugashi bilan bekor bo'ladi.
+   *
+   * Moliyaviy amallar baribir tranzaksiya talab qiladi — ular RLS'ni
+   * qo'shimcha xarajatsiz oladi.
+   */
+  async inTenantTransaction<T>(
+    tenantId: string,
+    fn: (tx: Prisma.TransactionClient) => Promise<T>,
+    options?: { isolationLevel?: Prisma.TransactionIsolationLevel; timeout?: number },
+  ): Promise<T> {
+    return this.$transaction(async (tx) => {
+      // Parametrlashtirilgan: `SET LOCAL` o'zgaruvchi qabul qilmaydi,
+      // shuning uchun `set_config` funksiyasi ishlatiladi (SQL in'yeksiyasidan xoli)
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenantId}, true)`
+      return fn(tx)
+    }, { isolationLevel: options?.isolationLevel ?? 'ReadCommitted', timeout: options?.timeout ?? 10_000 })
   }
 
   /**
@@ -58,4 +98,9 @@ export class PrismaService
     await this.$disconnect()
     this.logger.log('Baza ulanishi yopildi')
   }
+}
+
+/** Kengaytma qo'llangan mijoz — tip chiqarish uchun alohida funksiya */
+function buildScoped(client: PrismaClient) {
+  return client.$extends(tenantExtension)
 }

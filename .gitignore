@@ -8,3 +8,4 @@ coverage/
 apps/api/openapi.json.tmp
 secrets/
 prisma/*.js
+apps/api/prisma.config.js

@@ -45,7 +45,7 @@ Umumiy «tayyor» ta'rifi —
 | E0 | Tayyorgarlik va monorepo | 6 | 6/6 | B1 |
 | E1 | Server skeleti | 7 | 7/7 | B1 |
 | E2 | Baza sxemasi | 9 | 9/9 | B1 |
-| E3 | Auth, tenant, huquqlar | 10 | 4/10 | B1 |
+| E3 | Auth, tenant, huquqlar | 10 | 6/10 | B1 |
 | E4 | Spravochniklar (CRUD) | 9 | 0/9 | B2 |
 | E5 | Ombor amallari | 8 | 0/8 | B3 |
 | E6 | Savdo yadrosi | 9 | 0/9 | B3 |
@@ -59,7 +59,7 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 0/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 10 | 0/10 | B4 |
 | E16 | SaaS (obuna) | 6 | 0/6 | B6 |
-| | **Jami** | **129** | **26/129** | |
+| | **Jami** | **129** | **28/129** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -263,13 +263,13 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
   - Qabul: kontekst yo'q bo'lsa so'rov bajarilmaydi (dasturchi xatosi darhol ko'rinadi)
   - Tekshirish: `npm test -w apps/api -- tenant-context`
 
-- [ ] **T-027 · Prisma tenant kengaytmasi**
+- [x] **T-027 · Prisma tenant kengaytmasi**
   - Bog'liq: T-026
   - Manba: [01 §1.4](../../backend-tz/core/01-architecture.md#2-qatlam-prisma-client-extension--avtomatik-filtr)
   - Qabul: barcha domen modellarida `where`/`data` ga `tenantId` **avtomatik** qo'shiladi; ro'yxatda bo'lmagan model uchun xato beriladi
   - Tekshirish: `npm test -w apps/api -- tenant-extension`
 
-- [ ] **T-028 · Row Level Security**
+- [x] **T-028 · Row Level Security**
   - Bog'liq: T-027
   - Manba: [03 §3.5](../../backend-tz/core/03-security.md#35-row-level-security)
   - Qabul: `app.tenant_id` har so'rovda o'rnatiladi; ilova roli RLS'ni chetlab o'tolmaydi; migratsiya roli alohida

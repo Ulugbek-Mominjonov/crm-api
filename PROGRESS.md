@@ -61,14 +61,19 @@ hisobi avtomatik yangilanadi.
 | T-020 | `test:e2e -- explain` | ✅ 6 test; covering/partial/trigram |
 | T-021 | `test:e2e -- tenant-provisioning` | ✅ 5 test; bitta tranzaksiya |
 | T-022 | `npm run db:seed` | ✅ 12 mahsulot, 4 xodim, idempotent |
+| T-023 | `vitest run src/modules/auth` | ✅ 12 test; argon2id, parol siyosati |
+| T-024 | `test:e2e -- auth-login` | ✅ 12 test; cookie, timing, tenant tanlash |
+| T-025 | `test:e2e -- auth-refresh` | ✅ 11 test; rotatsiya, o'g'irlanish aniqlash |
+| T-026 | `vitest run src/common/context` | ✅ 7 test; ALS izolyatsiyasi |
+| T-027 | `test:e2e -- tenant-extension` | ✅ 13 test; soxta tenantId e'tiborsiz |
+| T-028 | `test:e2e -- rls` | ✅ 9 test; 28 siyosat, FORCE RLS |
 
 ## Keyingi qadamlar
 
-**Bajarildi: E0, E1, E2 (22/129).** Jami 141 test o'tadi
-(76 shared + 16 unit + 49 e2e).
+**Bajarildi: E0, E1, E2 va E3 ning 6/10 qismi (28/129).**
+Jami **205 test** o'tadi (76 shared + 35 unit + 94 e2e).
 
-1. **T-023…T-032** — E3: parol xeshi, JWT, refresh rotatsiyasi, tenant
-   konteksti, Prisma kengaytmasi, RLS, rollar, maydon himoyasi, audit
+1. **T-029…T-032** — rollar guard'i, maydon himoyasi, izolyatsiya testi, audit
 2. **T-033…T-041** — E4: spravochniklar CRUD
 3. **T-042…T-049** — E5: ombor amallari (qulflash bilan)
 
@@ -82,6 +87,11 @@ hisobi avtomatik yangilanadi.
 | Q4 | Trigram uchun reja testi YO'Q | GIN boshlang'ich narxi yuqori; 30k qatorda seq scan chindan arzonroq. O'rniga kechikish testi (< 100 ms) |
 | Q5 | Kompozit FK'da `SET NULL` → `NO ACTION` | `(tenant_id, X_id)` da SET NULL tenant_id ni ham nolga chiqarardi. Ota yozuvlar yumshoq o'chiriladi |
 | Q6 | DB testlari `test/*.e2e-spec.ts` da | Ular haqiqiy baza talab qiladi; unit konfiguratsiyasi (`src/**/*.spec.ts`) toza qoladi |
+| Q7 | Login `tenantId` siz ishlaydi; ikki xil bo'lsa `AUTH_TENANT_REQUIRED` | TZ email+parol bilan kirishni belgilaydi, lekin email tenant ichida noyob. Nomzodlar `MAX_TENANT_CANDIDATES=5` bilan cheklangan |
+| Q8 | Kengaytmada `tenantId` `data`/`where` OXIRIDA | Aks holda mijozdan kelgan `tenantId` avtomatik qiymatni bekor qilardi — haqiqiy zaiflik edi |
+| Q9 | RLS **tranzaksiya** ichida (`inTenantTransaction`) | Ulanishlar puli ulashiladi; `SET` (LOCAL'siz) keyingi so'rovga o'tib ketardi. Moliyaviy amallar baribir tranzaksiyada |
+| Q10 | Ilova roli `crm_app` (RLS qo'llanadi), migratsiya `crm` (egasi) | Jadval egasi RLS ni chetlab o'tadi — shuning uchun ilova alohida rol bilan ulanishi SHART |
+| Q11 | Prisma so'rovlari `runAsSystem`/kontekst ICHIDA `await` qilinadi | `PrismaPromise` kechiktirilgan: `.then()` tashqarida chaqirilsa ALS konteksti yo'qoladi |
 
 ## Muhim eslatmalar
 
