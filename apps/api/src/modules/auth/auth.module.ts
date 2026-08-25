@@ -7,6 +7,7 @@ import { PasswordService } from './password.service'
 import { RefreshTokenService } from './refresh-token.service'
 import { TokenService } from './token.service'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
+import { PermissionsGuard } from './guards/permissions.guard'
 
 @Module({
   imports: [JwtModule.register({})],
@@ -16,8 +17,10 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard'
     PasswordService,
     TokenService,
     RefreshTokenService,
-    // Global guard — himoyani unutish mumkin emas
+    // Global guard'lar — himoyani unutish mumkin emas.
+    // Tartib muhim: avval kim ekanini aniqlaymiz, keyin nimaga haqli ekanini.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: PermissionsGuard },
   ],
   exports: [PasswordService, TokenService, RefreshTokenService, AuthService],
 })

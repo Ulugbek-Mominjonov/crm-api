@@ -3,6 +3,7 @@ import {
   ApiBearerAuth, ApiConflictResponse, ApiCookieAuth, ApiCreatedResponse,
   ApiOkResponse, ApiOperation, ApiTags, ApiUnauthorizedResponse,
 } from '@nestjs/swagger'
+import { Throttle } from '@nestjs/throttler'
 import type { Request, Response } from 'express'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
 import { DomainError } from '@/common/errors/domain.error'
@@ -27,6 +28,9 @@ export class AuthController {
   ) {}
 
   @Public()
+  // Parol tanlashga urinishni sekinlashtiradi: daqiqasiga 10 urinish.
+  // Bu argon2 ning o'zi bergan sekinlik ustiga qo'shimcha to'siq.
+  @Throttle({ default: { ttl: 60_000, limit: 10 } })
   @Post('login')
   @ApiOperation({
     summary: 'Tizimga kirish',
@@ -53,6 +57,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { ttl: 60_000, limit: 30 } })
   @Post('refresh')
   @ApiCookieAuth(REFRESH_COOKIE)
   @ApiOperation({

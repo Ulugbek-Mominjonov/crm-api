@@ -2,6 +2,7 @@ import { ValidationPipe, type INestApplication } from '@nestjs/common'
 import cookieParser from 'cookie-parser'
 import helmet from 'helmet'
 import { DomainExceptionFilter } from '@/common/filters/domain-exception.filter'
+import { FieldVisibilityInterceptor } from '@/common/interceptors/field-visibility.interceptor'
 
 export interface SetupOptions {
   /** CORS uchun ruxsat etilgan manbalar. Bo'sh bo'lsa CORS o'chiriladi. */
@@ -46,6 +47,8 @@ export function setupApp(
     }),
   )
   app.useGlobalFilters(new DomainExceptionFilter())
+  // Maxfiy maydonlar javobdan olib tashlanadi (03-security §3.6)
+  app.useGlobalInterceptors(new FieldVisibilityInterceptor())
 
   // `health` ataylab prefiksdan tashqarida: orkestrator va yuk balanslagich
   // sozlamalari API versiyasiga bog'liq bo'lib qolmasin.

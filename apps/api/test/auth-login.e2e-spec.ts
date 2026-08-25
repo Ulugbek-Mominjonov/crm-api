@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { PasswordService } from '@/modules/auth/password.service'
 import { TenantProvisioningService } from '@/modules/tenants/tenant-provisioning.service'
-import { createTestApp } from './helpers/app'
+import { createTestApp, resetThrottle } from './helpers/app'
 import { testDb, truncateAll } from './helpers/db'
 
 const PASSWORD = 'Qurilish2026!'
@@ -25,6 +25,7 @@ describe('POST /auth/login', () => {
   })
 
   beforeEach(async () => {
+    resetThrottle(app)
     await truncateAll()
     await provisioning.provision({
       tenantName: 'Qurilish Mollari',

@@ -67,15 +67,29 @@ hisobi avtomatik yangilanadi.
 | T-026 | `vitest run src/common/context` | ✅ 7 test; ALS izolyatsiyasi |
 | T-027 | `test:e2e -- tenant-extension` | ✅ 13 test; soxta tenantId e'tiborsiz |
 | T-028 | `test:e2e -- rls` | ✅ 9 test; 28 siyosat, FORCE RLS |
+| T-029 | `test:e2e -- every-route` | ✅ 3 test; har yo'l tasniflangan |
+| T-030 | `vitest run src/common/security` | ✅ 10 test; sotuvchi tannarxni ko'rmaydi |
+| T-032 | `test:e2e -- audit-rate` | ✅ 4 test; jurnal + login 10/daq |
 
 ## Keyingi qadamlar
 
-**Bajarildi: E0, E1, E2 va E3 ning 6/10 qismi (28/129).**
-Jami **205 test** o'tadi (76 shared + 35 unit + 94 e2e).
+**Bajarildi: E0, E1, E2 to'liq; E3 — 9/10 (31/129).**
+Jami **222 test** o'tadi (76 shared + 43 unit + 103 e2e).
+Bu **B1 bosqichi (poydevor)** ning yakuni.
 
-1. **T-029…T-032** — rollar guard'i, maydon himoyasi, izolyatsiya testi, audit
-2. **T-033…T-041** — E4: spravochniklar CRUD
+### Keyingi sessiyada
+
+1. **T-033…T-041** — E4: spravochniklar CRUD (`prisma.scoped` ishlatiladi)
+2. **T-031** — izolyatsiya testi: E4 endpointlari paydo bo'lgach,
+   `test/every-route-guarded.e2e-spec.ts` yonida avtomatik A→B tekshiruvi
+   yoziladi (hozir tekshiriladigan resurs endpointi yo'q)
 3. **T-042…T-049** — E5: ombor amallari (qulflash bilan)
+
+### Ochiq qolgan vazifa
+
+**T-031** ataylab belgilanmagan: uning qabul mezoni "har bir resurs uchun
+A→B urinishi 404" — hozircha resurs endpointlari yo'q. Izolyatsiyaning
+o'zi uch qatlamda tekshirilgan (T-019, T-027, T-028 — 28 test).
 
 ## Qabul qilingan qarorlar (implementatsiya davomida)
 

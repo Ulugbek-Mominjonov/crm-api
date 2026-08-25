@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing'
 import { AppModule } from '@/app.module'
 import { PrismaService } from '@/prisma/prisma.service'
 import { setupApp } from '@/bootstrap/setup-app'
+import { ThrottlerStorage } from '@nestjs/throttler'
 import { testDb } from './db'
 
 /**
@@ -20,4 +21,19 @@ export async function createTestApp(): Promise<INestApplication> {
   })
   await app.init()
   return app
+}
+
+/**
+ * Rate limit hisoblagichini tozalaydi.
+ *
+ * Testlar bitta "IP" dan ko'p so'rov yuboradi — chegara ular uchun emas,
+ * haqiqiy hujum uchun. Rate limitning O'ZINI tekshiradigan testda bu
+ * ATAYLAB chaqirilmaydi.
+ */
+export function resetThrottle(app: INestApplication): void {
+  const storage = app.get<ThrottlerStorage & { storage?: Map<string, unknown> }>(
+    ThrottlerStorage,
+    { strict: false },
+  )
+  storage.storage?.clear()
 }

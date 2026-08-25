@@ -45,7 +45,7 @@ Umumiy «tayyor» ta'rifi —
 | E0 | Tayyorgarlik va monorepo | 6 | 6/6 | B1 |
 | E1 | Server skeleti | 7 | 7/7 | B1 |
 | E2 | Baza sxemasi | 9 | 9/9 | B1 |
-| E3 | Auth, tenant, huquqlar | 10 | 6/10 | B1 |
+| E3 | Auth, tenant, huquqlar | 10 | 9/10 | B1 |
 | E4 | Spravochniklar (CRUD) | 9 | 0/9 | B2 |
 | E5 | Ombor amallari | 8 | 0/8 | B3 |
 | E6 | Savdo yadrosi | 9 | 0/9 | B3 |
@@ -59,7 +59,7 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 0/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 10 | 0/10 | B4 |
 | E16 | SaaS (obuna) | 6 | 0/6 | B6 |
-| | **Jami** | **129** | **28/129** | |
+| | **Jami** | **129** | **31/129** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -275,13 +275,13 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
   - Qabul: `app.tenant_id` har so'rovda o'rnatiladi; ilova roli RLS'ni chetlab o'tolmaydi; migratsiya roli alohida
   - Tekshirish: `npm test -w apps/api -- rls`
 
-- [ ] **T-029 · Rollar va huquq guard'i**
+- [x] **T-029 · Rollar va huquq guard'i**
   - Bog'liq: T-026
   - Manba: [03 §3.3](../../backend-tz/core/03-security.md#33-avtorizatsiya-rollar-va-huquqlar), `packages/shared/permissions.ts`
   - Qabul: matritsa **frontenddagi bilan bir xil manba**dan (shared) olinadi; himoyalanmagan endpoint qolsa test yiqiladi
   - Tekshirish: `npm run test:e2e -- every-route-guarded`
 
-- [ ] **T-030 · Maydon darajasidagi himoya**
+- [x] **T-030 · Maydon darajasidagi himoya**
   - Bog'liq: T-029
   - Manba: [03 §3.6](../../backend-tz/core/03-security.md#36-maydon-darajasidagi-himoya)
   - Qabul: `sotuvchi` roli javobda `cost`, `wholesalePrice`, `salary` va foyda maydonlarini **olmaydi** — agregatlarda ham
@@ -293,7 +293,7 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
   - Qabul: har bir resurs uchun A→B o'qish/yozish/o'chirish urinishi 404; test ro'yxati endpointlar ro'yxatidan **avtomatik** yig'iladi
   - Tekshirish: `npm run test:e2e -- isolation`
 
-- [ ] **T-032 · Audit interceptor va rate limit**
+- [x] **T-032 · Audit interceptor va rate limit**
   - Bog'liq: T-029
   - Manba: [03 §3.9](../../backend-tz/core/03-security.md#39-audit-jurnali), [03 §3.2](../../backend-tz/core/03-security.md#rate-limit)
   - Qabul: yozuvchi amallar avtomatik jurnalga tushadi (kim/nima/qachon); login uchun IP+email bo'yicha cheklov
