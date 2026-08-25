@@ -62,6 +62,10 @@ export class AuthService {
 
     const matched: UserWithRelations[] = []
     for (const user of candidates) {
+      // Ketma-ket ATAYLAB: argon2 har chaqiruvda ~19 MiB xotira oladi,
+      // parallel tekshiruv kichik instansiyani cho'ktirishi mumkin.
+      // Nomzodlar soni MAX_TENANT_CANDIDATES bilan cheklangan.
+      // eslint-disable-next-line no-await-in-loop
       if (await this.passwords.verify(user.passwordHash, password)) matched.push(user)
     }
 

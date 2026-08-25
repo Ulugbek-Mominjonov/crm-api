@@ -20,22 +20,16 @@ describe('So‘rov konteksti', () => {
 
   it('kontekstlar bir-biriga aralashmaydi (parallel so‘rovlar)', async () => {
     const seen: string[] = []
-    await Promise.all([
-      new Promise<void>((done) =>
-        runWithContext({ requestId: 'a' }, async () => {
-          await new Promise((r) => setTimeout(r, 20))
-          seen.push(currentContext().requestId)
-          done()
-        }),
-      ),
-      new Promise<void>((done) =>
-        runWithContext({ requestId: 'b' }, async () => {
-          seen.push(currentContext().requestId)
-          done()
-        }),
-      ),
-    ])
-    expect(seen.sort()).toEqual(['a', 'b'])
+    const slow = runWithContext({ requestId: 'a' }, async (): Promise<void> => {
+      await new Promise((r) => setTimeout(r, 20))
+      seen.push(currentContext().requestId)
+    })
+    const fast = runWithContext({ requestId: 'b' }, async (): Promise<void> => {
+      seen.push(currentContext().requestId)
+    })
+    await Promise.all([slow, fast])
+    // Tez so'rov birinchi tugaydi, lekin har biri O'Z kontekstini ko'radi
+    expect(seen).toEqual(['b', 'a'])
   })
 
   it('autentifikatsiyadan keyin kontekst to‘ldiriladi', () => {
