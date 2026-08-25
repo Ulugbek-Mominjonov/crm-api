@@ -45,7 +45,7 @@ Umumiy «tayyor» ta'rifi —
 | E0 | Tayyorgarlik va monorepo | 6 | 6/6 | B1 |
 | E1 | Server skeleti | 7 | 7/7 | B1 |
 | E2 | Baza sxemasi | 9 | 9/9 | B1 |
-| E3 | Auth, tenant, huquqlar | 10 | 0/10 | B1 |
+| E3 | Auth, tenant, huquqlar | 10 | 4/10 | B1 |
 | E4 | Spravochniklar (CRUD) | 9 | 0/9 | B2 |
 | E5 | Ombor amallari | 8 | 0/8 | B3 |
 | E6 | Savdo yadrosi | 9 | 0/9 | B3 |
@@ -59,7 +59,7 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 0/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 10 | 0/10 | B4 |
 | E16 | SaaS (obuna) | 6 | 0/6 | B6 |
-| | **Jami** | **129** | **22/129** | |
+| | **Jami** | **129** | **26/129** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -239,25 +239,25 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
 
 ## E3 — Auth, tenant izolyatsiyasi va huquqlar
 
-- [ ] **T-023 · Parol xeshi va foydalanuvchi servisi**
+- [x] **T-023 · Parol xeshi va foydalanuvchi servisi**
   - Bog'liq: T-021
   - Manba: [03 §3.2](../../backend-tz/core/03-security.md#parol)
   - Qabul: argon2id; parol hech qachon javobda yoki logda ko'rinmaydi; kuchsiz parol rad etiladi
   - Tekshirish: `npm test -w apps/api -- password`
 
-- [ ] **T-024 · Login va JWT**
+- [x] **T-024 · Login va JWT**
   - Bog'liq: T-023
   - Manba: [03 §3.2](../../backend-tz/core/03-security.md#token-modeli), [04 §4.2](../../backend-tz/core/04-api-conventions.md#42-autentifikatsiya)
   - Qabul: `POST /auth/login` → access (15 daq) + refresh (cookie, `httpOnly`, `secure`, `sameSite=strict`); noto'g'ri parolda javob vaqti bir xil (foydalanuvchi bor-yo'qligi oshkor bo'lmaydi)
   - Tekshirish: `npm run test:e2e -- auth-login`
 
-- [ ] **T-025 · Refresh rotatsiyasi va chiqish**
+- [x] **T-025 · Refresh rotatsiyasi va chiqish**
   - Bog'liq: T-024
   - Manba: [03 §3.2](../../backend-tz/core/03-security.md#refresh-token-rotatsiyasi)
   - Qabul: har refresh'da yangi token; eski token qayta ishlatilsa **butun zanjir** bekor qilinadi; `logout-all` ishlaydi
   - Tekshirish: `npm run test:e2e -- auth-refresh-reuse`
 
-- [ ] **T-026 · Tenant konteksti (AsyncLocalStorage)**
+- [x] **T-026 · Tenant konteksti (AsyncLocalStorage)**
   - Bog'liq: T-024
   - Manba: [01 §1.4](../../backend-tz/core/01-architecture.md#1-qatlam-sorov-konteksti-asynclocalstorage)
   - Qabul: kontekst yo'q bo'lsa so'rov bajarilmaydi (dasturchi xatosi darhol ko'rinadi)

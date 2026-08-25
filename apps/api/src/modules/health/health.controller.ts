@@ -1,6 +1,7 @@
 import { Controller, Get, Res } from '@nestjs/common'
 import { ApiOkResponse, ApiOperation, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger'
 import type { Response } from 'express'
+import { Public } from '@/modules/auth/decorators/public.decorator'
 import { HealthService } from './health.service'
 import type { HealthReport } from './health.types'
 
@@ -9,6 +10,7 @@ import type { HealthReport } from './health.types'
 export class HealthController {
   constructor(private readonly health: HealthService) {}
 
+  @Public()
   @Get('live')
   @ApiOperation({
     summary: 'Jarayon tirikmi',
@@ -22,6 +24,7 @@ export class HealthController {
     return this.health.liveness()
   }
 
+  @Public()
   @Get('ready')
   @ApiOperation({
     summary: 'Trafik qabul qilishga tayyormi',

@@ -13,6 +13,7 @@ export const ErrorCode = {
   AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
   AUTH_INVALID_REFRESH: 'AUTH_INVALID_REFRESH',
   AUTH_TOKEN_REUSE: 'AUTH_TOKEN_REUSE',
+  AUTH_TENANT_REQUIRED: 'AUTH_TENANT_REQUIRED',
   PERMISSION_DENIED: 'PERMISSION_DENIED',
   // Kassa smenasi
   SHIFT_REQUIRED: 'SHIFT_REQUIRED',
@@ -62,6 +63,7 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   AUTH_ACCOUNT_LOCKED: { status: 423, title: 'Hisob vaqtincha bloklandi' },
   AUTH_INVALID_REFRESH: { status: 401, title: 'Sessiya yaroqsiz' },
   AUTH_TOKEN_REUSE: { status: 401, title: 'Bekor qilingan token ishlatildi' },
+  AUTH_TENANT_REQUIRED: { status: 409, title: 'Do‘konni tanlang' },
   PERMISSION_DENIED: { status: 403, title: 'Ruxsat yo‘q' },
 
   SHIFT_REQUIRED: { status: 423, title: 'Kassa smenasi ochiq emas' },

@@ -4,9 +4,13 @@
     "node_modules",
     "dist",
     "test",
+    "prisma",
     "src/**/*.spec.ts"
   ],
   "compilerOptions": {
     "rootDir": "./src"
-  }
+  },
+  "include": [
+    "src/**/*.ts"
+  ]
 }
