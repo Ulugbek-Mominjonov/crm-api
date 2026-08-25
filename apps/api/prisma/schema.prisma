@@ -1,0 +1,13 @@
+// Qurilish CRM — ma'lumotlar sxemasi.
+// Manba: backend-tz/profiles/qurilish-crm/02-schema.md
+// Tip tanlovi va cheklov qoidalari: backend-tz/core/02-data-modeling.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}

@@ -1,0 +1,33 @@
+{
+  "name": "crm-api-workspace",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w packages/shared && npm run build -w apps/api",
+    "test": "npm run test -w packages/shared && npm run test -w apps/api",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "npm run typecheck -w packages/shared && npm run typecheck -w apps/api",
+    "verify": "npm run lint && npm run typecheck && npm test",
+    "services:up": "bash scripts/dev-services.sh up",
+    "services:down": "bash scripts/dev-services.sh down",
+    "services:status": "bash scripts/dev-services.sh status",
+    "db:deploy": "npm run db:deploy -w @crm/api",
+    "db:migrate": "npm run db:migrate -w @crm/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "eslint": "^9.20.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.9.6",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.24.0"
+  }
+}
