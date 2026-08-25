@@ -6,6 +6,7 @@
  * ayni testlar bilan qoplanadi.
  */
 export * from './types'
+export * from './domain'
 export * from './finance'
 export * from './pos'
 export * from './units'

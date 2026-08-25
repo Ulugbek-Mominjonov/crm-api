@@ -8,6 +8,7 @@ export default defineConfig({
   resolve: { alias: { '@': resolve(__dirname, 'src') } },
   test: {
     environment: 'node',
+    setupFiles: [resolve(__dirname, 'test/setup-env.ts')],
     globals: true,
     include: ['test/**/*.e2e-spec.ts'],
     fileParallelism: false,

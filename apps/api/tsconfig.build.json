@@ -5,5 +5,8 @@
     "dist",
     "test",
     "src/**/*.spec.ts"
-  ]
+  ],
+  "compilerOptions": {
+    "rootDir": "./src"
+  }
 }

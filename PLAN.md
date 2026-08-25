@@ -42,9 +42,9 @@ Umumiy «tayyor» ta'rifi —
 
 | Epik | Nomi | Vazifa | Bajarildi | Bosqich |
 |------|------|--------|-----------|---------|
-| E0 | Tayyorgarlik va monorepo | 6 | 5/6 | B1 |
-| E1 | Server skeleti | 7 | 2/7 | B1 |
-| E2 | Baza sxemasi | 9 | 0/9 | B1 |
+| E0 | Tayyorgarlik va monorepo | 6 | 6/6 | B1 |
+| E1 | Server skeleti | 7 | 7/7 | B1 |
+| E2 | Baza sxemasi | 9 | 9/9 | B1 |
 | E3 | Auth, tenant, huquqlar | 10 | 0/10 | B1 |
 | E4 | Spravochniklar (CRUD) | 9 | 0/9 | B2 |
 | E5 | Ombor amallari | 8 | 0/8 | B3 |
@@ -59,7 +59,7 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 0/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 10 | 0/10 | B4 |
 | E16 | SaaS (obuna) | 6 | 0/6 | B6 |
-| | **Jami** | **129** | **7/129** | |
+| | **Jami** | **129** | **22/129** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -111,7 +111,7 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
   - Qabul: `npm run verify` uchala paketda ishlaydi; CI push'da ishga tushadi va yiqilsa merge to'siladi
   - Tekshirish: `npm run verify`
 
-- [ ] **T-006 · Lokal muhit (docker-compose)**
+- [x] **T-006 · Lokal muhit (docker-compose)**
   - Bog'liq: T-004
   - Manba: [08 §8.3](../../backend-tz/core/08-operations.md#83-docker), [09 §9.3](../../backend-tz/core/09-storage.md#93-provayder-tanlovi)
   - Fayllar: `docker-compose.yml` (postgres 16, redis, minio)
@@ -137,7 +137,7 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
   - Qabul: `onModuleDestroy` da ulanish yopiladi; `connection_limit` konfiguratsiyadan olinadi
   - Tekshirish: `npm test -w apps/api -- prisma.service`
 
-- [ ] **T-009 · Global pipe, filtr, interceptor**
+- [x] **T-009 · Global pipe, filtr, interceptor**
   - Bog'liq: T-007
   - Manba: [12 §12.3](../../backend-tz/core/12-standards.md#123-xatolar), [12 §12.4](../../backend-tz/core/12-standards.md#124-validatsiya)
   - Fayllar: `common/{filters/domain-exception.filter.ts,pipes,interceptors/serialize.interceptor.ts}`
@@ -147,28 +147,28 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
     - Ichki xato hech qachon mijozga stack bermaydi
   - Tekshirish: `npm run test:e2e -- error-shape`
 
-- [ ] **T-010 · Strukturalangan log va so'rov identifikatori**
+- [x] **T-010 · Strukturalangan log va so'rov identifikatori**
   - Bog'liq: T-009
   - Manba: [08 §8.6](../../backend-tz/core/08-operations.md#loglar)
   - Fayllar: `common/logging/*`
   - Qabul: har log qatorida `requestId`, `tenantId`, `userId`; parol/token **hech qachon** logga tushmaydi
   - Tekshirish: `npm run test:e2e -- logging-redaction`
 
-- [ ] **T-011 · Sog'liq endpointlari**
+- [x] **T-011 · Sog'liq endpointlari**
   - Bog'liq: T-008
   - Manba: [04 §4.15](../../backend-tz/core/04-api-conventions.md#46-sogliq-va-kuzatuv)
   - Fayllar: `modules/health/*`
   - Qabul: `/health/live` (bog'liqliksiz) va `/health/ready` (baza + S3 tekshiruvi bilan)
   - Tekshirish: `curl -f localhost:3000/health/ready`
 
-- [ ] **T-012 · Swagger o'rnatish**
+- [x] **T-012 · Swagger o'rnatish**
   - Bog'liq: T-009
   - Manba: [12 §12.6](../../backend-tz/core/12-standards.md#126-openapi--swagger)
   - Fayllar: `main.ts`, `common/swagger/*`
   - Qabul: `/api/docs` dev'da ochiladi, production'da 404; `npm run openapi` → `openapi.json`
   - Tekshirish: `npm run openapi && test -s apps/api/openapi.json`
 
-- [ ] **T-013 · Graceful shutdown va xavfsizlik sarlavhalari**
+- [x] **T-013 · Graceful shutdown va xavfsizlik sarlavhalari**
   - Bog'liq: T-011
   - Manba: [08 §8.4](../../backend-tz/core/08-operations.md#graceful-shutdown), [03 §3.10](../../backend-tz/core/03-security.md#310-transport-va-sarlavhalar)
   - Qabul: `SIGTERM` da joriy so'rovlar tugatiladi; `helmet`, CORS faqat `WEB_ORIGINS` uchun
@@ -178,14 +178,14 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
 
 ## E2 — Baza sxemasi
 
-- [ ] **T-014 · Prisma sxemasi: infratuzilma jadvallari**
+- [x] **T-014 · Prisma sxemasi: infratuzilma jadvallari**
   - Bog'liq: T-008
   - Manba: [02 §2.2](../../backend-tz/profiles/qurilish-crm/02-schema.md#1-prisma-sxema)
   - Fayllar: `apps/api/prisma/schema.prisma`
   - Qabul: `Tenant`, `TenantState`, `DocCounter`, `IdempotencyKey`, `RefreshToken`, `Settings` — hammasi hujjatdagidek
   - Tekshirish: `npx prisma validate`
 
-- [ ] **T-015 · Sxema: spravochniklar**
+- [x] **T-015 · Sxema: spravochniklar**
   - Bog'liq: T-014
   - Manba: [02 §2.2](../../backend-tz/profiles/qurilish-crm/02-schema.md#1-prisma-sxema), [10 §10.3](../../backend-tz/core/10-performance.md#103-sxemadagi-haqiqiy-takrorlanishlar--tuzatish)
   - Qabul:
@@ -194,42 +194,42 @@ Maqsad: server va brauzer **bitta** hisob-kitob kodini ishlatadigan bo'lsin.
     - **D4 qo'llanilgan**: `Product.categoryId` (matn emas)
   - Tekshirish: `npx prisma validate`
 
-- [ ] **T-016 · Sxema: hujjatlar va harakatlar**
+- [x] **T-016 · Sxema: hujjatlar va harakatlar**
   - Bog'liq: T-015
   - Qabul: `Sale`, `SaleItem`, `StockMovement`, `DebtPayment`, `Quote`, `QuoteItem`, `PurchaseOrder`, `POItem`, `SupplierPayment`, `Delivery`, `Message`, `AuditEntry`, `Expense`, `ExpenseTemplate`, `CashShift`, `CashMovement`; **D3**: `Delivery.fee` olib tashlangan
   - Tekshirish: `npx prisma validate`
 
-- [ ] **T-017 · Birinchi migratsiya + qo'lda SQL cheklovlar**
+- [x] **T-017 · Birinchi migratsiya + qo'lda SQL cheklovlar**
   - Bog'liq: T-016
   - Manba: [02 §2.3](../../backend-tz/core/02-data-modeling.md#22-prisma-bilan-ifodalab-bolmaydigan-cheklovlar)
   - Qabul: bitta ochiq smena, bitta sukut ombor, manfiy bo'lmagan qoldiq/summa, `paid <= total`, `received_qty <= qty`, nasiyada mijoz majburiy
   - Tekshirish: `npx prisma migrate deploy && npm test -w apps/api -- constraints`
 
-- [ ] **T-018 · Triggerlar: yig'indi qoldiq va append-only**
+- [x] **T-018 · Triggerlar: yig'indi qoldiq va append-only**
   - Bog'liq: T-017
   - Manba: [02 §2.3](../../backend-tz/core/02-data-modeling.md#productsstock--product_stocks-yigindisi-i1)
   - Qabul: `product_stocks` o'zgarsa `products.stock` avtomatik yangilanadi (I1); `audit_log` va `stock_movements` da `UPDATE`/`DELETE` rad etiladi
   - Tekshirish: `npm test -w apps/api -- triggers`
 
-- [ ] **T-019 · Kompozit tashqi kalitlar (tenant mosligi)**
+- [x] **T-019 · Kompozit tashqi kalitlar (tenant mosligi)**
   - Bog'liq: T-017
   - Manba: [02 §2.3](../../backend-tz/core/02-data-modeling.md#tenant-izolyatsiyasi-uchun-tashqi-kalit-tekshiruvi)
   - Qabul: `sale_items`, `quote_items`, `po_items`, `product_stocks`, `stock_movements`, `deliveries`, `debt_payments`, `supplier_payments` — `(tenant_id, id)` orqali bog'langan; boshqa tenant yozuviga havola baza darajasida rad etiladi
   - Tekshirish: `npm test -w apps/api -- cross-tenant-fk`
 
-- [ ] **T-020 · Indekslar**
+- [x] **T-020 · Indekslar**
   - Bog'liq: T-017
   - Manba: [10 §10.4](../../backend-tz/core/10-performance.md#104-indekslar)
   - Qabul: qamrab oluvchi katalog indeksi, qisman indekslar (nasiya, kam qoldiq, faol yetkazish), `pg_trgm` qidiruv indekslari, shtrix-kod noyob indeksi
   - Tekshirish: `npm test -w apps/api -- explain-uses-index`
 
-- [ ] **T-021 · Tenant provisioning (seed)**
+- [x] **T-021 · Tenant provisioning (seed)**
   - Bog'liq: T-017
   - Manba: [02 §2.5](../../backend-tz/profiles/qurilish-crm/02-schema.md#2-boshlangich-malumot-seed)
   - Qabul: yangi tenantda `Settings`, `TenantState`, sukut ombor, 9 ta kategoriya, 4 ta hujjat hisoblagichi, `Employee`+`User` (admin) — bitta tranzaksiyada
   - Tekshirish: `npm test -w apps/api -- tenant-provisioning`
 
-- [ ] **T-022 · Dev uchun demo ma'lumot**
+- [x] **T-022 · Dev uchun demo ma'lumot**
   - Bog'liq: T-021
   - Fayllar: `apps/api/prisma/seed.ts`
   - Qabul: mijoz ilovasidagi demo ma'lumot bilan mos demo tenant yaratiladi (faqat `NODE_ENV !== production`)

@@ -30,11 +30,13 @@ up() {
 
   wait_healthy "$PG"; wait_healthy "$RD"; wait_healthy "$MN"
 
-  docker run --rm --network "$NET" minio/mc:latest /bin/sh -c "
+  # `minio/mc` obrazida ENTRYPOINT — `mc`, shuning uchun qobiq ochiq beriladi
+  docker run --rm --network "$NET" --entrypoint /bin/sh minio/mc:latest -c "
     mc alias set local http://$MN:9000 minioadmin minioadmin >/dev/null &&
-    mc mb --ignore-existing local/crm-media-dev >/dev/null &&
-    mc mb --ignore-existing local/crm-backup-dev >/dev/null &&
-    echo 'bucketlar tayyor: crm-media-dev, crm-backup-dev'"
+    for b in crm-media-dev crm-backup-dev crm-media-test crm-backup-test; do
+      mc mb --ignore-existing local/\$b >/dev/null
+    done &&
+    echo 'bucketlar tayyor: crm-media-dev, crm-backup-dev, crm-media-test, crm-backup-test'"
 
   status
 }

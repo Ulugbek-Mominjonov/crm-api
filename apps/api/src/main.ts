@@ -4,6 +4,9 @@ import { NestFactory } from '@nestjs/core'
 import { ConfigService } from '@nestjs/config'
 import { config as loadDotenv } from 'dotenv'
 import { parseEnv, type Env } from '@/config/env.schema'
+import { setupApp } from '@/bootstrap/setup-app'
+import { AppLogger } from '@/common/logging/logger.service'
+import { setupSwagger } from '@/common/swagger/setup-swagger'
 
 /**
  * Muhit AppModule import qilinishidan OLDIN tekshiriladi.
@@ -24,6 +27,9 @@ function assertEnv(): void {
   }
 }
 
+/** API versiyasi — OpenAPI spec va `/api/v1` prefiksi uchun */
+const API_VERSION = '1.0.0'
+
 async function bootstrap(): Promise<void> {
   assertEnv()
   // Muhit to'g'riligi tasdiqlangandan keyingina modul yuklanadi.
@@ -31,12 +37,37 @@ async function bootstrap(): Promise<void> {
   // aliasini almashtiradi, dinamik import() da esa u o'z holicha qoladi.
   const { AppModule } = await import('./app.module')
 
-  const app = await NestFactory.create(AppModule)
-  const config = app.get<ConfigService<Env, true>>(ConfigService)
+  const created = await NestFactory.create(AppModule, { bufferLogs: true })
+  const config = created.get<ConfigService<Env, true>>(ConfigService)
+  const app = setupApp(created, {
+    origins: config.get('WEB_ORIGINS', { infer: true }),
+  })
+  app.useLogger(await app.resolve(AppLogger))
+
+  const nodeEnv = config.get('NODE_ENV', { infer: true })
+  const emitOnly = process.argv.includes('--emit-only')
+
+  setupSwagger(app, {
+    serveUi: nodeEnv !== 'production',
+    emitPath: process.env.OPENAPI_EMIT === 'true' ? 'openapi.json' : undefined,
+    version: API_VERSION,
+  })
+
+  // `--emit-only`: spec yozildi, portni band qilmasdan chiqamiz (CI uchun)
+  if (emitOnly) {
+    await app.close()
+    return
+  }
 
   const port = config.get('PORT', { infer: true })
-  await app.listen(port)
-  new Logger('Bootstrap').log(`API tayyor: http://localhost:${port}`)
+  const server = await app.listen(port)
+  // Yuk balanslagichning idle timeout'idan KATTA bo'lsin, aks holda
+  // balanslagich yopilayotgan ulanishga so'rov yuborib 502 oladi.
+  server.keepAliveTimeout = 65_000
+  server.headersTimeout = 66_000
+  const log = new Logger('Bootstrap')
+  log.log(`API tayyor: http://localhost:${port}`)
+  if (nodeEnv !== 'production') log.log(`Swagger: http://localhost:${port}/api/docs`)
 }
 
 bootstrap().catch((err: unknown) => {

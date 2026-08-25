@@ -1,6 +1,13 @@
 // Qurilish CRM — ma'lumotlar sxemasi.
+//
 // Manba: backend-tz/profiles/qurilish-crm/02-schema.md
-// Tip tanlovi va cheklov qoidalari: backend-tz/core/02-data-modeling.md
+// Tip va cheklov qoidalari: backend-tz/core/02-data-modeling.md
+//
+// QOIDALAR:
+//  · Pul — BigInt (butun so'm). Suzuvchi nuqta ishlatilmaydi.
+//  · Miqdor — Decimal(14,3): kg, m², metr uchun kasr shart.
+//  · Har bir domen jadvalida `tenantId` va u bilan boshlanadigan indeks bor.
+//  · O'chirish — `deletedAt` (yumshoq). Istisno: audit_log, stock_movements.
 
 generator client {
   provider = "prisma-client-js"
@@ -10,4 +17,868 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════ INFRATUZILMA
+
+model Tenant {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  name      String
+  plan      String   @default("free") // free | basic | pro
+  status    String   @default("active") // active | suspended
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  users     User[]
+  employees Employee[]
+  settings  Settings?
+  state     TenantState?
+
+  @@map("tenants")
+}
+
+/// Do'konning joriy holati — bitta qator, tez o'zgaradi.
+/// Sozlamalardan ATAYLAB ajratilgan: sozlama kamdan-kam o'zgaradi va
+/// keshlanadi, holat esa har sotuvda o'zgaradi (keshni buzmasin).
+model TenantState {
+  tenantId          String   @id @map("tenant_id") @db.Uuid
+  /// Kassa yashig'idagi naqd — faqat ochiq smenada o'zgaradi (I9)
+  cashBalance       BigInt   @default(0) @map("cash_balance")
+  activeShiftId     String?  @map("active_shift_id") @db.Uuid
+  activeWarehouseId String?  @map("active_warehouse_id") @db.Uuid
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_state")
+}
+
+/// Hujjat raqamlari ketma-ketligi (CHEK-1001, BUY-1002...) — I12
+model DocCounter {
+  tenantId String @map("tenant_id") @db.Uuid
+  prefix   String // CHEK | QAYT | TKLF | BUY
+  lastNo   BigInt @default(1000) @map("last_no")
+
+  @@id([tenantId, prefix])
+  @@map("doc_counters")
+}
+
+/// Takroriy so'rovni to'sish — tarmoq qayta urinishi xavfsiz bo'lsin
+model IdempotencyKey {
+  key       String   @id
+  tenantId  String   @map("tenant_id") @db.Uuid
+  endpoint  String
+  /// So'rov tanasining SHA-256 xeshi — bir kalit bilan boshqa tana kelsa xato
+  bodyHash  String   @map("body_hash")
+  status    Int
+  response  Json
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([createdAt]) // eski kalitlarni tozalash uchun
+  @@map("idempotency_keys")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  /// Token O'ZI EMAS, uning SHA-256 xeshi saqlanadi
+  tokenHash String    @unique @map("token_hash")
+  /// Rotatsiya zanjiri: bu token qaysi tokendan kelib chiqqan
+  parentId  String?   @map("parent_id") @db.Uuid
+  userAgent String?   @map("user_agent")
+  ip        String?
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@map("refresh_tokens")
+}
+
+// ═══════════════════════════════════════════════ SHAXS VA KIRISH HISOBI
+//
+// D1 (core/10-performance.md §10.3): bir odam ikki jadvalda takrorlanmaydi.
+//   Employee — SHAXS (ism, lavozim, telefon) — yagona manba
+//   User     — KIRISH HISOBI (email, parol, rol) — ismi Employee dan olinadi
+
+/// Xodim — shaxs haqidagi yagona manba. Kirish huquqi bo'lmasligi ham mumkin.
+model Employee {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  name      String
+  position  String
+  phone     String
+  status    EmployeeStatus @default(active)
+  salary    BigInt         @default(0)
+  hiredAt   DateTime       @map("hired_at") @db.Date
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt DateTime?      @map("deleted_at") @db.Timestamptz
+
+  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user       User?
+  sales      Sale[]
+  quotes     Quote[]
+  deliveries Delivery[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, deletedAt])
+  @@map("employees")
+}
+
+enum EmployeeStatus {
+  active
+  on_leave
+  fired
+}
+
+/// Kirish hisobi. DOIM xodimga tegishli — `name`/`position` shu yerda YO'Q (D1).
+model User {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  employeeId   String    @unique @map("employee_id") @db.Uuid
+  email        String
+  /// argon2id — hech qachon ochiq parol
+  passwordHash String    @map("password_hash")
+  role         Role
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  /// Restrict: xodimni o'chirish kirish hisobini yetim qoldirmasin
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  tokens   RefreshToken[]
+  auditLog AuditEntry[]
+
+  /// Email bitta tenant ichida noyob (boshqa do'konda takrorlanishi mumkin)
+  @@unique([tenantId, email])
+  @@unique([tenantId, id])
+  @@index([tenantId, deletedAt])
+  @@map("users")
+}
+
+enum Role {
+  admin
+  manager
+  sotuvchi
+  omborchi
+}
+
+model Settings {
+  tenantId         String  @id @map("tenant_id") @db.Uuid
+  storeName        String  @default("Qurilish Mollari") @map("store_name")
+  currency         String  @default("so'm")
+  taxEnabled       Boolean @default(true) @map("tax_enabled")
+  /// QQS foizi, butun son (12 = 12%)
+  taxRate          Int     @default(12) @map("tax_rate")
+  wholesaleEnabled Boolean @default(true) @map("wholesale_enabled")
+  loyaltyEnabled   Boolean @default(true) @map("loyalty_enabled")
+  loyaltyRate      Int     @default(1) @map("loyalty_rate")
+  maxDiscountPct   Int     @default(100) @map("max_discount_pct")
+  receiptPhone     String  @default("") @map("receipt_phone")
+  receiptAddress   String  @default("") @map("receipt_address")
+  receiptFooter    String  @default("") @map("receipt_footer")
+  onboarded        Boolean @default(false)
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("settings")
+}
+
+// ═══════════════════════════════════════════════ SPRAVOCHNIKLAR
+
+model Client {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  tenantId        String        @map("tenant_id") @db.Uuid
+  name            String
+  type            ClientType    @default(individual)
+  phone           String
+  email           String        @default("")
+  status          ClientStatus  @default(lead)
+  group           CustomerGroup @default(retail)
+  /// Sodiqlik ballari — pul o'rniga ishlatiladi (I17)
+  bonusPoints     BigInt        @default(0) @map("bonus_points")
+  /// Nasiya limiti; null yoki 0 — cheklanmagan (I16)
+  creditLimit     BigInt?       @map("credit_limit")
+  /// Nasiya to'lov muddati (kun); chek `dueDate` shundan hisoblanadi
+  paymentTermDays Int?          @map("payment_term_days")
+  source          String        @default("")
+  company         String?
+  notes           String?
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz
+
+  sales        Sale[]
+  quotes       Quote[]
+  deliveries   Delivery[]
+  debtPayments DebtPayment[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, phone])
+  @@map("clients")
+}
+
+enum ClientType {
+  individual
+  company
+}
+
+enum ClientStatus {
+  lead
+  active
+  inactive
+}
+
+enum CustomerGroup {
+  retail
+  wholesale
+  vip
+}
+
+model Supplier {
+  id              String    @id @default(uuid(7)) @db.Uuid
+  tenantId        String    @map("tenant_id") @db.Uuid
+  name            String
+  phone           String
+  contactPerson   String?   @map("contact_person")
+  address         String?
+  notes           String?
+  email           String?
+  tin             String? // STIR / INN
+  paymentTermDays Int?      @map("payment_term_days")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz
+
+  products       Product[]
+  purchaseOrders PurchaseOrder[]
+  payments       SupplierPayment[]
+  stockMovements StockMovement[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, deletedAt])
+  @@map("suppliers")
+}
+
+model Category {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tenantId  String    @map("tenant_id") @db.Uuid
+  name      String
+  sortOrder Int       @default(0) @map("sort_order")
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz
+
+  products Product[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, id])
+  @@map("categories")
+}
+
+model Warehouse {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  tenantId  String   @map("tenant_id") @db.Uuid
+  name      String
+  address   String?
+  /// Sukut ombor — arxivlab bo'lmaydi
+  isDefault Boolean  @default(false) @map("is_default")
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  stocks    ProductStock[]
+  movements StockMovement[]
+  sales     Sale[]
+  orders    PurchaseOrder[]
+
+  @@unique([tenantId, name])
+  @@unique([tenantId, id])
+  @@index([tenantId, archived])
+  @@map("warehouses")
+}
+
+// ═══════════════════════════════════════════════ KATALOG VA OMBOR
+
+model Product {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  tenantId       String       @map("tenant_id") @db.Uuid
+  name           String
+  sku            String
+  barcode        String?
+  categoryId     String?      @map("category_id") @db.Uuid
+  unit           ProductUnit
+  /// Narxlar — butun so'm
+  price          BigInt
+  wholesalePrice BigInt       @map("wholesale_price")
+  /// O'rtacha tortilgan tannarx, barcha omborlar uchun umumiy (I11)
+  cost           BigInt
+  /// JAMI qoldiq = Σ product_stocks.qty (I1). Trigger bilan saqlanadi —
+  /// ilova kodi bu ustunga HECH QACHON to'g'ridan-to'g'ri yozmaydi.
+  stock          Decimal      @default(0) @db.Decimal(14, 3)
+  minStock       Decimal      @default(0) @map("min_stock") @db.Decimal(14, 3)
+  supplierId     String?      @map("supplier_id") @db.Uuid
+  archived       Boolean      @default(false)
+  /// Qo'shimcha sotuv birligi (1 qop = 50 kg)
+  altUnit        ProductUnit? @map("alt_unit")
+  altFactor      Decimal?     @map("alt_factor") @db.Decimal(14, 3)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz
+
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  supplier   Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  stocks     ProductStock[]
+  movements  StockMovement[]
+  saleItems  SaleItem[]
+  quoteItems QuoteItem[]
+  poItems    POItem[]
+
+  @@unique([tenantId, sku])
+  @@unique([tenantId, id])
+  @@index([tenantId, deletedAt, archived])
+  // `@@index([tenantId, barcode])` ATAYLAB yo'q: uni migratsiyadagi
+  // `products_barcode_exact` (UNIQUE, partial) to'liq qoplaydi. Ikkita
+  // indeks bo'lsa har yozuvda ikkalasi ham yangilanadi — bekorga.
+  @@index([tenantId, categoryId])
+  @@map("products")
+}
+
+enum ProductUnit {
+  dona
+  kg
+  metr
+  m2
+  m3
+  litr
+  qop
+  rulon
+}
+
+/// Ombor bo'yicha qoldiq taqsimoti. `products.stock` — shu yig'indi (I1)
+model ProductStock {
+  productId   String  @map("product_id") @db.Uuid
+  warehouseId String  @map("warehouse_id") @db.Uuid
+  tenantId    String  @map("tenant_id") @db.Uuid
+  qty         Decimal @default(0) @db.Decimal(14, 3)
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@id([productId, warehouseId])
+  @@index([tenantId, warehouseId])
+  @@map("product_stocks")
+}
+
+/// Ombor harakatlari jurnali — O'CHIRILMAYDI, faqat qo'shiladi
+model StockMovement {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  tenantId           String       @map("tenant_id") @db.Uuid
+  productId          String       @map("product_id") @db.Uuid
+  /// Nom snapshot — mahsulot arxivlansa ham tarix o'qiladi
+  productName        String       @map("product_name")
+  type               MovementType
+  /// Ishorali: + kirim, − chiqim. ASOSIY birlikda (I23)
+  qty                Decimal      @db.Decimal(14, 3)
+  /// Shu harakatdan keyingi qoldiq — AYNAN shu omborda
+  balanceAfter       Decimal      @map("balance_after") @db.Decimal(14, 3)
+  warehouseId        String       @map("warehouse_id") @db.Uuid
+  /// Ko'chirishda ikkinchi tomon ombori
+  counterWarehouseId String?      @map("counter_warehouse_id") @db.Uuid
+  date               DateTime     @db.Date
+  note               String?
+  supplierId         String?      @map("supplier_id") @db.Uuid
+  unitCost           BigInt?      @map("unit_cost")
+  /// Bog'liq hujjat (sotuv, qaytarish, kirim buyurtmasi)
+  refId              String?      @map("ref_id") @db.Uuid
+  userId             String?      @map("user_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, date])
+  @@index([tenantId, productId, createdAt])
+  @@index([tenantId, warehouseId, createdAt])
+  @@index([tenantId, refId])
+  @@map("stock_movements")
+}
+
+enum MovementType {
+  intake
+  writeoff
+  adjustment
+  sale
+  return
+  transfer_out
+  transfer_in
+}
+
+// ═══════════════════════════════════════════════ SOTUV
+
+model Sale {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  tenantId    String    @map("tenant_id") @db.Uuid
+  number      String
+  type        SaleType  @default(sale)
+  customerId  String?   @map("customer_id") @db.Uuid
+  sellerId    String?   @map("seller_id") @db.Uuid
+  warehouseId String?   @map("warehouse_id") @db.Uuid
+  priceTier   PriceTier @default(retail)
+
+  subtotal    BigInt
+  discount    BigInt @default(0)
+  taxRate     Int    @default(0) @map("tax_rate")
+  tax         BigInt @default(0)
+  /// Yetkazish narxi — chek summasi ICHIDA (I5)
+  deliveryFee BigInt @default(0) @map("delivery_fee")
+  total       BigInt
+
+  /// To'lov taqsimoti (aralash to'lov)
+  paidCash     BigInt @default(0) @map("paid_cash")
+  paidCard     BigInt @default(0) @map("paid_card")
+  paidTransfer BigInt @default(0) @map("paid_transfer")
+  /// Keyinchalik qarzdan to'langan (I13)
+  debtPaid     BigInt @default(0) @map("debt_paid")
+  change       BigInt @default(0)
+
+  status        SaleStatus @default(completed)
+  date          DateTime   @db.Date
+  /// Nasiya to'lov muddati (I16)
+  dueDate       DateTime?  @map("due_date") @db.Date
+  /// Qaytarish uchun asl chek
+  relatedSaleId String?    @map("related_sale_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz
+  cancelledAt   DateTime?  @map("cancelled_at") @db.Timestamptz
+  deletedAt     DateTime?  @map("deleted_at") @db.Timestamptz
+
+  customer  Client?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  seller    Employee?  @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  items     SaleItem[]
+  payments  DebtPayment[]
+  delivery  Delivery?
+  quote     Quote?
+
+  @@unique([tenantId, number])
+  @@unique([tenantId, id])
+  @@index([tenantId, date])
+  @@index([tenantId, status, date])
+  @@index([tenantId, customerId])
+  @@index([tenantId, sellerId, date])
+  @@map("sales")
+}
+
+enum SaleType {
+  sale
+  return
+}
+
+enum SaleStatus {
+  completed
+  pending
+  cancelled
+}
+
+enum PriceTier {
+  retail
+  wholesale
+}
+
+model SaleItem {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  saleId    String      @map("sale_id") @db.Uuid
+  productId String      @map("product_id") @db.Uuid
+  /// Snapshot: sotuv paytidagi nom — narx o'zgarsa chek o'zgarmaydi
+  name      String
+  /// Sotuv birligi (asosiy yoki qo'shimcha)
+  unit      ProductUnit
+  /// Miqdor — `unit` da
+  qty       Decimal     @db.Decimal(14, 3)
+  /// Miqdor ASOSIY birlikda — ombor chiqimi shu bo'yicha (I23)
+  baseQty   Decimal     @map("base_qty") @db.Decimal(14, 3)
+  /// Birlik narx (snapshot)
+  price     BigInt
+  /// Tannarx snapshot — foyda hisoblash uchun
+  cost      BigInt
+  discount  BigInt      @default(0)
+  lineNo    Int         @map("line_no")
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, saleId])
+  @@index([tenantId, productId])
+  @@map("sale_items")
+}
+
+// ═══════════════════════════════════════════════ NASIYA VA KASSA
+
+model DebtPayment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  saleId     String    @map("sale_id") @db.Uuid
+  customerId String?   @map("customer_id") @db.Uuid
+  amount     BigInt
+  method     PayMethod
+  date       DateTime  @db.Date
+  userId     String?   @map("user_id") @db.Uuid
+  shiftId    String?   @map("shift_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  sale     Sale       @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  customer Client?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  shift    CashShift? @relation(fields: [shiftId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, saleId])
+  @@index([tenantId, date])
+  @@map("debt_payments")
+}
+
+enum PayMethod {
+  cash
+  bank
+}
+
+model CashShift {
+  id              String      @id @default(uuid(7)) @db.Uuid
+  tenantId        String      @map("tenant_id") @db.Uuid
+  openedAt        DateTime    @map("opened_at") @db.Timestamptz
+  openingBalance  BigInt      @map("opening_balance")
+  cashIn          BigInt      @default(0) @map("cash_in")
+  cashOut         BigInt      @default(0) @map("cash_out")
+  status          ShiftStatus @default(open)
+  closedAt        DateTime?   @map("closed_at") @db.Timestamptz
+  expectedBalance BigInt?     @map("expected_balance")
+  countedBalance  BigInt?     @map("counted_balance")
+  difference      BigInt?
+  note            String?
+  userId          String?     @map("user_id") @db.Uuid
+
+  movements    CashMovement[]
+  debtPayments DebtPayment[]
+
+  /// Bir tenantda faqat BITTA ochiq smena (I8) — qisman noyob indeks
+  /// migratsiyada qo'lda qo'shiladi (Prisma buni ifodalay olmaydi).
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, openedAt])
+  @@map("cash_shifts")
+}
+
+enum ShiftStatus {
+  open
+  closed
+}
+
+model CashMovement {
+  id        String        @id @default(uuid(7)) @db.Uuid
+  tenantId  String        @map("tenant_id") @db.Uuid
+  shiftId   String        @map("shift_id") @db.Uuid
+  direction CashDirection
+  amount    BigInt
+  reason    String
+  userId    String?       @map("user_id") @db.Uuid
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  shift CashShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, shiftId])
+  @@map("cash_movements")
+}
+
+enum CashDirection {
+  in
+  out
+}
+
+// ═══════════════════════════════════════════════ XARAJAT
+
+model Expense {
+  id         String          @id @default(uuid(7)) @db.Uuid
+  tenantId   String          @map("tenant_id") @db.Uuid
+  category   ExpenseCategory
+  amount     BigInt
+  method     PayMethod
+  date       DateTime        @db.Date
+  note       String?
+  userId     String?         @map("user_id") @db.Uuid
+  shiftId    String?         @map("shift_id") @db.Uuid
+  /// Qaysi shablondan avtomatik yaratilgan (I21)
+  templateId String?         @map("template_id") @db.Uuid
+  createdAt  DateTime        @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt  DateTime?       @map("deleted_at") @db.Timestamptz
+
+  template ExpenseTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, date])
+  @@index([tenantId, category, date])
+  @@map("expenses")
+}
+
+enum ExpenseCategory {
+  rent
+  utilities
+  salary
+  transport
+  tax
+  other
+}
+
+model ExpenseTemplate {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  tenantId    String           @map("tenant_id") @db.Uuid
+  name        String
+  category    ExpenseCategory
+  amount      BigInt
+  method      PayMethod
+  period      RecurrencePeriod
+  /// Oylik uchun 1–28, haftalik uchun 1–7
+  dayOfPeriod Int              @map("day_of_period")
+  active      Boolean          @default(true)
+  /// Oxirgi marta qaysi DAVR uchun ishlagani: '2026-08' yoki '2026-W32' (I21)
+  lastRunKey  String?          @map("last_run_key")
+  note        String?
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz
+
+  expenses Expense[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, active])
+  @@map("expense_templates")
+}
+
+enum RecurrencePeriod {
+  monthly
+  weekly
+}
+
+// ═══════════════════════════════════════════════ XARID (KREDITORLIK)
+
+model PurchaseOrder {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  tenantId     String    @map("tenant_id") @db.Uuid
+  number       String
+  supplierId   String    @map("supplier_id") @db.Uuid
+  warehouseId  String?   @map("warehouse_id") @db.Uuid
+  total        BigInt
+  /// Σ supplier_payments.amount — denormalizatsiya (10-performance §10.2)
+  paid         BigInt    @default(0)
+  status       POStatus  @default(ordered)
+  date         DateTime  @db.Date
+  receivedDate DateTime? @map("received_date") @db.Date
+  dueDate      DateTime? @map("due_date") @db.Date
+  note         String?
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz
+
+  supplier  Supplier          @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  warehouse Warehouse?        @relation(fields: [warehouseId], references: [id], onDelete: SetNull)
+  items     POItem[]
+  payments  SupplierPayment[]
+
+  @@unique([tenantId, number])
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@index([tenantId, supplierId])
+  @@map("purchase_orders")
+}
+
+enum POStatus {
+  ordered
+  partial
+  received
+  cancelled
+}
+
+model POItem {
+  id          String  @id @default(uuid(7)) @db.Uuid
+  tenantId    String  @map("tenant_id") @db.Uuid
+  orderId     String  @map("order_id") @db.Uuid
+  productId   String  @map("product_id") @db.Uuid
+  name        String
+  qty         Decimal @db.Decimal(14, 3)
+  /// Haqiqatda qabul qilingan — buyurtmadan oshmaydi (I19)
+  receivedQty Decimal @default(0) @map("received_qty") @db.Decimal(14, 3)
+  cost        BigInt
+
+  order   PurchaseOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, orderId])
+  @@map("po_items")
+}
+
+model SupplierPayment {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tenantId   String    @map("tenant_id") @db.Uuid
+  poId       String    @map("po_id") @db.Uuid
+  supplierId String    @map("supplier_id") @db.Uuid
+  amount     BigInt
+  method     PayMethod
+  date       DateTime  @db.Date
+  userId     String?   @map("user_id") @db.Uuid
+  shiftId    String?   @map("shift_id") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  order    PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Restrict)
+  supplier Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, poId])
+  @@index([tenantId, date])
+  @@map("supplier_payments")
+}
+
+// ═══════════════════════════════════════════════ TAKLIF VA YETKAZISH
+
+model Quote {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  tenantId   String      @map("tenant_id") @db.Uuid
+  number     String
+  customerId String?     @map("customer_id") @db.Uuid
+  sellerId   String?     @map("seller_id") @db.Uuid
+  subtotal   BigInt
+  discount   BigInt      @default(0)
+  taxRate    Int         @default(0) @map("tax_rate")
+  tax        BigInt      @default(0)
+  total      BigInt
+  status     QuoteStatus @default(draft)
+  date       DateTime    @db.Date
+  validUntil DateTime?   @map("valid_until") @db.Date
+  note       String?
+  /// Sotuvga aylantirilganda to'ldiriladi — bir marta (I20)
+  saleId     String?     @unique @map("sale_id") @db.Uuid
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt  DateTime?   @map("deleted_at") @db.Timestamptz
+
+  customer Client?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  seller   Employee?   @relation(fields: [sellerId], references: [id], onDelete: SetNull)
+  sale     Sale?       @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  items    QuoteItem[]
+
+  @@unique([tenantId, number])
+  @@unique([tenantId, id])
+  @@index([tenantId, status])
+  @@map("quotes")
+}
+
+enum QuoteStatus {
+  draft
+  sent
+  accepted
+  rejected
+  converted
+}
+
+model QuoteItem {
+  id        String      @id @default(uuid(7)) @db.Uuid
+  tenantId  String      @map("tenant_id") @db.Uuid
+  quoteId   String      @map("quote_id") @db.Uuid
+  productId String      @map("product_id") @db.Uuid
+  name      String
+  unit      ProductUnit
+  qty       Decimal     @db.Decimal(14, 3)
+  baseQty   Decimal     @map("base_qty") @db.Decimal(14, 3)
+  price     BigInt
+  cost      BigInt
+  discount  BigInt      @default(0)
+  lineNo    Int         @map("line_no")
+
+  quote   Quote   @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, quoteId])
+  @@map("quote_items")
+}
+
+/// D3 (core/10-performance.md §10.3): `fee` bu yerda YO'Q — yetkazish narxi
+/// chek summasi ichida (`sales.delivery_fee`, I5). Chekka bog'lanmagan
+/// mustaqil yetkazish uchungina `standaloneFee` ishlatiladi.
+model Delivery {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  tenantId      String         @map("tenant_id") @db.Uuid
+  saleId        String?        @unique @map("sale_id") @db.Uuid
+  customerId    String?        @map("customer_id") @db.Uuid
+  address       String
+  phone         String
+  /// Faqat `saleId` bo'sh bo'lganda (alohida xizmat sifatida yetkazish)
+  standaloneFee BigInt?        @map("standalone_fee")
+  driverId      String?        @map("driver_id") @db.Uuid
+  status        DeliveryStatus @default(pending)
+  scheduledDate DateTime       @map("scheduled_date") @db.Date
+  note          String?
+  lat           Float?
+  lng           Float?
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
+  deliveredAt   DateTime?      @map("delivered_at") @db.Timestamptz
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz
+
+  sale     Sale?     @relation(fields: [saleId], references: [id], onDelete: SetNull)
+  customer Client?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  driver   Employee? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status, scheduledDate])
+  @@index([tenantId, driverId, status])
+  @@map("deliveries")
+}
+
+enum DeliveryStatus {
+  pending
+  on_way
+  delivered
+  cancelled
+}
+
+// ═══════════════════════════════════════════════ XABAR VA AUDIT
+
+model Message {
+  id             String        @id @default(uuid(7)) @db.Uuid
+  tenantId       String        @map("tenant_id") @db.Uuid
+  target         MessageTarget
+  recipientLabel String        @map("recipient_label")
+  recipients     Int
+  text           String
+  template       String?
+  /// queued | sent | failed
+  deliveryStatus String        @default("queued") @map("delivery_status")
+  userId         String?       @map("user_id") @db.Uuid
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+
+  @@index([tenantId, createdAt])
+  @@map("messages")
+}
+
+enum MessageTarget {
+  customer
+  group
+  debtors
+  all
+}
+
+/// Audit jurnali — FAQAT qo'shiladi (I22). UPDATE/DELETE trigger bilan bloklanadi.
+///
+/// D2 (core/10-performance.md §10.3): foydalanuvchi ismi matn sifatida
+/// TAKRORLANMAYDI — `userId` orqali JOIN qilinadi. Foydalanuvchi faqat
+/// yumshoq o'chiriladi, shuning uchun havola hech qachon buzilmaydi.
+model AuditEntry {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  userId     String?  @map("user_id") @db.Uuid
+  action     String // 'sale.create', 'stock.transfer', ...
+  detail     String?
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id") @db.Uuid
+  /// O'zgarish farqi (before/after) — muhim amallar uchun
+  diff       Json?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  /// Restrict: jurnal kim qilganini hech qachon yo'qotmaydi
+  user User? @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, action, createdAt])
+  @@index([tenantId, userId, createdAt])
+  @@map("audit_log")
 }

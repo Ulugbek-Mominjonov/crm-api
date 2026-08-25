@@ -48,12 +48,40 @@ hisobi avtomatik yangilanadi.
 | T-005 | `npm run verify` | ✅ lint + typecheck + testlar |
 | T-007 | `DATABASE_URL= node dist/main.js` | ✅ aniq xato + exit 1 |
 | T-008 | `vitest run src/prisma` | ✅ 3 test; real bazaga ulanish tasdiqlandi |
+| T-006 | `npm run services:up` | ✅ postgres+redis+minio healthy, 4 bucket |
+| T-009 | `test:e2e -- error-shape` | ✅ 6 test; xato shakli, stack sizmaydi |
+| T-010 | `test:e2e -- logging-redaction` | ✅ 2 test; parol/token loglarda yo'q |
+| T-011 | `curl -f /health/ready` | ✅ 200; live/ready ajratilgan |
+| T-012 | `npm run openapi` | ✅ spec yozildi; dev 200 / prod 404 |
+| T-013 | `test:e2e -- security-headers` | ✅ 5 test; SIGTERM da ulanish yopiladi |
+| T-014..016 | `prisma validate` | ✅ 30 jadval |
+| T-017 | `test:e2e -- constraints` | ✅ 11 test; 16 CHECK + 2 qisman unique |
+| T-018 | `test:e2e -- triggers` | ✅ 8 test; I1 sinxron, jurnal append-only |
+| T-019 | `test:e2e -- cross-tenant` | ✅ 6 test; 33 kompozit FK |
+| T-020 | `test:e2e -- explain` | ✅ 6 test; covering/partial/trigram |
+| T-021 | `test:e2e -- tenant-provisioning` | ✅ 5 test; bitta tranzaksiya |
+| T-022 | `npm run db:seed` | ✅ 12 mahsulot, 4 xodim, idempotent |
 
 ## Keyingi qadamlar
 
-1. **T-006** — MinIO obrazi yuklanishi kutilmoqda (`docker images \| grep minio`)
-2. **T-009…T-013** — global pipe/filtr, log, health, Swagger, shutdown
-3. **T-014…T-022** — Prisma sxemasi (30 jadval), migratsiya, triggerlar, seed
+**Bajarildi: E0, E1, E2 (22/129).** Jami 141 test o'tadi
+(76 shared + 16 unit + 49 e2e).
+
+1. **T-023…T-032** — E3: parol xeshi, JWT, refresh rotatsiyasi, tenant
+   konteksti, Prisma kengaytmasi, RLS, rollar, maydon himoyasi, audit
+2. **T-033…T-041** — E4: spravochniklar CRUD
+3. **T-042…T-049** — E5: ombor amallari (qulflash bilan)
+
+## Qabul qilingan qarorlar (implementatsiya davomida)
+
+| # | Qaror | Sabab |
+|---|-------|-------|
+| Q1 | `Product.imageUrl` sxemada YO'Q | Rasm `files` jadvali bilan T-087 da qo'shiladi (09-storage §9.5). Ishlatilmaydigan ustun qoldirilmadi |
+| Q2 | Shtrix-kod uchun bitta indeks | Prisma `@@index([tenantId, barcode])` va qo'lda `products_barcode_exact` bir xil ustunlarni qamragan edi — birinchisi olib tashlandi |
+| Q3 | Trigram indekslari `btree_gin` bilan tenant bo'yicha | Aks holda planner ularni tanlamaydi (har so'rov `tenant_id` bilan filtrlanadi) |
+| Q4 | Trigram uchun reja testi YO'Q | GIN boshlang'ich narxi yuqori; 30k qatorda seq scan chindan arzonroq. O'rniga kechikish testi (< 100 ms) |
+| Q5 | Kompozit FK'da `SET NULL` → `NO ACTION` | `(tenant_id, X_id)` da SET NULL tenant_id ni ham nolga chiqarardi. Ota yozuvlar yumshoq o'chiriladi |
+| Q6 | DB testlari `test/*.e2e-spec.ts` da | Ular haqiqiy baza talab qiladi; unit konfiguratsiyasi (`src/**/*.spec.ts`) toza qoladi |
 
 ## Muhim eslatmalar
 

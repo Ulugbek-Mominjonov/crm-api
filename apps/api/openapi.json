@@ -1,0 +1,99 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "description": "Hech qanday bog‘liqlikni tekshirmaydi. Orkestrator shu bo‘yicha konteynerni qayta ishga tushiradi — baza tushganda qayta ishga tushirish yordam bermaydi, shuning uchun u bu yerda tekshirilmaydi.",
+        "operationId": "Health_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "ok",
+                    "uptimeSec": 42
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Jarayon tirikmi",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Baza va obyekt saqlagich tekshiriladi. Yuk balanslagich shu bo‘yicha trafik yuboradi.",
+        "operationId": "Health_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "ok",
+                    "uptimeSec": 42,
+                    "checks": [
+                      {
+                        "name": "database",
+                        "ok": true,
+                        "ms": 3
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bog‘liqliklardan biri javob bermayapti"
+          }
+        },
+        "summary": "Trafik qabul qilishga tayyormi",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Qurilish CRM API",
+    "description": "Qurilish mollari do‘koni uchun savdo, ombor va kassa tizimi. Barcha summalar — **butun so‘m**; miqdorlar — 3 kasr xonagacha.",
+    "version": "1.0.0",
+    "contact": {}
+  },
+  "tags": [
+    {
+      "name": "health",
+      "description": "Sog‘liq va tayyorlik"
+    },
+    {
+      "name": "auth",
+      "description": "Autentifikatsiya"
+    }
+  ],
+  "servers": [
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Lokal"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {}
+  }
+}
