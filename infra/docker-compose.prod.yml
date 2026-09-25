@@ -1,0 +1,75 @@
+# ═══════════════════════════════════════════════════════════════════
+# Production (T-116, 11 §11.5): /opt/crm/docker-compose.prod.yml
+#   docker compose -f docker-compose.prod.yml up -d
+# Baza va Redis TASHQARIGA chiqmaydi — faqat ichki tarmoq; tashqi port
+# faqat Caddy (80/443, TLS avtomatik).
+# ═══════════════════════════════════════════════════════════════════
+
+x-logging: &logging
+  # Log rotatsiyasi (T-122): disk to'lib qolmasin
+  driver: json-file
+  options: { max-size: 20m, max-file: '5' }
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: crm
+      POSTGRES_USER: crm
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    secrets: [db_password]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U crm -d crm']
+      interval: 10s
+      retries: 10
+    expose: ['5432']
+    logging: *logging
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Navbat (BullMQ) va kesh: xotira chegarasi, diskka yozmaydi
+    command: redis-server --maxmemory 256mb --maxmemory-policy noeviction --save ''
+    expose: ['6379']
+    logging: *logging
+
+  api:
+    image: ghcr.io/${GH_OWNER}/crm-api:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_started }
+    secrets: [jwt_private.pem, jwt_public.pem]
+    expose: ['3000']
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { memory: 1g }
+    logging: *logging
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ['80:80', '443:443']
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [api]
+    logging: *logging
+
+volumes: { pgdata: , caddy_data: , caddy_config: }
+
+secrets:
+  db_password: { file: ./secrets/db_password.txt }
+  jwt_private.pem: { file: ./secrets/jwt_private.pem }
+  jwt_public.pem: { file: ./secrets/jwt_public.pem }

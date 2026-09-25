@@ -1,5 +1,8 @@
 import type { ExpenseTemplate } from './types'
 
+/** Davr hisobi uchun shablonning kerakli maydonlari (server ham shuni beradi) */
+export type TemplateSchedule = Pick<ExpenseTemplate, 'active' | 'period' | 'dayOfPeriod' | 'lastRunKey'>
+
 /**
  * Takrorlanuvchi xarajatlar (ijara, maosh, internet...).
  *
@@ -26,13 +29,13 @@ export function isoWeekKey(date: Date): string {
 }
 
 /** Shablon uchun joriy davr kaliti */
-export function periodKey(tpl: ExpenseTemplate, now: Date): string {
+export function periodKey(tpl: Pick<TemplateSchedule, 'period'>, now: Date): string {
   if (tpl.period === 'weekly') return isoWeekKey(now)
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 /** Joriy davrda shablon kuni allaqachon kelganmi? */
-function dayReached(tpl: ExpenseTemplate, now: Date): boolean {
+function dayReached(tpl: TemplateSchedule, now: Date): boolean {
   if (tpl.period === 'weekly') {
     const dow = now.getDay() || 7 // dushanba=1 ... yakshanba=7
     return dow >= Math.min(7, Math.max(1, tpl.dayOfPeriod))
@@ -41,7 +44,7 @@ function dayReached(tpl: ExpenseTemplate, now: Date): boolean {
 }
 
 /** Shu shablon bo'yicha hozir xarajat yaratish kerakmi? */
-export function isTemplateDue(tpl: ExpenseTemplate, now: Date): boolean {
+export function isTemplateDue(tpl: TemplateSchedule, now: Date): boolean {
   if (!tpl.active) return false
   if (!dayReached(tpl, now)) return false
   return tpl.lastRunKey !== periodKey(tpl, now)

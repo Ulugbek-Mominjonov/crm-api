@@ -4,6 +4,11 @@ import type { Role } from '@prisma/client'
 export class TenantSummaryDto {
   @ApiProperty() id!: string
   @ApiProperty({ example: 'Qurilish Mollari' }) name!: string
+  @ApiProperty({
+    enum: ['active', 'suspended', 'deleting'],
+    description: '`suspended` (to‘lov kutilmoqda) va `deleting` (o‘chirish muhlatida) — kirish mumkin, yozish yo‘q (423 `TENANT_READ_ONLY`)',
+  })
+  status!: string
 }
 
 /**

@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   checkCredit,
   clientDebt,
+  evaluateCredit,
   dueDateFor,
   isOverdue,
   overdueDebt,
-  poOutstanding,
-  poReceivedValue,
-  totalPayables,
 } from './finance'
-import type { Client, PurchaseOrder, Sale } from './types'
+import type { Client, Sale } from './types'
 
 const TODAY = '2026-08-06'
 
@@ -148,57 +146,24 @@ describe('dueDateFor', () => {
   })
 })
 
-describe('ta’minotchiga qarz', () => {
-  const po = (over: Partial<PurchaseOrder> = {}): PurchaseOrder => ({
-    id: 'po1',
-    number: 'BUY-1001',
-    supplierId: 'sup1',
-    items: [
-      { productId: 'p1', name: 'Sement', qty: 10, cost: 40_000 },
-      { productId: 'p2', name: 'G‘isht', qty: 100, cost: 1_000 },
-    ],
-    total: 500_000,
-    paid: 0,
-    status: 'ordered',
-    date: '2026-08-01',
-    ...over,
-  })
-
-  it('buyurtma holatida qarz yo‘q (tovar hali kelmagan)', () => {
-    expect(poOutstanding(po())).toBe(0)
-  })
-
-  it('to‘liq qabulda butun summa qarz', () => {
-    expect(poOutstanding(po({ status: 'received' }))).toBe(500_000)
-  })
-
-  it('to‘langan qism chegiriladi', () => {
-    expect(poOutstanding(po({ status: 'received', paid: 200_000 }))).toBe(300_000)
-  })
-
-  // Qisman qabul: faqat KELGAN tovar uchun qarz bo'lishi kerak
-  it('qisman qabulda faqat kelgan tovar qiymati qarz bo‘ladi', () => {
-    const partial = po({
-      status: 'partial',
-      items: [
-        { productId: 'p1', name: 'Sement', qty: 10, receivedQty: 7, cost: 40_000 },
-        { productId: 'p2', name: 'G‘isht', qty: 100, receivedQty: 0, cost: 1_000 },
-      ],
+describe('evaluateCredit (agregatlardan — server)', () => {
+  it('muddati o‘tgan qarz limitsiz ham to‘sadi', () => {
+    expect(evaluateCredit({ limit: 0, current: 10_000, overdue: 10_000 }, 5_000)).toEqual({
+      ok: false,
+      reason: 'overdue',
+      overdue: 10_000,
     })
-    expect(poReceivedValue(partial)).toBe(280_000)
-    expect(poOutstanding(partial)).toBe(280_000)
   })
 
-  it('bekor qilingan buyurtmada qarz yo‘q', () => {
-    expect(poOutstanding(po({ status: 'cancelled', paid: 0 }))).toBe(0)
+  it('limitdan oshsa — rad, teng bo‘lsa — ruxsat', () => {
+    expect(evaluateCredit({ limit: 1_000_000, current: 800_000, overdue: 0 }, 300_000)).toMatchObject({
+      ok: false,
+      reason: 'limit',
+    })
+    expect(evaluateCredit({ limit: 1_000_000, current: 800_000, overdue: 0 }, 200_000)).toEqual({ ok: true })
   })
 
-  it('umumiy kreditorlik yig‘iladi', () => {
-    const orders = [
-      po({ id: 'a', status: 'received', total: 100_000 }),
-      po({ id: 'b', status: 'received', total: 50_000, paid: 20_000 }),
-      po({ id: 'c', status: 'ordered', total: 900_000 }),
-    ]
-    expect(totalPayables(orders)).toBe(130_000)
+  it('yangi qarz yo‘q — tekshirilmaydi', () => {
+    expect(evaluateCredit({ limit: 1, current: 999, overdue: 999 }, 0)).toEqual({ ok: true })
   })
 })

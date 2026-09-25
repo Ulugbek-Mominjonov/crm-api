@@ -39,6 +39,20 @@ export function currentContext(): RequestContext {
   return ctx
 }
 
+/**
+ * Joriy tenant — xom SQL va unikal `where` uchun.
+ *
+ * Prisma kengaytmasi `$queryRaw` ga tenant qo'shmaydi (03-security §3.7),
+ * shuning uchun u yerda qiymat aniq shu funksiyadan olinadi — so'rovdan emas.
+ */
+export function currentTenantId(): string {
+  const tenantId = currentContext().tenantId
+  if (!tenantId) {
+    throw new Error('Tenant konteksti yo‘q: so‘rov autentifikatsiyadan o‘tmagan')
+  }
+  return tenantId
+}
+
 /** Kontekstni to'ldiradi (login tekshiruvidan keyin tenant/user ma'lum bo'ladi) */
 export function enrichContext(patch: Partial<RequestContext>): void {
   const ctx = storage.getStore()

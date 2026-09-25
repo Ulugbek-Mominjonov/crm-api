@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { RefreshToken } from '@prisma/client'
-import { PrismaService } from '@/prisma/prisma.service'
+import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import { DomainError } from '@/common/errors/domain.error'
 import type { Env } from '@/config/env.schema'
 import { ttlToSeconds } from './token.service'
@@ -111,9 +111,13 @@ export class RefreshTokenService {
     })
   }
 
-  /** Barcha qurilmalardan chiqish */
-  async revokeAllForUser(userId: string): Promise<number> {
-    const { count } = await this.prisma.refreshToken.updateMany({
+  /**
+   * Barcha qurilmalardan chiqish. `tx` berilsa — o'sha tranzaksiyada:
+   * foydalanuvchi o'chirilib, sessiyalari ochiq qolmasin.
+   */
+  async revokeAllForUser(userId: string, tx?: TenantTx): Promise<number> {
+    const client = tx ?? this.prisma
+    const { count } = await client.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     })

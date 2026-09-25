@@ -2,10 +2,12 @@ import 'reflect-metadata'
 import { Logger } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 import { ConfigService } from '@nestjs/config'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import { config as loadDotenv } from 'dotenv'
 import { parseEnv, type Env } from '@/config/env.schema'
 import { setupApp } from '@/bootstrap/setup-app'
 import { AppLogger } from '@/common/logging/logger.service'
+import { initMonitoring } from '@/common/monitoring/monitoring'
 import { setupSwagger } from '@/common/swagger/setup-swagger'
 
 /**
@@ -32,15 +34,24 @@ const API_VERSION = '1.0.0'
 
 async function bootstrap(): Promise<void> {
   assertEnv()
+  // Kuzatuv modul yuklanishidan OLDIN — ishga tushishdagi xatolar ham yetib borsin
+  if (process.env.SENTRY_DSN) {
+    initMonitoring({
+      dsn: process.env.SENTRY_DSN,
+      environment: process.env.NODE_ENV ?? 'production',
+      release: process.env.RELEASE,
+    })
+  }
   // Muhit to'g'riligi tasdiqlangandan keyingina modul yuklanadi.
   // Yo'l ATAYLAB nisbiy: `nest build` faqat statik importlardagi `@/`
   // aliasini almashtiradi, dinamik import() da esa u o'z holicha qoladi.
   const { AppModule } = await import('./app.module')
 
-  const created = await NestFactory.create(AppModule, { bufferLogs: true })
+  const created = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true })
   const config = created.get<ConfigService<Env, true>>(ConfigService)
   const app = setupApp(created, {
     origins: config.get('WEB_ORIGINS', { infer: true }),
+    trustProxy: config.get('TRUST_PROXY', { infer: true }),
   })
   app.useLogger(await app.resolve(AppLogger))
 

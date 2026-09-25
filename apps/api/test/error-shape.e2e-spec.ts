@@ -7,6 +7,7 @@ import { setupApp } from '@/bootstrap/setup-app'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import { RequestContextMiddleware } from '@/common/middleware/request-context.middleware'
 import type { MiddlewareConsumer, NestModule } from '@nestjs/common'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 
 class SampleDto {
   @IsString() name!: string
@@ -50,7 +51,7 @@ describe('Xato javobining shakli', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [ProbeModule] }).compile()
-    app = setupApp(moduleRef.createNestApplication())
+    app = setupApp(moduleRef.createNestApplication<NestExpressApplication>())
     await app.init()
   })
 
@@ -101,6 +102,23 @@ describe('Xato javobining shakli', () => {
       .send({ name: 'x', qty: 5, role: 'admin' })
     expect(res.status).toBe(400)
     expect(res.body.detail).toMatch(/role/)
+  })
+
+  it('buzuq JSON — 500 emas, 400 VALIDATION_FAILED', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/probe/validate')
+      .set('Content-Type', 'application/json')
+      .send('{"name": ')
+    expect(res.status).toBe(400)
+    expect(res.body.code).toBe('VALIDATION_FAILED')
+  })
+
+  it('hajm chegarasidan katta tana — 413 PAYLOAD_TOO_LARGE', async () => {
+    const res = await request(app.getHttpServer())
+      .post('/api/v1/probe/validate')
+      .send({ name: 'x'.repeat(5 * 1024 * 1024), qty: 1 })
+    expect(res.status).toBe(413)
+    expect(res.body.code).toBe('PAYLOAD_TOO_LARGE')
   })
 
   it('traceId javob sarlavhasida ham qaytadi va so‘rovdagisini saqlaydi', async () => {

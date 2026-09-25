@@ -1,11 +1,17 @@
 import { Global, Module } from '@nestjs/common'
-import { APP_INTERCEPTOR } from '@nestjs/core'
+import { AuditController } from './audit.controller'
+import { AuditLogService } from './audit-log.service'
 import { AuditService } from './audit.service'
-import { AuditInterceptor } from './audit.interceptor'
 
+/**
+ * `AuditInterceptor` bu yerda EMAS, `AppModule` da ro'yxatdan o'tadi:
+ * u tenant tranzaksiyasi interceptori ICHIDA ishlashi shart, global
+ * interceptorlar tartibi esa ro'yxatdan o'tish tartibiga bog'liq.
+ */
 @Global()
 @Module({
-  providers: [AuditService, { provide: APP_INTERCEPTOR, useClass: AuditInterceptor }],
+  controllers: [AuditController],
+  providers: [AuditService, AuditLogService],
   exports: [AuditService],
 })
 export class AuditModule {}

@@ -44,3 +44,28 @@ export class PermissionDeniedError extends DomainError {
     super('PERMISSION_DENIED', detail)
   }
 }
+
+/**
+ * Raqobatli tahrirlash (04 §4.4): yozuv mijoz ko'rgandan keyin o'zgargan.
+ * Javobda serverdagi joriy holat (`current`) — mijoz farqni ko'rsatib,
+ * foydalanuvchidan qayta so'raydi.
+ */
+export class VersionConflictError extends DomainError {
+  constructor(readonly current: unknown) {
+    super('VERSION_CONFLICT', 'Yozuv boshqa foydalanuvchi tomonidan o‘zgartirilgan — joriy holat `current` da')
+  }
+}
+
+/**
+ * Yozuvlari SAQLANISHI kerak bo'lgan rad etish: masalan zararli fayl
+ * karantinga olinadi va audit'ga yoziladi, mijozga esa xato qaytadi.
+ * So'rov tranzaksiyasi (interceptor) avval COMMIT qiladi, keyin ichidagi
+ * xatoni beradi. Idempotent (`@Idempotent`) yo'llarda ishlatilmaydi —
+ * kalit "yakunlanmagan" holatda qolardi.
+ */
+export class CommittedDomainError extends Error {
+  constructor(readonly error: DomainError) {
+    super(error.message)
+    this.name = 'CommittedDomainError'
+  }
+}

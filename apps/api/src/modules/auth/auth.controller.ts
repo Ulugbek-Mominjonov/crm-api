@@ -6,7 +6,8 @@ import {
 import { Throttle } from '@nestjs/throttler'
 import type { Request, Response } from 'express'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
-import { DomainError } from '@/common/errors/domain.error'
+import { clearRefreshCookie, readRefreshCookie, REFRESH_COOKIE, setRefreshCookie } from './auth-cookies'
+import { AllowReadOnlyTenant } from '@/modules/tenants/read-only.interceptor'
 import { AuthService } from './auth.service'
 import { RefreshTokenService } from './refresh-token.service'
 import { LoginDto } from './dto/login.dto'
@@ -14,10 +15,6 @@ import { AuthUserDto, LoginResponseDto } from './dto/auth-response.dto'
 import { ChangePasswordDto } from './dto/change-password.dto'
 import { Public } from './decorators/public.decorator'
 import { CurrentUser, type AuthContext } from './decorators/current-user.decorator'
-
-export const REFRESH_COOKIE = 'refresh_token'
-/** Cookie faqat auth yo'llariga yuboriladi — boshqa endpointlarga kerak emas */
-const COOKIE_PATH = '/api/v1/auth'
 
 @ApiTags('auth')
 @Controller('auth')
@@ -52,7 +49,7 @@ export class AuthController {
       userAgent: req.get('user-agent'),
       ip: req.ip,
     })
-    this.setRefreshCookie(res, refreshToken)
+    setRefreshCookie(res, refreshToken, this.refresh.maxAgeMs)
     return response
   }
 
@@ -72,12 +69,12 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<LoginResponseDto> {
-    const raw = this.readRefreshCookie(req)
+    const raw = readRefreshCookie(req)
     const { response, refreshToken } = await this.auth.refreshTokens(raw, {
       userAgent: req.get('user-agent'),
       ip: req.ip,
     })
-    this.setRefreshCookie(res, refreshToken)
+    setRefreshCookie(res, refreshToken, this.refresh.maxAgeMs)
     return response
   }
 
@@ -91,11 +88,12 @@ export class AuthController {
   ): Promise<{ ok: true }> {
     const raw = req.cookies?.[REFRESH_COOKIE] as string | undefined
     await this.auth.logout(raw)
-    res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH })
+    clearRefreshCookie(res)
     return { ok: true }
   }
 
   @Post('logout-all')
+  @AllowReadOnlyTenant()
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Barcha qurilmalardan chiqish' })
   @ApiCreatedResponse({ schema: { example: { revoked: 3 } } })
@@ -104,7 +102,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ revoked: number }> {
     const revoked = await this.auth.logoutAll(user.userId)
-    res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH })
+    clearRefreshCookie(res)
     return { revoked }
   }
 
@@ -117,6 +115,7 @@ export class AuthController {
   }
 
   @Post('change-password')
+  @AllowReadOnlyTenant()
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Parolni o‘zgartirish',
@@ -130,23 +129,7 @@ export class AuthController {
     @Res({ passthrough: true }) res: Response,
   ): Promise<{ ok: true }> {
     await this.auth.changePassword(user.userId, dto.currentPassword, dto.newPassword)
-    res.clearCookie(REFRESH_COOKIE, { path: COOKIE_PATH })
+    clearRefreshCookie(res)
     return { ok: true }
-  }
-
-  private setRefreshCookie(res: Response, token: string): void {
-    res.cookie(REFRESH_COOKIE, token, {
-      httpOnly: true, // JS o'qiy olmaydi — XSS bo'lsa ham token chiqmaydi
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict', // CSRF himoyasi
-      path: COOKIE_PATH,
-      maxAge: this.refresh.maxAgeMs,
-    })
-  }
-
-  private readRefreshCookie(req: Request): string {
-    const raw = req.cookies?.[REFRESH_COOKIE] as string | undefined
-    if (!raw) throw new DomainError('AUTH_INVALID_REFRESH', 'Sessiya cookie’si yo‘q')
-    return raw
   }
 }

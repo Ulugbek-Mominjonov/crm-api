@@ -52,7 +52,7 @@ describe('POST /auth/login', () => {
       position: 'Direktor',
       role: 'admin',
     })
-    expect(res.body.user.tenant.name).toBe('Qurilish Mollari')
+    expect(res.body.user.tenant).toMatchObject({ name: 'Qurilish Mollari', status: 'active' })
     // Parol xeshi javobda HECH QACHON bo'lmaydi
     expect(JSON.stringify(res.body)).not.toMatch(/passwordHash|argon2/)
   })
@@ -110,11 +110,29 @@ describe('POST /auth/login', () => {
     await login({ email: EMAIL, password: PASSWORD }).expect(401)
   })
 
-  it('to‘xtatilgan do‘kon → 423 AUTH_ACCOUNT_LOCKED', async () => {
-    await testDb.tenant.updateMany({ data: { status: 'suspended' } })
+  it('bo‘shatilgan xodim → 423 AUTH_ACCOUNT_LOCKED', async () => {
+    await testDb.employee.updateMany({ data: { status: 'fired' } })
     const res = await login({ email: EMAIL, password: PASSWORD }).expect(423)
     expect(res.body.code).toBe('AUTH_ACCOUNT_LOCKED')
   })
+
+  it.each(['suspended', 'deleting'])(
+    '%s do‘kon: kirish va refresh mumkin (faqat o‘qish) — to‘lash/o‘chirishni bekor qilish uchun',
+    async (status) => {
+      await testDb.tenant.updateMany({ data: { status } })
+      const res = await login({ email: EMAIL, password: PASSWORD }).expect(201)
+      expect(res.body.user.tenant.status).toBe(status)
+      const cookie = res.headers['set-cookie'] as unknown as string[]
+
+      const refreshed = await request(app.getHttpServer()).post('/api/v1/auth/refresh').set('Cookie', cookie).expect(201)
+      expect(refreshed.body.user.tenant.status).toBe(status)
+      const auth = `Bearer ${refreshed.body.accessToken as string}`
+      await request(app.getHttpServer()).get('/api/v1/products').set('Authorization', auth).expect(200)
+      const write = await request(app.getHttpServer()).post('/api/v1/categories').set('Authorization', auth)
+        .send({ name: 'Yangi' }).expect(423)
+      expect(write.body.code).toBe('TENANT_READ_ONLY')
+    },
+  )
 
   it('bir email ikki do‘konda → AUTH_TENANT_REQUIRED va tanlash mumkin', async () => {
     const second = await provisioning.provision({

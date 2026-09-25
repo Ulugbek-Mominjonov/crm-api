@@ -13,14 +13,18 @@ const HIDDEN_BY_ROLE: Partial<Record<Role, readonly string[]>> = {
   sotuvchi: [
     'cost',        // tannarx
     'unitCost',
+    'stockValue',  // ombor qiymati tannarxda
+    'stockValueByCategory',
+    'deadValue',   // sotilmayotgan tovar qiymati — tannarxda
     'wholesalePrice',
     'salary',
     'grossProfit',
+    'netProfit', // = yalpi foyda − xarajat: undan yalpi foyda tiklanadi
     'profit',
     'cogs',
     'margin',
   ],
-  omborchi: ['salary', 'grossProfit', 'profit', 'cogs', 'margin'],
+  omborchi: ['salary', 'grossProfit', 'netProfit', 'profit', 'cogs', 'margin'],
 }
 
 /** Hech qachon javobga chiqmaydigan maydonlar — roldan qat'i nazar */
@@ -46,10 +50,12 @@ export function stripHidden<T>(value: T, hidden: Set<string>, depth = 6): T {
   if (hidden.size === 0 || depth <= 0 || value === null || typeof value !== 'object') {
     return value
   }
-  if (value instanceof Date) return value
   if (Array.isArray(value)) {
     return value.map((v) => stripHidden(v, hidden, depth - 1)) as unknown as T
   }
+  // Faqat oddiy obyekt: sana, Buffer, fayl oqimi (`StreamableFile`) o'zgarmaydi
+  const proto: unknown = Object.getPrototypeOf(value)
+  if (proto !== Object.prototype && proto !== null) return value
   const out: Record<string, unknown> = {}
   for (const [key, v] of Object.entries(value as Record<string, unknown>)) {
     if (hidden.has(key)) continue

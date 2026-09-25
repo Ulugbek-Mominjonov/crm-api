@@ -8,7 +8,7 @@ export class FieldErrorDto {
   @ApiProperty({ example: 'STOCK_INSUFFICIENT' })
   code!: string
 
-  @ApiPropertyOptional({ example: { available: 12, requested: 20 } })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, example: { available: 12, requested: 20 } })
   meta?: Record<string, unknown>
 }
 
@@ -40,4 +40,7 @@ export class ApiErrorDto {
 
   @ApiPropertyOptional({ type: [FieldErrorDto] })
   errors?: FieldErrorDto[]
+
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, description: '`VERSION_CONFLICT` da — serverdagi joriy yozuv' })
+  current?: unknown
 }

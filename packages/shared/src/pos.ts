@@ -44,6 +44,14 @@ export interface SaleTotals {
 
 const roundNearest = (v: number, step: number) => Math.round(v / step) * step
 
+/**
+ * Chek qatori summasi: narx × miqdor (kasrli miqdorda so'mgacha
+ * yaxlitlanadi) minus qator chegirmasi. `subtotal` shu summalar yig'indisi.
+ */
+export function lineTotal(price: number, qty: number, discount = 0): number {
+  return Math.round(price * qty) - Math.max(0, discount)
+}
+
 export function saleTotals({
   subtotal,
   discount,

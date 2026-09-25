@@ -1,9 +1,9 @@
 import { Test } from '@nestjs/testing'
 import { PRODUCT_CATEGORIES } from '@crm/shared'
 import { PrismaService } from '@/prisma/prisma.service'
+import { DOC_PREFIXES } from '@/modules/doc-numbers/doc-number.service'
 import {
   DEFAULT_WAREHOUSE_NAME,
-  DOC_PREFIXES,
   TenantProvisioningService,
 } from '@/modules/tenants/tenant-provisioning.service'
 import { testDb, truncateAll } from './helpers/db'

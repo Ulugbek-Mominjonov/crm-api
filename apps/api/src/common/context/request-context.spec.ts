@@ -1,5 +1,5 @@
 import {
-  currentContext, enrichContext, newRequestId, runWithContext, tryContext,
+  currentContext, currentTenantId, enrichContext, newRequestId, runWithContext, tryContext,
 } from './request-context'
 
 describe('So‘rov konteksti', () => {
@@ -38,6 +38,14 @@ describe('So‘rov konteksti', () => {
       expect(currentContext()).toEqual({
         requestId: 'r2', tenantId: 't1', userId: 'u1', role: 'sotuvchi',
       })
+    })
+  })
+
+  it('`currentTenantId` tenant yo‘q bo‘lsa XATO tashlaydi (jimgina bo‘sh qaytmaydi)', () => {
+    runWithContext({ requestId: 'r3' }, () => {
+      expect(() => currentTenantId()).toThrow(/Tenant/)
+      enrichContext({ tenantId: 't1' })
+      expect(currentTenantId()).toBe('t1')
     })
   })
 

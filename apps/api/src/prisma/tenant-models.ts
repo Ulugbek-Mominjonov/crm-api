@@ -16,7 +16,7 @@ export const TENANT_MODELS = new Set([
   'Expense', 'ExpenseTemplate',
   'PurchaseOrder', 'POItem', 'SupplierPayment',
   'Quote', 'QuoteItem', 'Delivery',
-  'Message', 'AuditEntry',
+  'Message', 'MessageRecipient', 'AuditEntry', 'File', 'Export', 'BillingInvoice', 'FiscalReceipt',
 ])
 
 /**

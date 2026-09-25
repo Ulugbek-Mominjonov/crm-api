@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { Prisma, PrismaClient } from '@prisma/client'
 import { runWithContext } from '@/common/context/request-context'
 import {
   MissingTenantScopeError, runAsSystem, tenantExtension,
@@ -11,8 +11,10 @@ import { seedTenant, testDb, truncateAll } from './helpers/db'
  * Bu testlar dasturchi `where: { tenantId }` yozishni UNUTGAN holatni
  * modellashtiradi: ma'lumot baribir chiqib ketmasligi kerak.
  */
+// Jadval egasi bilan: bu yerda FAQAT 2-qatlam (kengaytma) tekshiriladi —
+// RLS o'z testida (rls.e2e-spec.ts) alohida
 const scoped = new PrismaClient({
-  datasources: { db: { url: process.env.DATABASE_URL } },
+  datasources: { db: { url: process.env.DIRECT_DATABASE_URL } },
 }).$extends(tenantExtension)
 
 describe('Prisma tenant kengaytmasi', () => {
@@ -130,15 +132,9 @@ describe('Prisma tenant kengaytmasi', () => {
   it('har bir Prisma modeli ro‘yxatlardan birida bor', () => {
     // Yangi model qo'shilib, ro'yxatga kiritilmasa — shu test yiqiladi
     const known = new Set([...TENANT_MODELS, ...GLOBAL_MODELS])
-    const models = Object.keys(testDb).filter(
-      (k) => !k.startsWith('$') && !k.startsWith('_') && typeof (testDb as never)[k] === 'object',
-    )
-    const pascal = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1)
-    const missing = models
-      .map(pascal)
-      // Prisma `pOItem` ko'rinishida beradi — normallashtiramiz
-      .map((m) => (m === 'POItem' || m === 'POItem' ? 'POItem' : m))
-      .filter((m) => !known.has(m))
+    // `Prisma.ModelName` — sxemadagi modellarning generatsiya qilingan
+    // ro'yxati (mijoz obyektining kalitlarini sanashdan ishonchliroq)
+    const missing = Object.values(Prisma.ModelName).filter((m) => !known.has(m))
     expect(missing).toEqual([])
   })
 })

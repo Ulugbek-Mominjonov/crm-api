@@ -1,6 +1,7 @@
 import { Controller, Get, Module } from '@nestjs/common'
 import type { INestApplication } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import request from 'supertest'
 import { setupApp } from '@/bootstrap/setup-app'
 
@@ -22,7 +23,7 @@ describe('Xavfsizlik sarlavhalari va CORS', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [SecProbeModule] }).compile()
-    app = setupApp(moduleRef.createNestApplication(), { origins: [ALLOWED] })
+    app = setupApp(moduleRef.createNestApplication<NestExpressApplication>(), { origins: [ALLOWED] })
     await app.init()
   })
 
@@ -68,7 +69,7 @@ describe('Xavfsizlik sarlavhalari va CORS', () => {
 
   it('CORS sozlanmagan bo‘lsa umuman yoqilmaydi', async () => {
     const moduleRef = await Test.createTestingModule({ imports: [SecProbeModule] }).compile()
-    const bare = setupApp(moduleRef.createNestApplication(), {})
+    const bare = setupApp(moduleRef.createNestApplication<NestExpressApplication>(), {})
     await bare.init()
     const res = await request(bare.getHttpServer())
       .get('/api/v1/probe/ok')

@@ -1,12 +1,31 @@
-import { ValidationPipe, type INestApplication } from '@nestjs/common'
+import { ValidationPipe } from '@nestjs/common'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import cookieParser from 'cookie-parser'
+import { json } from 'express'
 import helmet from 'helmet'
 import { DomainExceptionFilter } from '@/common/filters/domain-exception.filter'
 import { FieldVisibilityInterceptor } from '@/common/interceptors/field-visibility.interceptor'
+import { RealtimeIoAdapter } from '@/modules/realtime/realtime-io.adapter'
+
+/**
+ * JSON tanasining eng katta hajmi. Express sukuti (100 KB) mahsulot
+ * importiga yetmaydi: 5000 qator (04-api §2) ~2 MB. Chegara baribir
+ * qo'yiladi — cheksiz tana xotirani to'ldirish hujumiga yo'l ochadi.
+ */
+export const JSON_BODY_LIMIT = '4mb'
+
+/**
+ * Migratsiya (07 §7.5): 3 yillik do'kon ~5 MB JSON, rasmlar (dataURL) bilan
+ * ko'proq. Kattaroq chegara FAQAT shu yo'lga — boshqalarida 4 MB qoladi.
+ */
+export const MIGRATION_BODY_LIMIT = '25mb'
+export const MIGRATION_PATH = '/api/v1/migration'
 
 export interface SetupOptions {
   /** CORS uchun ruxsat etilgan manbalar. Bo'sh bo'lsa CORS o'chiriladi. */
   origins?: string[]
+  /** Ishonchli proksilar soni (`TRUST_PROXY`): `req.ip` — rate limit shu bo'yicha */
+  trustProxy?: number
 }
 
 /**
@@ -14,13 +33,18 @@ export interface SetupOptions {
  * Shunda test muhiti production bilan bir xil qoidalar ostida ishlaydi.
  */
 export function setupApp(
-  app: INestApplication,
+  app: NestExpressApplication,
   opts: SetupOptions = {},
-): INestApplication {
+): NestExpressApplication {
   // `contentSecurityPolicy` o'chirilgan: bu JSON API, HTML bermaydi;
   // Swagger UI esa CSP bilan ishlamaydi. Statik kontent Caddy orqali beriladi.
   app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }))
+  // Faqat aniq hop soni: `true` X-Forwarded-For dagi eng chapdagi (mijoz yozgan) manzilni olardi
+  if (opts.trustProxy) app.set('trust proxy', opts.trustProxy)
   app.use(cookieParser())
+  // Avval — yo'lga xos: tana o'qilgach umumiy parser uni qayta o'qimaydi
+  app.use(MIGRATION_PATH, json({ limit: MIGRATION_BODY_LIMIT }))
+  app.useBodyParser('json', { limit: JSON_BODY_LIMIT })
 
   if (opts.origins?.length) {
     app.enableCors({
@@ -30,10 +54,14 @@ export function setupApp(
       credentials: true,
       methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key', 'If-Match', 'X-Request-Id'],
-      exposedHeaders: ['X-Request-Id', 'ETag'],
+      // Content-Disposition — eksport fayli nomi (frontend boshqa domenda)
+      exposedHeaders: ['X-Request-Id', 'ETag', 'Idempotent-Replay', 'Content-Disposition'],
       maxAge: 3600,
     })
   }
+
+  // Realtime (`/events`) — CORS ro'yxati HTTP bilan bir xil
+  app.useWebSocketAdapter(new RealtimeIoAdapter(app, opts.origins ?? []))
 
   app.useGlobalPipes(
     new ValidationPipe({

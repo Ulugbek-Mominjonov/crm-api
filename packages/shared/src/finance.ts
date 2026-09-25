@@ -62,7 +62,7 @@ export function poReceivedValue(po: PurchaseOrder): number {
   if (po.status === 'cancelled') return 0
   if (po.status === 'received') return po.total
   if (po.status !== 'partial') return 0
-  return po.items.reduce((sum, it) => sum + (it.receivedQty ?? 0) * it.cost, 0)
+  return po.items.reduce((sum, it) => sum + Math.round((it.receivedQty ?? 0) * it.cost), 0)
 }
 
 /**
@@ -121,10 +121,30 @@ export type CreditCheck =
   | { ok: false; reason: 'limit'; limit: number; current: number; extra: number }
   | { ok: false; reason: 'overdue'; overdue: number }
 
+/** Mijozning nasiya holati: limit (0 — cheklanmagan), joriy va muddati o'tgan qarz */
+export interface CreditPosition {
+  limit: number
+  current: number
+  overdue: number
+}
+
 /**
- * Mijozga yangi nasiya berish mumkinmi?
- *
- * Ikki to'siq: (1) muddati o'tgan qarzi bor, (2) limitdan oshadi.
+ * Nasiya qoidasi (I16) — qarz yig'indilari tayyor bo'lganda (server ularni
+ * SQL'da hisoblaydi). Ikki to'siq: (1) muddati o'tgan qarzi bor,
+ * (2) limitdan oshadi. Limit 0 — cheklanmagan.
+ */
+export function evaluateCredit(pos: CreditPosition, extra: number): CreditCheck {
+  if (extra <= 0) return { ok: true }
+  if (pos.overdue > 0) return { ok: false, reason: 'overdue', overdue: pos.overdue }
+  if (pos.limit <= 0) return { ok: true }
+  if (pos.current + extra > pos.limit) {
+    return { ok: false, reason: 'limit', limit: pos.limit, current: pos.current, extra }
+  }
+  return { ok: true }
+}
+
+/**
+ * Mijozga yangi nasiya berish mumkinmi? (cheklar ro'yxatidan)
  * `creditLimit` bo'lmasa yoki 0 bo'lsa — limit cheklanmagan.
  */
 export function checkCredit(
@@ -133,24 +153,20 @@ export function checkCredit(
   extra: number,
   todayIso: string,
 ): CreditCheck {
-  if (!client || extra <= 0) return { ok: true }
-
-  const overdue = overdueDebt(sales, client.id, todayIso)
-  if (overdue > 0) return { ok: false, reason: 'overdue', overdue }
-
-  const limit = client.creditLimit ?? 0
-  if (limit <= 0) return { ok: true }
-
-  const current = clientDebt(sales, client.id)
-  if (current + extra > limit) {
-    return { ok: false, reason: 'limit', limit, current, extra }
-  }
-  return { ok: true }
+  if (!client) return { ok: true }
+  return evaluateCredit(
+    {
+      limit: client.creditLimit ?? 0,
+      current: clientDebt(sales, client.id),
+      overdue: overdueDebt(sales, client.id, todayIso),
+    },
+    extra,
+  )
 }
 
 /** Mijoz sozlamasiga ko'ra nasiya to'lov muddati (ISO sana) */
 export function dueDateFor(
-  client: Client | undefined,
+  client: Pick<Client, 'paymentTermDays'> | undefined,
   fromIso: string,
 ): string | undefined {
   const days = client?.paymentTermDays

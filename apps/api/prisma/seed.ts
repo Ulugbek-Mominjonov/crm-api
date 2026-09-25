@@ -10,20 +10,28 @@ import { PRODUCT_CATEGORIES } from '@crm/shared'
  *
  * PRODUCTION'da ISHLAMAYDI — real bazaga soxta sotuv tushishi mumkin emas.
  */
-const prisma = new PrismaClient()
+// Jadval egasi bilan: seed bir nechta jadvalga tenantni bevosita yozadi,
+// ilova roli (`crm_app`) esa RLS bilan cheklangan
+const prisma = new PrismaClient({
+  datasources: { db: { url: process.env.DIRECT_DATABASE_URL ?? process.env.DATABASE_URL } },
+})
 
 const DEMO_EMAIL = 'admin@crm.uz'
 const DEMO_PASSWORD = 'admin12345'
 
+// Telefonlar API saqlaydigan ko'rinishda — raqamlar va boshidagi `+`
+// (common/validation/phone.ts): aks holda raqam bo'yicha qidiruv topmaydi
 const SUPPLIERS = [
-  { name: 'Bekabad Sement', phone: '+998 71 200 10 10', contactPerson: 'Rustam Aliyev', tin: '201234567', paymentTermDays: 14 },
-  { name: 'Qizilqum G‘isht Zavodi', phone: '+998 65 223 44 55', contactPerson: 'Sanjar Umarov', tin: '302556677', paymentTermDays: 30 },
-  { name: 'MetalTrade MChJ', phone: '+998 71 244 77 88', contactPerson: 'Igor Petrov', tin: '403889900', paymentTermDays: 7 },
+  { name: 'Bekabad Sement', phone: '+998712001010', contactPerson: 'Rustam Aliyev', tin: '201234567', paymentTermDays: 14 },
+  { name: 'Qizilqum G‘isht Zavodi', phone: '+998652234455', contactPerson: 'Sanjar Umarov', tin: '302556677', paymentTermDays: 30 },
+  { name: 'MetalTrade MChJ', phone: '+998712447788', contactPerson: 'Igor Petrov', tin: '403889900', paymentTermDays: 7 },
 ]
 
+// `altFactor` — 1 ta QO'SHIMCHA birlik nechta ASOSIY birlik (`@crm/shared` units):
+// asosiy `qop`, qo'shimcha `kg` → 1 kg = 1/50 qop = 0.02
 const PRODUCTS = [
-  { name: 'Sement M400 (50 kg)', sku: 'SEM-400-50', category: 'Sement va aralashmalar', unit: 'qop', price: 62_000n, wholesale: 58_000n, cost: 52_000n, qty: '240', min: '40', altUnit: 'kg', altFactor: '50' },
-  { name: 'Sement M500 (50 kg)', sku: 'SEM-500-50', category: 'Sement va aralashmalar', unit: 'qop', price: 71_000n, wholesale: 66_000n, cost: 59_000n, qty: '120', min: '30', altUnit: 'kg', altFactor: '50' },
+  { name: 'Sement M400 (50 kg)', sku: 'SEM-400-50', category: 'Sement va aralashmalar', unit: 'qop', price: 62_000n, wholesale: 58_000n, cost: 52_000n, qty: '240', min: '40', altUnit: 'kg', altFactor: '0.02' },
+  { name: 'Sement M500 (50 kg)', sku: 'SEM-500-50', category: 'Sement va aralashmalar', unit: 'qop', price: 71_000n, wholesale: 66_000n, cost: 59_000n, qty: '120', min: '30', altUnit: 'kg', altFactor: '0.02' },
   { name: 'Qizil g‘isht M100', sku: 'GISHT-M100', category: 'G‘isht va bloklar', unit: 'dona', price: 1_400n, wholesale: 1_250n, cost: 1_050n, qty: '18000', min: '3000' },
   { name: 'Gazoblok 600×300×200', sku: 'BLOK-6032', category: 'G‘isht va bloklar', unit: 'dona', price: 24_000n, wholesale: 22_000n, cost: 19_500n, qty: '860', min: '150' },
   { name: 'Armatura A500 12mm', sku: 'ARM-A500-12', category: 'Metall va armatura', unit: 'metr', price: 15_500n, wholesale: 14_200n, cost: 12_800n, qty: '2400', min: '400' },
@@ -37,9 +45,9 @@ const PRODUCTS = [
 ] as const
 
 const CLIENTS = [
-  { name: 'Alisher Qodirov', phone: '+998 90 123 45 67', group: 'retail', type: 'individual' },
-  { name: 'Qurilish Servis MChJ', phone: '+998 71 233 22 11', group: 'wholesale', type: 'company', creditLimit: 30_000_000n, paymentTermDays: 21 },
-  { name: 'Zafar Mahmudov', phone: '+998 93 555 11 22', group: 'vip', type: 'individual', creditLimit: 10_000_000n, paymentTermDays: 14 },
+  { name: 'Alisher Qodirov', phone: '+998901234567', group: 'retail', type: 'individual' },
+  { name: 'Qurilish Servis MChJ', phone: '+998712332211', group: 'wholesale', type: 'company', creditLimit: 30_000_000n, paymentTermDays: 21 },
+  { name: 'Zafar Mahmudov', phone: '+998935551122', group: 'vip', type: 'individual', creditLimit: 10_000_000n, paymentTermDays: 14 },
 ] as const
 
 async function main(): Promise<void> {
@@ -57,6 +65,8 @@ async function main(): Promise<void> {
 
   await prisma.$transaction(async (tx) => {
     const tenant = await tx.tenant.create({ data: { name: 'Qurilish Mollari (demo)', plan: 'pro' } })
+    // Egasi superuser bo'lmasa ham RLS (WITH CHECK) yozuvlarni qabul qilsin
+    await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.id}, true)`
     await tx.settings.create({
       data: {
         tenantId: tenant.id,
@@ -90,7 +100,7 @@ async function main(): Promise<void> {
       categories.find((c) => c.name === name)?.id ?? categories[0]!.id
 
     const owner = await tx.employee.create({
-      data: { tenantId: tenant.id, name: 'Bobur Toshmatov', position: 'Direktor', phone: '+998 90 111 22 33', hiredAt: new Date('2024-03-01') },
+      data: { tenantId: tenant.id, name: 'Bobur Toshmatov', position: 'Direktor', phone: '+998901112233', hiredAt: new Date('2024-03-01') },
     })
     await tx.user.create({
       data: { tenantId: tenant.id, employeeId: owner.id, email: DEMO_EMAIL, passwordHash, role: 'admin' },
@@ -102,7 +112,7 @@ async function main(): Promise<void> {
       { name: 'Jasur Aliyev', position: 'Menejer', role: 'manager' as const, email: 'manager@crm.uz' },
     ].entries()) {
       const emp = await tx.employee.create({
-        data: { tenantId: tenant.id, name: e.name, position: e.position, phone: `+998 90 222 00 0${i}`, hiredAt: new Date('2025-01-15') },
+        data: { tenantId: tenant.id, name: e.name, position: e.position, phone: `+99890222000${i}`, hiredAt: new Date('2025-01-15') },
       })
       await tx.user.create({
         data: { tenantId: tenant.id, employeeId: emp.id, email: e.email, passwordHash, role: e.role },

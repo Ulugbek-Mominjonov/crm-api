@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { refundTotals, saleTotals } from './pos'
+import { lineTotal, refundTotals, saleTotals } from './pos'
 
 describe('saleTotals', () => {
   it('QQS chegirmadan keyingi bazadan hisoblanadi', () => {
@@ -96,5 +96,16 @@ describe('refundTotals', () => {
     const back = refundTotals(100_000, 20_000, 12)
     expect(back.taxable).toBe(80_000)
     expect(back.total).toBe(89_600)
+  })
+})
+
+describe('lineTotal', () => {
+  it('narx × miqdor − qator chegirmasi', () => {
+    expect(lineTotal(60_000, 3, 5_000)).toBe(175_000)
+  })
+
+  it('kasrli miqdorda so‘mgacha yaxlitlanadi', () => {
+    // 1.333 kg × 1 200 = 1 599.6
+    expect(lineTotal(1_200, 1.333)).toBe(1_600)
   })
 })

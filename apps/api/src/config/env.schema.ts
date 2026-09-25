@@ -56,6 +56,8 @@ export const envSchema = z
     // ── Kesh / navbat ──
     CACHE_DRIVER: z.enum(['memory', 'redis', 'none']).default('memory'),
     REDIS_URL: z.string().optional(),
+    /** Fon navbati (T-096): `bullmq` — Redis orqali; `inline` — jarayon ichida (Redis'siz zaxira) */
+    QUEUE_DRIVER: z.enum(['inline', 'bullmq']).default('inline'),
 
     // ── Auth ──
     JWT_PRIVATE_KEY_PATH: z.string().min(1),
@@ -65,6 +67,13 @@ export const envSchema = z
 
     // ── Transport ──
     WEB_ORIGINS: csv('http://localhost:5173'),
+    /**
+     * Ilova oldidagi ishonchli proksilar soni (Caddy — 1). 0 — proksi yo'q:
+     * `X-Forwarded-For` e'tiborsiz qoldiriladi (aks holda mijoz uni soxtalashtirib
+     * rate limitni aylanib o'tardi). Proksi ortida 0 qolsa esa `req.ip` — proksi
+     * manzili va barcha foydalanuvchilar bitta rate limit hisobini bo'lishadi.
+     */
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
 
     // ── Obyekt saqlagich (09-storage) ──
     S3_ENDPOINT: z.url(),
@@ -74,13 +83,33 @@ export const envSchema = z
     S3_ACCESS_KEY: z.string().min(1),
     S3_SECRET_KEY: z.string().min(1),
     S3_FORCE_PATH_STYLE: bool('true'),
+    /** Rasm variantlari ishchisi davri (ms); 0 — o'chiq: faqat `orig` beriladi (testlar) */
+    FILE_VARIANTS_INTERVAL_MS: z.coerce.number().int().min(0).default(10_000),
 
     // ── Ixtiyoriy integratsiyalar ──
     SMS_PROVIDER: z.enum(['eskiz', 'playmobile', 'none']).default('none'),
+    /** eskiz — Bearer token; playmobile — `login:parol` (Basic) */
     SMS_TOKEN: z.string().optional(),
+    /** Jo'natuvchi nomi/raqami (provayderda ro'yxatdan o'tgan) */
+    SMS_SENDER: z.string().default('4546'),
+    /** Bir tenant uchun kunlik SMS chegarasi (T-078) */
+    SMS_DAILY_LIMIT: z.coerce.number().int().positive().default(1000),
+    /** SMS navbati ishchisi qanchalik tez-tez aylanadi (ms); 0 — o'chiq (testlar) */
+    SMS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(15_000),
+    // ── Obuna to'lovlari (T-126) — berilmasa tegishli webhook o'chiq ──
+    /** Payme Merchant API: kassa id (checkout havolasi) va kalit (webhook Basic auth) */
+    PAYME_MERCHANT_ID: z.string().optional(),
+    PAYME_KEY: z.string().optional(),
+    /** Click SHOP API: xizmat va sotuvchi id, imzo kaliti */
+    CLICK_SERVICE_ID: z.string().optional(),
+    CLICK_MERCHANT_ID: z.string().optional(),
+    CLICK_SECRET_KEY: z.string().optional(),
+    // ── Fiskal chek (T-129) — o'chiq bo'lsa cheklar navbatga tushmaydi ──
     OFD_ENABLED: bool('false'),
     OFD_ENDPOINT: z.string().optional(),
     OFD_TOKEN: z.string().optional(),
+    /** Fiskal navbat ishchisi qayta urinishlar uchun qanchalik tez-tez aylanadi (ms); 0 — o'chiq (testlar) */
+    OFD_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(30_000),
     PDF_ENABLED: bool('false'),
     SENTRY_DSN: z.string().optional(),
   })
@@ -88,6 +117,10 @@ export const envSchema = z
   .refine((e) => e.CACHE_DRIVER !== 'redis' || !!e.REDIS_URL, {
     path: ['REDIS_URL'],
     message: "CACHE_DRIVER=redis bo'lsa REDIS_URL majburiy",
+  })
+  .refine((e) => e.QUEUE_DRIVER !== 'bullmq' || !!e.REDIS_URL, {
+    path: ['REDIS_URL'],
+    message: "QUEUE_DRIVER=bullmq bo'lsa REDIS_URL majburiy",
   })
   .refine((e) => e.SMS_PROVIDER === 'none' || !!e.SMS_TOKEN, {
     path: ['SMS_TOKEN'],

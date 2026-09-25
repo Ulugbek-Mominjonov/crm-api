@@ -1,6 +1,7 @@
 import { Body, Controller, Module, Post } from '@nestjs/common'
 import type { INestApplication, MiddlewareConsumer, NestModule } from '@nestjs/common'
 import { Test } from '@nestjs/testing'
+import type { NestExpressApplication } from '@nestjs/platform-express'
 import { IsString } from 'class-validator'
 import pino from 'pino'
 import { Writable } from 'node:stream'
@@ -73,7 +74,7 @@ describe('Log tozalash (redaction)', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [LogProbeModule] }).compile()
-    app = setupApp(moduleRef.createNestApplication())
+    app = setupApp(moduleRef.createNestApplication<NestExpressApplication>())
     await app.init()
   })
 

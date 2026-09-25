@@ -2,9 +2,7 @@ import { Injectable } from '@nestjs/common'
 import { PRODUCT_CATEGORIES } from '@crm/shared'
 import { PrismaService } from '@/prisma/prisma.service'
 import type { Role } from '@prisma/client'
-
-/** Hujjat raqamlari prefikslari — har tenantda alohida hisoblagich (I12) */
-export const DOC_PREFIXES = ['CHEK', 'QAYT', 'TKLF', 'BUY'] as const
+import { DOC_PREFIXES } from '@/modules/doc-numbers/doc-number.service'
 
 export const DEFAULT_WAREHOUSE_NAME = 'Asosiy ombor'
 
@@ -40,6 +38,9 @@ export class TenantProvisioningService {
   async provision(input: ProvisionInput): Promise<ProvisionResult> {
     return this.prisma.$transaction(async (tx) => {
       const tenant = await tx.tenant.create({ data: { name: input.tenantName } })
+      // Qolgan yozuvlar YANGI tenantniki — RLS (WITH CHECK) ularni faqat shu
+      // tenant o'rnatilgan tranzaksiyada qabul qiladi (`tenants` — global jadval)
+      await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.id}, true)`
 
       await tx.settings.create({
         data: { tenantId: tenant.id, storeName: input.tenantName },

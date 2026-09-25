@@ -1,0 +1,8 @@
+{
+  "Rules": [
+    { "ID": "media-abort-multipart", "Status": "Enabled", "Filter": { "Prefix": "" }, "AbortIncompleteMultipartUpload": { "DaysAfterInitiation": 1 } },
+    { "ID": "backup-daily", "Status": "Enabled", "Filter": { "Prefix": "daily/" }, "Expiration": { "Days": 30 } },
+    { "ID": "backup-weekly", "Status": "Enabled", "Filter": { "Prefix": "weekly/" }, "Expiration": { "Days": 90 } },
+    { "ID": "backup-monthly", "Status": "Enabled", "Filter": { "Prefix": "monthly/" }, "Expiration": { "Days": 365 } }
+  ]
+}

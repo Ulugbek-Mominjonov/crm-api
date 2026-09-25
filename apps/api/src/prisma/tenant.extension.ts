@@ -4,6 +4,7 @@ import { tryContext } from '@/common/context/request-context'
 import {
   CREATE_OPS, GLOBAL_MODELS, MUTATE_OPS, READ_OPS, TENANT_MODELS,
 } from './tenant-models'
+import { currentTenantTx } from './tenant-tx'
 
 /**
  * Tenant izolyatsiyasining IKKINCHI qatlami (birinchisi — so'rov konteksti,
@@ -103,7 +104,9 @@ export const tenantExtension = Prisma.defineExtension({
         // Tizim ishi — filtr qo'shilmaydi (chaqiruvchi javobgar)
         if (isSystemScope()) return query(args)
 
-        const tenantId = tryContext()?.tenantId
+        // Tranzaksiya tenant'i ustun: so'rovda u kontekstdagi bilan bir xil,
+        // login va fon ishlarida esa (kontekstda tenant yo'q) faqat u bor
+        const tenantId = currentTenantTx()?.tenantId ?? tryContext()?.tenantId
         if (!tenantId) throw new MissingTenantScopeError(model, operation)
 
         const next = { ...(args as Args) }

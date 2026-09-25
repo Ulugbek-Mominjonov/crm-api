@@ -1,0 +1,16 @@
+# Obrazga faqat manba kiradi — mahalliy bog'liqlik, yig'ma va SIRLAR emas
+**/node_modules
+**/dist
+**/coverage
+.git
+.github
+docs
+**/*.log
+**/.env
+**/.env.*
+!apps/api/.env.example
+apps/api/secrets
+**/secrets
+apps/api/test
+**/*.spec.ts
+infra

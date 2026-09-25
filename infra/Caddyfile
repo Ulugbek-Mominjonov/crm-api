@@ -1,0 +1,32 @@
+# ═══════════════════════════════════════════════════════════════════
+# Caddy (T-116, 11 §11.5): TLS avtomatik (Let's Encrypt). Domen — .env
+# dagi API_DOMAIN (masalan api.domen.uz).
+# ═══════════════════════════════════════════════════════════════════
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# Swagger faqat staging'da — production'da yopiq (12 §12.6); ilova ham UI bermaydi
+	@docs path /api/docs*
+	respond @docs 404
+
+	reverse_proxy api:3000 {
+		header_up X-Real-IP {remote_host}
+		health_uri /health/live
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Access log: URL'da sir yo'q (token — sarlavhada va WebSocket qo'l siqishida)
+	log {
+		output file /data/access.log {
+			roll_size 50mb
+			roll_keep 5
+		}
+	}
+}

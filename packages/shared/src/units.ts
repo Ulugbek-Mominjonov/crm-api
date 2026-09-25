@@ -1,5 +1,8 @@
 import type { Product, ProductUnit } from './types'
 
+/** Birlik hisobi uchun mahsulotning kerakli maydonlari (server ham shuni beradi) */
+export type UnitSpec = Pick<Product, 'unit' | 'altUnit' | 'altFactor'>
+
 /**
  * Birlik konvertatsiyasi — qurilish mollari uchun zarur.
  *
@@ -18,7 +21,7 @@ export interface UnitOption {
 }
 
 /** Mahsulot uchun mavjud birliklar (asosiy + qo'shimcha) */
-export function unitOptions(p: Product): UnitOption[] {
+export function unitOptions(p: UnitSpec): UnitOption[] {
   const out: UnitOption[] = [{ unit: p.unit, factor: 1, base: true }]
   if (p.altUnit && p.altUnit !== p.unit && (p.altFactor ?? 0) > 0) {
     out.push({ unit: p.altUnit, factor: p.altFactor!, base: false })
@@ -27,13 +30,13 @@ export function unitOptions(p: Product): UnitOption[] {
 }
 
 /** Mahsulotda qo'shimcha birlik sozlanganmi? */
-export function hasAltUnit(p: Product): boolean {
+export function hasAltUnit(p: UnitSpec): boolean {
   return !!p.altUnit && p.altUnit !== p.unit && (p.altFactor ?? 0) > 0
 }
 
 /** Tanlangan birlikdagi miqdorni asosiy birlikka o'tkazadi */
 export function toBaseQty(
-  p: Product,
+  p: UnitSpec,
   qty: number,
   unit: ProductUnit,
 ): number {
@@ -46,7 +49,7 @@ export function toBaseQty(
 
 /** Asosiy birlikdagi miqdorni tanlangan birlikka o'tkazadi */
 export function fromBaseQty(
-  p: Product,
+  p: UnitSpec,
   baseQty: number,
   unit: ProductUnit,
 ): number {
@@ -59,7 +62,7 @@ export function fromBaseQty(
 
 /** Tanlangan birlik uchun bir birlik narxi */
 export function priceForUnit(
-  p: Product,
+  p: UnitSpec,
   basePrice: number,
   unit: ProductUnit,
 ): number {

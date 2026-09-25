@@ -1,8 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common'
+import { Injectable, Optional } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
-import { PrismaService } from '@/prisma/prisma.service'
+import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import { tryContext } from '@/common/context/request-context'
 import { redact } from '@/common/logging/redaction'
+import { ReportCache } from '@/modules/reports/report-cache.service'
 
 export interface AuditInput {
   action: string
@@ -21,34 +22,36 @@ export interface AuditInput {
  */
 @Injectable()
 export class AuditService {
-  private readonly logger = new Logger(AuditService.name)
-
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly reports?: ReportCache,
+  ) {}
 
   /**
-   * Jurnalga yozadi. Xato bo'lsa ASOSIY amal buzilmaydi — audit yozuvining
-   * yiqilishi sotuvni bekor qilishi mumkin emas. Lekin xato jimgina
-   * yutilmaydi: u logga `error` darajasida tushadi.
+   * Jurnalga yozadi — JORIY tenant tranzaksiyasida (so'rovniki yoki `tx`).
+   *
+   * Xato yutilmaydi: yozuv amal bilan bitta tranzaksiyada, ya'ni jurnal
+   * yozilmasa amal ham saqlanmaydi. Tenantsiz kontekstda (login) —
+   * jurnal yo'q.
    */
-  async log(input: AuditInput, tx?: Prisma.TransactionClient): Promise<void> {
+  async log(input: AuditInput, tx?: TenantTx): Promise<void> {
     const ctx = tryContext()
     if (!ctx?.tenantId) return
 
-    const data = {
-      tenantId: ctx.tenantId,
-      userId: ctx.userId ?? null,
-      action: input.action,
-      detail: input.detail?.slice(0, 500),
-      entityType: input.entityType,
-      entityId: input.entityId,
-      diff: input.diff ? (redact(input.diff) as Prisma.InputJsonValue) : undefined,
-    }
-
-    try {
-      const client = tx ?? this.prisma
-      await client.auditEntry.create({ data })
-    } catch (err) {
-      this.logger.error({ err, action: input.action }, 'Audit yozuvi saqlanmadi')
-    }
+    const client = tx ?? this.prisma.scoped
+    await client.auditEntry.create({
+      data: {
+        tenantId: ctx.tenantId,
+        userId: ctx.userId ?? null,
+        action: input.action,
+        detail: input.detail?.slice(0, 500),
+        entityType: input.entityType,
+        entityId: input.entityId,
+        diff: input.diff ? (redact(input.diff) as Prisma.InputJsonValue) : undefined,
+      },
+    })
+    // Har pul/ombor amali jurnalga tushadi (I22) — hisobot keshi shu yerda
+    // bekor qilinadi (T-085). Tranzaksiya yiqilsa ham zarar yo'q: faqat kesh o'tkazib yuboriladi
+    this.reports?.invalidate(ctx.tenantId)
   }
 }

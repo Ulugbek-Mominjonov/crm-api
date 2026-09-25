@@ -1,0 +1,9 @@
+[
+  {
+    "AllowedOrigins": ["https://crm.domen.uz"],
+    "AllowedMethods": ["PUT", "GET", "HEAD"],
+    "AllowedHeaders": ["content-type", "content-length"],
+    "ExposeHeaders": ["etag"],
+    "MaxAgeSeconds": 3600
+  }
+]

@@ -45,11 +45,41 @@ describe('Row Level Security', () => {
     await testDb.$disconnect()
   })
 
-  it('siyosat 28 ta tenant jadvaliga qo‘llangan', async () => {
-    const rows = await testDb.$queryRaw<{ count: bigint }[]>`
-      SELECT count(*) FROM pg_policies WHERE schemaname = 'public'
+  it('`tenant_id` li HAR jadvalda RLS yoqilgan, majburiy va siyosati bor', async () => {
+    // Sanoq qo'lda yozilmaydi: yangi tenant jadvali siyosatsiz qolsa — test yiqiladi
+    const rows = await testDb.$queryRaw<{ table: string; rls: boolean; forced: boolean; policy: boolean }[]>`
+      SELECT c.relname AS table, c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
+             EXISTS (SELECT 1 FROM pg_policies p
+                      WHERE p.schemaname = 'public' AND p.tablename = c.relname
+                        AND p.policyname LIKE '%_tenant_isolation') AS policy
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'public' AND c.relkind = 'r'
+         AND EXISTS (SELECT 1 FROM information_schema.columns col
+                      WHERE col.table_schema = 'public' AND col.table_name = c.relname AND col.column_name = 'tenant_id')
     `
-    expect(Number(rows[0]!.count)).toBe(28)
+    expect(rows.length).toBeGreaterThanOrEqual(29)
+    expect(rows.filter((r) => !r.rls || !r.forced || !r.policy).map((r) => r.table)).toEqual([])
+  })
+
+  it('kirish siyosati: faqat berilgan ANIQ email ko‘rinadi va faqat o‘qish uchun', async () => {
+    const aUser = await testDb.user.findUniqueOrThrow({ where: { id: a.userId } })
+    const lookup = <T>(fn: (tx: Parameters<Parameters<typeof appDb.$transaction>[0]>[0]) => Promise<T>) =>
+      appDb.$transaction(async (tx) => {
+        await tx.$executeRaw`SELECT set_config('app.auth_email', ${aUser.email}, true)`
+        return fn(tx)
+      })
+
+    // Sozlamasiz — hech kim ko'rinmaydi
+    expect(await appDb.user.findMany()).toEqual([])
+    // Email bo'yicha — faqat o'sha foydalanuvchi (tenant noma'lum bo'lsa ham)
+    const found = await lookup((tx) => tx.user.findMany({ select: { id: true } }))
+    expect(found).toEqual([{ id: a.userId }])
+    // Siyosat faqat SELECT uchun: yozib bo'lmaydi
+    const { count } = await lookup((tx) =>
+      tx.user.updateMany({ where: { id: a.userId }, data: { isActive: false } }),
+    )
+    expect(count).toBe(0)
   })
 
   it('ilova roli FAQAT o‘z tenantini ko‘radi — filtr yozilmasa ham', async () => {

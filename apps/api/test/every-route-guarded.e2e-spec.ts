@@ -1,10 +1,10 @@
 import type { INestApplication } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import type { Router } from 'express'
 import { IS_PUBLIC_KEY } from '@/modules/auth/decorators/public.decorator'
 import { PERMISSION_KEY } from '@/modules/auth/decorators/require-permission.decorator'
 import { createTestApp } from './helpers/app'
 import { testDb } from './helpers/db'
+import { collectRoutes, type RouteInfo } from './helpers/routes'
 
 /**
  * Har bir endpoint ATAYLAB tasniflangan bo'lishi kerak:
@@ -21,45 +21,33 @@ const AUTH_ONLY = new Set([
   'POST /api/v1/auth/logout-all',
   'GET /api/v1/auth/me',
   'POST /api/v1/auth/change-password',
+  // Kassir ham QQS va chegirma chegarasini bilishi kerak; maxfiy maydon yo'q
+  'GET /api/v1/settings',
+  // Fayl huquqi TURIGA bog'liq (rasm — products, eksport — finance …) —
+  // FilesService tekshiradi (files-read, files-presign testlari)
+  'POST /api/v1/files/presign',
+  'POST /api/v1/files/:id/confirm',
+  'GET /api/v1/files/:id',
+  'GET /api/v1/files/:id/raw',
+  'GET /api/v1/files/urls',
+  'DELETE /api/v1/files/:id',
+  // Eksport huquqi ro'yxatga bog'liq (sotuvlar — sales, mijozlar — customers …),
+  // ishni faqat so'rovchi ko'radi — ExportsService tekshiradi (exports testi)
+  'GET /api/v1/exports/:resource',
+  'GET /api/v1/exports/jobs/:id',
+  'GET /api/v1/exports/jobs/:id/download',
+  // Migratsiya — faqat administrator (matritsada "faqat admin" resursi yo'q) — MigrationService tekshiradi
+  'POST /api/v1/migration/validate',
+  'POST /api/v1/migration/import',
+  // Obuna va do'kon hisobi — faqat administrator (Billing/AccountService tekshiradi)
+  'POST /api/v1/billing/invoices',
+  'GET /api/v1/billing/invoices',
+  'GET /api/v1/tenants/current',
+  'POST /api/v1/tenants/current/delete',
+  'POST /api/v1/tenants/current/restore',
+  // Zaxira — faqat administrator (BackupService tekshiradi, tenant-export testi)
+  'GET /api/v1/backup/export',
 ])
-
-interface RouteInfo {
-  method: string
-  path: string
-  handler: (...args: unknown[]) => unknown
-  controller: object
-}
-
-/** Express router'idan barcha yo'llarni yig'adi */
-function collectRoutes(app: INestApplication): RouteInfo[] {
-  const server = app.getHttpAdapter().getInstance() as { router?: Router; _router?: Router }
-  const router = server.router ?? server._router
-  const stack = (router as unknown as { stack: RouteStackItem[] }).stack
-  const out: RouteInfo[] = []
-  for (const layer of stack) {
-    const route = layer.route
-    if (!route) continue
-    for (const [method, enabled] of Object.entries(route.methods)) {
-      if (!enabled) continue
-      const handleLayer = route.stack.at(-1)
-      out.push({
-        method: method.toUpperCase(),
-        path: route.path,
-        handler: handleLayer?.handle as RouteInfo['handler'],
-        controller: {},
-      })
-    }
-  }
-  return out
-}
-
-interface RouteStackItem {
-  route?: {
-    path: string
-    methods: Record<string, boolean>
-    stack: { handle: unknown }[]
-  }
-}
 
 describe('Har bir endpoint himoyalangan', () => {
   let app: INestApplication
@@ -108,6 +96,12 @@ describe('Har bir endpoint himoyalangan', () => {
       'POST /api/v1/auth/login',
       'POST /api/v1/auth/logout',
       'POST /api/v1/auth/refresh',
+      // To'lov provayderlari (T-126) — JWT emas, kalit/imzo bilan
+      'POST /api/v1/billing/click/complete',
+      'POST /api/v1/billing/click/prepare',
+      'POST /api/v1/billing/payme',
+      // Yangi do'kon ochish (T-124) — hisob hali yo'q; rate limit bilan
+      'POST /api/v1/tenants/register',
     ])
   })
 })
