@@ -77,7 +77,7 @@ login’da do‘kon tanlash).
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
 Uni serverga ulash — frontend vazifasi ([13-bo‘lim](#tasks)). Backend tomoni tayyor va sinalgan
-(130 unit + 538 e2e test).
+(130 unit + 539 e2e test).
 
 ---
 

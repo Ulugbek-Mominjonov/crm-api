@@ -182,7 +182,7 @@ xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README h
 Frontend integratsiyasi (E13, T-112, T-113) — frontend dasturchida (C32); backend unga tayyor va
 hujjatlangan: [`docs/api/`](./docs/api/README.md). Qolgani — haqiqiy server talab qiladigan E15 vazifalari.
 
-Oxirgi to'liq tekshiruv (2026-09-28): `npm run verify` (lint, typecheck; unit — shared 106, api 130) va e2e — 80 fayl, **538 test o'tdi** (3 tasi o'tkazildi: `s3-prod-smoke`, R2 kaliti kerak).
+Oxirgi to'liq tekshiruv (2026-09-28): `npm run verify` (lint, typecheck; unit — shared 106, api 130) va e2e — 80 fayl, **539 test o'tdi** (3 tasi o'tkazildi: `s3-prod-smoke`, R2 kaliti kerak).
 
 ### Keyingi sessiyada
 
