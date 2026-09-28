@@ -13,8 +13,12 @@
 		not path /api/docs*
 	}
 	handle @backend {
+		# Deploy'da API qayta yaratiladi (~3 s): so'rov xato olmaydi — yangi konteyner ko'tarilguncha
+		# ulanish qayta uriniladi. Faol sog'liq tekshiruvi (health_uri) ATAYLAB yo'q: yagona upstream'ni
+		# "nosog'lom" deb belgilab, API tiklangach ham keyingi tekshiruvgacha (30 s) 503 berardi
 		reverse_proxy crm-api:3000 {
-			health_uri /health/live
+			lb_try_duration 15s
+			lb_try_interval 250ms
 		}
 	}
 	handle /api/docs* {

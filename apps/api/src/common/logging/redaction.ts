@@ -35,7 +35,9 @@ export function isSensitiveKey(key: string): boolean {
  * Chuqurlik cheklangan — aylanma havolada osilib qolmasin.
  */
 export function redact<T>(value: T, depth = 4): T {
-  if (depth <= 0 || value === null || typeof value !== 'object') return value
+  // Error — o'zgarishsiz: `message` va `stack` sanalmaydigan maydonlar, nusxada yo'qolardi
+  // (logda uni pino'ning `err` serializatori yozadi)
+  if (depth <= 0 || value === null || typeof value !== 'object' || value instanceof Error) return value
   if (Array.isArray(value)) {
     return value.map((v) => redact(v, depth - 1)) as unknown as T
   }
