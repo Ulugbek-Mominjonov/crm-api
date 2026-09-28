@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
 # Kunlik zaxira (T-121, 11 §11.8): pg_dump → age (shifrlash) → R2.
-# cron: 0 3 * * *  /opt/crm/backup.sh >> /var/log/crm-backup.log 2>&1
-# Kerak: /opt/crm/backup.env — AGE_PUBLIC_KEY, S3_ENDPOINT, AWS_ACCESS_KEY_ID,
-# AWS_SECRET_ACCESS_KEY, BACKUP_BUCKET. Shifr KALITI serverda saqlanmaydi.
+# cron (deploy foydalanuvchisi): 0 3 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
+# Kerak: yonida backup.env (namuna — backup.env.example). Shifr KALITI serverda saqlanmaydi.
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
-cd /opt/crm
+cd "$(dirname "$(readlink -f "$0")")"
+# `set -a` — o'zgaruvchilar eksport qilinadi: `aws` AWS_* kalitlarini muhitdan o'qiydi
+set -a
 # shellcheck disable=SC1091
 source ./backup.env
+set +a
 
 TS=$(date -u +%F-%H%M)
 DIR=daily

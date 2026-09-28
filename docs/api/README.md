@@ -153,11 +153,55 @@ export default defineConfig({
 })
 ```
 
-**Production:** API alohida domenda bo‘lsa — `VITE_API_URL=https://api.domen.uz`. Refresh cookie
-`SameSite=Strict`: frontend va API **bitta ro‘yxatdan o‘tgan domen** ostida bo‘lishi shart
-(`crm.domen.uz` + `api.domen.uz` — ishlaydi; `crm.pages.dev` + `api.domen.uz` — cookie
-yuborilmaydi). Yoki ikkalasi bitta domen ostida reverse proxy bilan. Server CORS ro‘yxati —
-`WEB_ORIGINS` (vergul bilan), `credentials: true`; `*` hech qachon.
+**Production:** frontend va API **bitta serverda, bitta domenda** (`https://crm.domen.uz`). Server
+(Caddy) `/api/*`, `/socket.io/*`, `/health/*` ni API’ga, qolganini frontend build’iga beradi — dev’dagi
+Vite proksi bilan aynan bir xil yo‘llar:
+
+- `VITE_API_URL` **bo‘sh** (yoki berilmaydi): so‘rovlar nisbiy (`/api/v1/...`), socket — `io('/events')`.
+  CORS va preflight yo‘q, refresh cookie (`SameSite=Strict`) muammosiz yuboriladi.
+- Service worker (`vite-plugin-pwa`) API yo‘llarini ushlamasin — aks holda yangi oynada ochilgan
+  `/api/...` havolasiga `navigateFallback` `index.html` qaytaradi:
+  `workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//, /^\/health\//] }`.
+- Keshni server boshqaradi: `index.html`, `sw.js`, manifest — keshsiz (yangi versiya darhol),
+  `/assets/*` — 1 yil (nomida hash). Noma’lum yo‘l — `index.html` (SPA), yo‘q `/assets/*` fayli — 404.
+- Build serverga IKKI bosqichda yuklanadi — avval yangi hash’li fayllar, keyin `index.html` va
+  qolgani (yuklash paytida ochgan foydalanuvchi yarim versiyaga tushmasin). SSH kalit, server manzili
+  va `known_hosts` qatori — server egasidan; kalit FAQAT frontend papkasiga yoza oladi, shuning uchun
+  yo‘llar nisbiy (`assets/`; bo‘sh — papkaning o‘zi). Frontend repo’si uchun GitHub Actions namunasi:
+
+  ```yaml
+  # .github/workflows/deploy.yml — secrets: SSH_HOST, WEB_DEPLOY_KEY, SSH_KNOWN_HOSTS
+  name: deploy
+  on:
+    push: { branches: [main] }
+    workflow_dispatch:
+  concurrency: { group: deploy-web, cancel-in-progress: false }
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with: { node-version: 22, cache: npm }
+        - run: npm ci && npm run build
+        - name: Serverga yuklash (avval assets, keyin index.html)
+          env:
+            SSH_HOST: ${{ secrets.SSH_HOST }}
+            WEB_DEPLOY_KEY: ${{ secrets.WEB_DEPLOY_KEY }}
+            SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          run: |
+            install -d -m 700 ~/.ssh
+            printf '%s\n' "$WEB_DEPLOY_KEY" > ~/.ssh/web && chmod 600 ~/.ssh/web
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            export RSYNC_RSH="ssh -i $HOME/.ssh/web"
+            rsync -a dist/assets/ "deploy@$SSH_HOST:assets/"
+            rsync -a --delete dist/ "deploy@$SSH_HOST:"
+  ```
+
+API boshqa domenda bo‘lsa (hozir rejada yo‘q): `VITE_API_URL=https://api.domen.uz`, ikkalasi bitta
+ro‘yxatdan o‘tgan domen ostida bo‘lishi shart (`crm.domen.uz` + `api.domen.uz` — ishlaydi;
+`crm.pages.dev` + `api.domen.uz` — cookie yuborilmaydi). Server CORS ro‘yxati — `WEB_ORIGINS`
+(vergul bilan), `credentials: true`; `*` hech qachon.
 
 CORS’da ruxsat etilgan so‘rov sarlavhalari: `Content-Type`, `Authorization`, `Idempotency-Key`,
 `If-Match`, `X-Request-Id`. JS o‘qiy oladigan javob sarlavhalari: `X-Request-Id`,
@@ -767,7 +811,8 @@ qiling (`GET /backup/export`).
 ```ts
 import { io } from 'socket.io-client'
 
-export const socket = io(`${API_ORIGIN}/events`, {   // dev proksida: io('/events')
+// dev (Vite proksi) va production (bitta domen) — io('/events'); API boshqa domenda bo'lsa — VITE_API_URL
+export const socket = io(`${import.meta.env.VITE_API_URL ?? ''}/events`, {
   autoConnect: false,
   auth: (cb) => cb({ token: getAccessToken() }),
 })
@@ -1593,7 +1638,7 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 | T-107 | Realtime va uzilishga chidamlilik | Boshqa kassir sotgan tovar qoldig‘i darhol yangilanadi; internet uzilganda ogohlantirish va navbat; tiklanganda avtomatik yuborish — [9](#realtime), [12.4](#flow-offline) |
 | T-112 | Migratsiya sehrgari (UI) | 4 qadam (hisob → tekshirish → yuborish → natija); jarayon ko‘rsatkichi; xato bo‘lsa localStorage **o‘chirilmaydi** — [10.19](#migration) |
 | T-113 | Orqaga qaytish yo‘li | Migratsiyadan keyin ham localStorage nusxasi 30 kun saqlanadi; JSON zaxira yuklab olinadi — [10.19](#migration) |
-| T-119 | Frontend deploy (Cloudflare Pages) | SPA yo‘llari ishlaydi; `sw.js` keshlanmaydi; `VITE_API_URL` to‘g‘ri; PWA o‘rnatiladi — [3.1](#connect) |
+| T-119 | Frontend deploy (API bilan bitta serverda va domenda) | SPA yo‘llari ishlaydi; `sw.js` keshlanmaydi; `VITE_API_URL` bo‘sh (nisbiy yo‘llar), service worker `/api` ni ushlamaydi; PWA o‘rnatiladi; build ikki bosqichda yuklanadi — [3.1](#connect) |
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
 sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
@@ -1617,6 +1662,12 @@ tanlangan ombor, til, mavzu, offline navbat.
    bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da kimga ruxsat berishni hal qiling.
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-09-28** — frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Frontend — Cloudflare Pages, API — alohida domen (`api.domen.uz`), `VITE_API_URL` shart edi | Frontend va API bitta serverda, bitta domenda (`crm.domen.uz`): `/api`, `/socket.io`, `/health` — API, qolgani — SPA ([3.1](#connect)) | `VITE_API_URL` bo‘sh, socket — `io('/events')`; `navigateFallbackDenylist`; build — ikki bosqichli `rsync` ([3.1](#connect)) |
 
 **2026-09-27** — frontendga ta’sir qiladi:
 

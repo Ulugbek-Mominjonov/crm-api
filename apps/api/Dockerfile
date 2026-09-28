@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # ═══════════════════════════════════════════════════════════════════
 # Production obrazi (T-114, 08 §8.3). Kontekst — repo ildizi:
-#   docker build --platform linux/arm64 -f apps/api/Dockerfile .
+#   docker build -f apps/api/Dockerfile .      # server (Contabo) — amd64
+#   docker build --platform linux/arm64 ...    # ARM server bo'lsa
 #
 # Bosqichlar: build (hamma bog'liqlik, yig'ish) → prod-deps (faqat
 # ishlash uchun kerakli paketlar + Prisma klienti) → runtime (root'siz).

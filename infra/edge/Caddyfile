@@ -1,0 +1,9 @@
+# ═══════════════════════════════════════════════════════════════════
+# Umumiy sozlama; har loyiha sayti — sites/<loyiha>.caddy (bu yerga import)
+# ═══════════════════════════════════════════════════════════════════
+{
+	# Let's Encrypt: sertifikat muddati haqida xabar shu manzilga
+	email {$ACME_EMAIL}
+}
+
+import /etc/caddy/sites/*.caddy

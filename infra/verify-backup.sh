@@ -2,14 +2,18 @@
 # ═══════════════════════════════════════════════════════════════════
 # Tiklashni sinash (T-121, 08 §8.5): oxirgi zaxirani R2'dan olib, VAQTINCHALIK
 # Postgres konteynerga tiklaydi va asosiy jadvallar sonini solishtiradi.
-# cron: 0 4 * * 0  /opt/crm/verify-backup.sh >> /var/log/crm-backup.log 2>&1
-# Kerak: backup.env + AGE_KEY_FILE (shifr kaliti — faqat sinov paytida, masalan
-# bir martalik yuklangan) . Natija — log va exit kod (monitoring uchun).
+# QO'LDA, oyiga bir marta — cron'da EMAS: shifr kaliti serverda saqlanmaydi,
+# sinov paytidagina beriladi:
+#   AGE_KEY_FILE=/tmp/crm-backup.key ./verify-backup.sh; shred -u /tmp/crm-backup.key
+# Serverdan tashqarida ham ishlaydi: docker, aws, age va yonida backup.env bo'lsa.
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
-cd /opt/crm
+cd "$(dirname "$(readlink -f "$0")")"
+# `set -a` — o'zgaruvchilar eksport qilinadi: `aws` AWS_* kalitlarini muhitdan o'qiydi
+set -a
 # shellcheck disable=SC1091
 source ./backup.env
+set +a
 : "${AGE_KEY_FILE:?AGE_KEY_FILE — shifr kaliti fayli kerak}"
 
 WORK=$(mktemp -d)
