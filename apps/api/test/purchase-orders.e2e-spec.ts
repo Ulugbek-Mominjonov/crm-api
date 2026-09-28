@@ -106,7 +106,9 @@ describe('Kirim buyurtmalari (/purchase-orders)', () => {
 
     const summary = await request(app.getHttpServer()).get('/api/v1/purchase-orders/summary').set('Authorization', auth).expect(200)
     expect(summary.body).toEqual({ outstanding: 10_000, openOrders: 1, monthTotal: 10_000, receivedTotal: 10_000 })
-    await request(app.getHttpServer()).get('/api/v1/purchase-orders/summary').set('Authorization', await bearer(app, a, 'sotuvchi')).expect(200)
+    // Sotuvchi — faqat soni (summalardan tannarx tiklanadi)
+    const seller = await request(app.getHttpServer()).get('/api/v1/purchase-orders/summary').set('Authorization', await bearer(app, a, 'sotuvchi')).expect(200)
+    expect(seller.body).toEqual({ openOrders: 1 })
   })
 
   it('begona havolalar — 422; omborchi buyurtma beradi, sotuvchi — yo‘q', async () => {

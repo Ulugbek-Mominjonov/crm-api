@@ -11,7 +11,8 @@ savol qolmasligi.
 | [schemas.md](schemas.md) | **193 ta DTO** — har bir maydon: tip, majburiymi, izoh, cheklovlar |
 
 **Haqiqat manbai** — kod. `endpoints.md` va `schemas.md` `apps/api/openapi.json` dan generatsiya
-qilingan; `openapi.json` esa kodning o‘zidan yasaladi va CI undagi farqni (drift) tekshiradi.
+qilingan (`npm run docs:api`, generator — `scripts/api-docs/`); `openapi.json` esa kodning o‘zidan
+yasaladi va CI undagi farqni (drift) tekshiradi.
 Jonli, sinab ko‘rish mumkin bo‘lgan versiya — Swagger UI: `http://localhost:3000/api/docs`
 (production’da o‘chiq).
 
@@ -60,7 +61,7 @@ login’da do‘kon tanlash).
 | Rollar | `admin`, `manager`, `sotuvchi`, `omborchi` — resurs × amal matritsasi; tannarx/foyda maydonlari rolga qarab javobdan olib tashlanadi |
 | Spravochniklar | Omborlar (arxiv), kategoriyalar, mahsulotlar (qo‘shimcha birlik, import, ommaviy narx, rasm), mijozlar, ta’minotchilar, xodimlar, foydalanuvchilar — sahifalash, saralash, qidiruv, yumshoq o‘chirish + tiklash, optimistik qulf |
 | Ombor | Kirim (o‘rtacha tannarx), chiqim, inventarizatsiya, ko‘chirish, harakatlar jurnali, buyurtma taklifi; qoldiq manfiy bo‘lmaydi |
-| Sotuv | Chek (bitta tranzaksiya: qoldiq, kassa, bonus, yetkazish), qaytarish, bekor qilish, chop etish uchun chek (JSON; PDF — hali yo‘q), OFD fiskal chek (navbat orqali) |
+| Sotuv | Chek (bitta tranzaksiya: qoldiq, kassa, bonus, yetkazish), qaytarish, bekor qilish, chop etish uchun chek (JSON yoki tayyor 80 mm PDF), OFD fiskal chek (navbat orqali) |
 | Kassa | Smena ochish/yopish, joriy balans, naqd kirim/chiqim, X/Z hisobot |
 | Moliya | Nasiya va qarzlar (eskirish 30/60/60+), qarz to‘lovi, xarajatlar va takrorlanuvchi shablonlar, kirim buyurtmalari (qabul, ta’minotchiga to‘lov) |
 | Savdo | Takliflar (smeta) → sotuvga aylantirish, yetkazib berish (haydovchi ko‘rinishi, marshrut) |
@@ -76,7 +77,7 @@ login’da do‘kon tanlash).
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
 Uni serverga ulash — frontend vazifasi ([13-bo‘lim](#tasks)). Backend tomoni tayyor va sinalgan
-(121 unit + 529 e2e test).
+(130 unit + 539 e2e test).
 
 ---
 
@@ -121,8 +122,8 @@ Hammasining paroli — `admin12345`:
 
 Seed smena ochmaydi — POS’da avval smena oching. Ixtiyoriy imkoniyatlar lokalda o‘chiq:
 `SMS_PROVIDER=none` (SMS faqat jurnalga yoziladi, yuborilmaydi), `OFD_ENABLED=false` (chekda
-`fiscal: null`), `PDF_ENABLED=false` (`?format=pdf` → 501), Payme/Click kalitlari bo‘sh
-(hisob-fakturada havolalar `null`).
+`fiscal: null`), Payme/Click kalitlari bo‘sh (hisob-fakturada havolalar `null`). PDF chek lokalda
+ham ishlaydi (qo‘shimcha dastur kerak emas).
 
 > Demo sement: asosiy birlik `qop`, qo‘shimcha `kg` (`altFactor: 0.02` — 1 kg = 0,02 qop, kg narxi = qop narxi / 50).
 
@@ -152,11 +153,55 @@ export default defineConfig({
 })
 ```
 
-**Production:** API alohida domenda bo‘lsa — `VITE_API_URL=https://api.domen.uz`. Refresh cookie
-`SameSite=Strict`: frontend va API **bitta ro‘yxatdan o‘tgan domen** ostida bo‘lishi shart
-(`crm.domen.uz` + `api.domen.uz` — ishlaydi; `crm.pages.dev` + `api.domen.uz` — cookie
-yuborilmaydi). Yoki ikkalasi bitta domen ostida reverse proxy bilan. Server CORS ro‘yxati —
-`WEB_ORIGINS` (vergul bilan), `credentials: true`; `*` hech qachon.
+**Production:** frontend va API **bitta serverda, bitta domenda** (`https://crm.domen.uz`). Server
+(Caddy) `/api/*`, `/socket.io/*`, `/health/*` ni API’ga, qolganini frontend build’iga beradi — dev’dagi
+Vite proksi bilan aynan bir xil yo‘llar:
+
+- `VITE_API_URL` **bo‘sh** (yoki berilmaydi): so‘rovlar nisbiy (`/api/v1/...`), socket — `io('/events')`.
+  CORS va preflight yo‘q, refresh cookie (`SameSite=Strict`) muammosiz yuboriladi.
+- Service worker (`vite-plugin-pwa`) API yo‘llarini ushlamasin — aks holda yangi oynada ochilgan
+  `/api/...` havolasiga `navigateFallback` `index.html` qaytaradi:
+  `workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//, /^\/health\//] }`.
+- Keshni server boshqaradi: `index.html`, `sw.js`, manifest — keshsiz (yangi versiya darhol),
+  `/assets/*` — 1 yil (nomida hash). Noma’lum yo‘l — `index.html` (SPA), yo‘q `/assets/*` fayli — 404.
+- Build serverga IKKI bosqichda yuklanadi — avval yangi hash’li fayllar, keyin `index.html` va
+  qolgani (yuklash paytida ochgan foydalanuvchi yarim versiyaga tushmasin). SSH kalit, server manzili
+  va `known_hosts` qatori — server egasidan; kalit FAQAT frontend papkasiga yoza oladi, shuning uchun
+  yo‘llar nisbiy (`assets/`; bo‘sh — papkaning o‘zi). Frontend repo’si uchun GitHub Actions namunasi:
+
+  ```yaml
+  # .github/workflows/deploy.yml — secrets: SSH_HOST, WEB_DEPLOY_KEY, SSH_KNOWN_HOSTS
+  name: deploy
+  on:
+    push: { branches: [main] }
+    workflow_dispatch:
+  concurrency: { group: deploy-web, cancel-in-progress: false }
+  jobs:
+    deploy:
+      runs-on: ubuntu-latest
+      steps:
+        - uses: actions/checkout@v4
+        - uses: actions/setup-node@v4
+          with: { node-version: 22, cache: npm }
+        - run: npm ci && npm run build
+        - name: Serverga yuklash (avval assets, keyin index.html)
+          env:
+            SSH_HOST: ${{ secrets.SSH_HOST }}
+            WEB_DEPLOY_KEY: ${{ secrets.WEB_DEPLOY_KEY }}
+            SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
+          run: |
+            install -d -m 700 ~/.ssh
+            printf '%s\n' "$WEB_DEPLOY_KEY" > ~/.ssh/web && chmod 600 ~/.ssh/web
+            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+            export RSYNC_RSH="ssh -i $HOME/.ssh/web"
+            rsync -a dist/assets/ "deploy@$SSH_HOST:assets/"
+            rsync -a --delete dist/ "deploy@$SSH_HOST:"
+  ```
+
+API boshqa domenda bo‘lsa (hozir rejada yo‘q): `VITE_API_URL=https://api.domen.uz`, ikkalasi bitta
+ro‘yxatdan o‘tgan domen ostida bo‘lishi shart (`crm.domen.uz` + `api.domen.uz` — ishlaydi;
+`crm.pages.dev` + `api.domen.uz` — cookie yuborilmaydi). Server CORS ro‘yxati — `WEB_ORIGINS`
+(vergul bilan), `credentials: true`; `*` hech qachon.
 
 CORS’da ruxsat etilgan so‘rov sarlavhalari: `Content-Type`, `Authorization`, `Idempotency-Key`,
 `If-Match`, `X-Request-Id`. JS o‘qiy oladigan javob sarlavhalari: `X-Request-Id`,
@@ -315,7 +360,8 @@ ro‘yxat javobi ichida). Jami summani joriy SAHIFA qatorlaridan hisoblamang —
 - `DELETE /x/:id` → `204`. Yozuv **yumshoq** o‘chiriladi (ro‘yxatlardan yo‘qoladi).
 - `POST /x/:id/restore` → `200` + tiklangan yozuv. Toast’dagi «Qaytarish» tugmasi shuni chaqiradi.
   Tiklash bor: kategoriya, mahsulot, mijoz, ta’minotchi, xodim, foydalanuvchi, taklif, xarajat,
-  kirim buyurtmasi, yetkazish.
+  kirim buyurtmasi, yetkazish. O‘chirilganlar ro‘yxati (keyinroq tiklash uchun) — hozircha faqat
+  foydalanuvchilarda: `GET /users?deleted=true` ([10.12](#rules)).
 - O‘chirishni to‘suvchi bog‘liqlik — 409 (`CATEGORY_IN_USE`, `CLIENT_HAS_DEBT`,
   `SUPPLIER_HAS_OPEN_ORDERS`, `EMPLOYEE_HAS_USER`, `QUOTE_ALREADY_CONVERTED`).
 - **Ombor** o‘chirilmaydi — `POST /warehouses/:id/archive` / `.../restore`.
@@ -517,24 +563,46 @@ ko‘rsatmasin, lekin server baribir tekshiradi.
 - `GET /employees` — faqat admin/manager. Sotuvchi yetkazish yaratishi mumkin, lekin haydovchi
   tanlash ro‘yxatini ololmaydi → unga haydovchi maydonini ko‘rsatmang (keyin manager biriktiradi).
 - Kirim buyurtmasi yaratish/qabul — `suppliers` (omborchi ham), to‘lov — `finance:create`
-  (omborchida yo‘q).
+  (omborchida yo‘q). Sotuvchida ham `finance:create` bor, lekin u xarid summalarini ko‘rmaydi
+  ([6.2](#hidden)) — to‘lov tugmasini unga ko‘rsatmang.
+- Sotuvchi `suppliers:view` bilan ta’minotchilar va kirim buyurtmalarini KO‘RADI (kim, nima, qachon
+  keladi), lekin pul maydonlarisiz — «Ta’minotchilar»/«Xaridlar» sahifasida pul ustunlari va kartalarini
+  `field in obj` bilan yashiring.
 - Yetkazish holati — `deliveries:view` bilan chaqiriladi: `edit` huquqisiz foydalanuvchi (haydovchi)
   faqat O‘ZIGA biriktirilganini o‘zgartiradi.
 - Fayl huquqi fayl turiga bog‘liq; eksport huquqi ro‘yxatga bog‘liq (endpoints.md’da).
 
-### 6.2 Yashirin maydonlar (rolga qarab)
+### <a id="hidden"></a>6.2 Yashirin maydonlar (rolga qarab)
 
 Server bu maydonlarni javobdan **butunlay olib tashlaydi** (`null` emas — kalit yo‘q). Barcha
 javoblarga, ichma-ich obyektlarga, 409 dagi `current` ga va eksport ustunlariga qo‘llanadi.
 
 | Rol | Yashirin maydonlar |
 |-----|--------------------|
-| sotuvchi | `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `wholesalePrice`, `salary`, `grossProfit`, `netProfit`, `profit`, `cogs`, `margin` |
+| sotuvchi | `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `wholesalePrice`\*, `salary`, `grossProfit`, `netProfit`, `profit`, `cogs`, `margin`, `payables` |
 | omborchi | `salary`, `grossProfit`, `netProfit`, `profit`, `cogs`, `margin` |
 
-Frontend bu ustun/kartalarni `field in obj` tekshiruvi bilan ko‘rsatsin; alohida rol shartini
-yozish shart emas. Sotuvchi ulgurji narxni ko‘rmaydi, lekin `wholesaleEnabled` bo‘lsa
-`priceTier: "wholesale"` bilan sotishi mumkin (narxni server qo‘yadi).
+\* **Ulgurji narx sotuvchiga do‘kon sozlamasi bilan ochiladi.** `wholesaleEnabled` va
+`sellerWholesaleEnabled` ikkalasi `true` bo‘lsa sotuvchi `wholesalePrice` ni ko‘radi (katalog, eksport)
+va `priceTier: "wholesale"` bilan sota oladi. Aks holda narx javobda yo‘q, `priceTier: "wholesale"`
+yuborsa — 403 `PERMISSION_DENIED` ([10.1](#pos)). Sozlama o‘zgargach sotuvchi katalogni qayta so‘rasin
+(kesh ≤ 1 daqiqa).
+
+**Xarid summalari — sotuvchida yo‘q.** Bitta qatorli kirim buyurtmasida summa ÷ miqdor = tannarx.
+Shuning uchun sotuvchi ta’minotchilar va buyurtmalarni ko‘radi, lekin pul maydonlarisiz. Bu kalitlar
+(`total`, `paid`, `debt` …) chek va mijoz qarzida ham bor — ular FAQAT quyidagi javoblardan olinadi:
+
+| Javob | Sotuvchida yo‘q |
+|-------|-----------------|
+| `GET /purchase-orders`, `/purchase-orders/:id` va buyurtma qaytaradigan amallar | `total`, `receivedValue`, `paid`, `outstanding`; `items[].cost` |
+| `GET /purchase-orders/summary` | `outstanding`, `monthTotal`, `receivedTotal` (faqat `openOrders`) |
+| `GET /suppliers`, `/suppliers/summary` | `debt` (`suppliersWithDebt` — soni qoladi) |
+| `GET /suppliers/:id` | `debt`, `totalPurchased`; `orders[]` da `total`, `paid`, `outstanding`; `payments[]` da `amount` |
+| `GET /dashboard` | `payables` (ta’minotchilarga qarz) |
+| 422 `PAYMENT_EXCEEDS_DEBT` (`POST /purchase-orders/:id/pay`) | `meta.outstanding` (faqat `meta.requested`) |
+
+Frontend bu ustun/kartalarni `field in obj` tekshiruvi bilan ko‘rsatsin (yo‘q kalitni `0` deb
+ko‘rsatmang); alohida rol shartini yozish shart emas.
 
 ---
 
@@ -594,7 +662,6 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | 423 | `SHIFT_REQUIRED` → smena ochish oynasi; `TENANT_READ_ONLY` → banner; `AUTH_ACCOUNT_LOCKED` → login |
 | 429 | Juda ko‘p so‘rov / SMS chegarasi — keyinroq |
 | 500 `INTERNAL` | «Kutilmagan xato, kod: {traceId}» |
-| 501 `FEATURE_DISABLED` | Serverda o‘chirilgan (PDF chek) — tugmani yashiring yoki JSON chekdan chop eting |
 | 503 | Server tayyor emas — qayta urinish |
 | Tarmoq xatosi | Offline — banner; chek bo‘lsa navbatga ([12.4](#flow-offline)) |
 
@@ -607,7 +674,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `AUTH_INVALID_REFRESH` | 401 | Refresh cookie yo‘q, noma’lum yoki muddati o‘tgan | Login sahifasi |
 | `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh cookie ishlatildi (parallel refresh, logout-all / parol almashishidan keyin boshqa qurilmada) — barcha sessiyalar yopildi | «Sessiya tugadi» → login sahifasi |
 | `PLAN_LIMIT_EXCEEDED` | 402 | Tarif chegarasi (foydalanuvchi, ombor): `meta.resource`, `plan`, `limit`, `used` | Tarifni oshirish taklifi |
-| `PERMISSION_DENIED` | 403 | Rol huquqi yetmaydi | «Ruxsat yo‘q» |
+| `PERMISSION_DENIED` | 403 | Rol huquqi yetmaydi; sotuvchi `priceTier: "wholesale"` yubordi, lekin `sellerWholesaleEnabled` o‘chiq | «Ruxsat yo‘q» |
 | `NOT_FOUND` | 404 | Yo‘ldagi yozuv yo‘q / o‘chirilgan / boshqa do‘konniki | Ro‘yxatga qaytish |
 | `AUTH_TENANT_REQUIRED` | 409 | Email bir necha do‘konda — `errors[].meta.{tenantId, tenantName}` | Do‘kon tanlash |
 | `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field` | Maydon ostida |
@@ -619,7 +686,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `QUOTE_ALREADY_CONVERTED` | 409 | Taklif allaqachon sotuvga aylantirilgan | Chekka havola (`saleId`) |
 | `SALE_ALREADY_CANCELLED` | 409 | Chek allaqachon bekor | Ro‘yxatni yangilash |
 | `SALE_NOT_CANCELLABLE` | 409 | Chekda qaytarish (`meta.reason: "returns"`) yoki qarz to‘lovi (`"payments"`) bor | «Avval qaytarishni bekor qiling» / «qarz to‘langan» |
-| `EMPLOYEE_HAS_USER` | 409 | Xodimning kirish hisobi bor (o‘chirish / ikkinchi hisob) | Avval hisobni o‘chirish |
+| `EMPLOYEE_HAS_USER` | 409 | Xodimning kirish hisobi bor: xodimni o‘chirish yoki ikkinchi hisob. `POST /users` da `errors[0].meta: { userId, deleted }` | `deleted: true` — «Tiklash» (`POST /users/{userId}/restore`); aks holda avval hisobni o‘chirish |
 | `CATEGORY_IN_USE` | 409 | Kategoriyada mahsulot bor | — |
 | `CLIENT_HAS_DEBT` | 409 | Mijozda to‘lanmagan nasiya (`meta.debt`) | — |
 | `SUPPLIER_HAS_OPEN_ORDERS` | 409 | `ordered`/`partial` buyurtma bor | — |
@@ -634,7 +701,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `CREDIT_REQUIRES_CUSTOMER` | 422 | Nasiya, lekin mijoz tanlanmagan | Mijoz tanlash |
 | `CREDIT_OVERDUE` | 422 | Mijozda muddati o‘tgan qarz (`meta.overdue`) | «Avval qarzni yopsin» |
 | `CREDIT_LIMIT_EXCEEDED` | 422 | `meta.limit`, `current`, `extra` | Limitni ko‘rsatish |
-| `PAYMENT_EXCEEDS_DEBT` | 422 | To‘lov qarzdan (mijoz yoki ta’minotchi) ko‘p | Qolgan qarzni taklif qilish |
+| `PAYMENT_EXCEEDS_DEBT` | 422 | To‘lov qarzdan (mijoz yoki ta’minotchi) ko‘p: `meta.outstanding` (sotuvchida ta’minotchi qarzi yo‘q), `requested` | Qolgan qarzni taklif qilish |
 | `PAYMENT_EXCEEDS_TOTAL` | 422 | Karta + o‘tkazma chekdan ko‘p (qaytim faqat naqddan) | — |
 | `DISCOUNT_LIMIT` | 422 | Chegirma `maxDiscountPct` dan ko‘p yoki qator chegirmasi qator summasidan katta (`meta.max`, `requested`) | Maksimumni ko‘rsatish |
 | `TOTAL_MISMATCH` | 422 | Ekrandagi jami ≠ server hisobi (`meta.client`, `server`) — chek YOZILMAGAN | Qayta hisoblab, yangi jamini ko‘rsatish |
@@ -646,13 +713,12 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `SELF_DELETE` / `SELF_ROLE_CHANGE` | 422 | O‘zini o‘chirish / o‘z rolini o‘zgartirish | Tugmani yashiring |
 | `FILE_REJECTED` | 422 | Fayl tarkibi e’lon qilingan MIME/xeshga mos emas — karantinda (`meta.id`) | «Fayl buzilgan yoki turi noto‘g‘ri» |
 | `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati orqaga (`meta.from/to`); do‘kon o‘chirish muhlatida emas | — |
-| `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot…) yo‘q yoki boshqa do‘konniki — `errors[].field` | Tanlovni yangilash |
+| `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot…) yo‘q yoki boshqa do‘konniki — `errors[].field`; xodimi o‘chirilgan hisobni tiklash (`field: employeeId`) | Tanlovni yangilash |
 | `SHIFT_REQUIRED` | 423 | Smena ochilmagan (sotuv, qaytarish, naqd amal) | Smena ochish oynasi |
 | `TENANT_READ_ONLY` | 423 | Do‘kon `suspended`/`deleting` — yozish yopiq (`meta.status`) | Banner + to‘lov/qaytarish tugmasi |
 | `AUTH_ACCOUNT_LOCKED` | 423 | Xodim ishdan bo‘shatilgan (login/refresh) | Login sahifasida xabar |
 | `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit`, `used`, `requested`) | — |
 | `INTERNAL` | 500 | Kutilmagan xato (tafsilot loglarda, `traceId` bo‘yicha) | Xato kodi bilan |
-| `FEATURE_DISABLED` | 501 | Serverda o‘chirilgan imkoniyat (PDF chek) | — |
 
 ---
 
@@ -745,7 +811,8 @@ qiling (`GET /backup/export`).
 ```ts
 import { io } from 'socket.io-client'
 
-export const socket = io(`${API_ORIGIN}/events`, {   // dev proksida: io('/events')
+// dev (Vite proksi) va production (bitta domen) — io('/events'); API boshqa domenda bo'lsa — VITE_API_URL
+export const socket = io(`${import.meta.env.VITE_API_URL ?? ''}/events`, {
   autoConnect: false,
   auth: (cb) => cb({ token: getAccessToken() }),
 })
@@ -803,10 +870,11 @@ paytda bir nechta kassir — so‘rovlar yomg‘iri bo‘lmasin). Mutatsiya va h
 
 1. Qator narxi: berilmasa — `priceTier` bo‘yicha (`retail` → `price`, `wholesale` → `wholesalePrice`;
    `wholesaleEnabled=false` bo‘lsa har doim `retail`), tanlangan birlikka o‘giriladi
-   (`priceForUnit`). `price` berilsa — savdolashilgan narx: server uni SO‘ZSIZ qabul qiladi (eski narx
-   bo‘lsa ham, `TOTAL_MISMATCH` ushlamaydi). Shuning uchun `price` ni FAQAT kassir narxni qo‘lda
-   o‘zgartirganda yuboring. Sotuvchi `wholesalePrice` ni ko‘rmaydi — ulgurji chekning jamini oldindan
-   hisoblay olmaydi ([14-bo‘lim](#muammolar), 6-band).
+   (`priceForUnit`). Sotuvchi ulgurji narxda faqat `sellerWholesaleEnabled` bilan sotadi: o‘chiq bo‘lsa
+   `wholesalePrice` unga kelmaydi va `priceTier: "wholesale"` — 403 `PERMISSION_DENIED` (ulgurji tugmasini
+   yashiring, [6.2](#hidden)). `price` berilsa — savdolashilgan narx: server uni SO‘ZSIZ qabul qiladi (eski
+   narx bo‘lsa ham, `TOTAL_MISMATCH` ushlamaydi; cheklanmagan — [14.1](#muammolar)). Shuning uchun `price`
+   ni FAQAT kassir narxni qo‘lda o‘zgartirganda yuboring.
 2. `qator jami = round(narx × miqdor) − qator chegirmasi` (qator chegirmasi qator summasidan oshmaydi).
 3. `subtotal = Σ qator jami`.
 4. Umumiy chegirma ≤ `round(subtotal × maxDiscountPct / 100)` — aks holda 422 `DISCOUNT_LIMIT` (`meta.max`).
@@ -838,8 +906,8 @@ UI mahsulotlarni qayta yuklab, yangi jamini ko‘rsatsin. `total` yuborilmasa so
 
 **Javobdagi `discount`** = umumiy chegirma + ishlatilgan bonus. **`number`** — `CHEK-1001`.
 
-**Ombor:** `warehouseId` berilmasa — do‘konning joriy ombori (amalda sukut ombor, [14-bo‘lim](#muammolar)
-2-band). Qoldiq AYNAN shu omborda tekshiriladi va kamayadi (asosiy birlikda: `baseQty`). Yetmasa —
+**Ombor:** `warehouseId` berilmasa — do‘konning joriy ombori (amalda sukut ombor, [10.6](#rules)).
+Qoldiq AYNAN shu omborda tekshiriladi va kamayadi (asosiy birlikda: `baseQty`). Yetmasa —
 422 `STOCK_INSUFFICIENT`, `errors[]` har yetmagan qator uchun (`field: "items[i].qty"`, `meta.available`).
 
 **Yetkazish:** `delivery: { address, phone, fee?, scheduledDate?, lat?, lng?, note? }` — chek bilan
@@ -847,9 +915,16 @@ birga `pending` yetkazish yaratiladi (javobda `delivery: { id, status }`); haydo
 
 **Sana:** `date` berilmasa — bugun; kelajak — 400; o‘tgan sana mumkin (offline).
 
-**Chop etish:** `GET /sales/:id/receipt` → `{ store, sale, customer, seller, fiscal }` — do‘kon nomi,
-telefon, manzil, pastki matn, valyuta; chek qatorlari; fiskal QR. PDF hozircha yo‘q (`format=pdf` —
-501 yoki JSON) — chekni JSON’dan brauzerda chop eting.
+**Chop etish** — ikki yo‘l:
+
+- `GET /sales/:id/receipt` → `{ store, sale, customer, seller, fiscal }` — do‘kon nomi, telefon,
+  manzil, pastki matn, valyuta; chek qatorlari; fiskal ma’lumot. O‘z shabloningiz bilan chop etish uchun.
+- `GET /sales/:id/receipt?format=pdf` → tayyor **80 mm termal chek** (`application/pdf`,
+  `Content-Disposition: inline; filename="CHEK-1042.pdf"`) — brauzerdagi chek ko‘rinishida: rekvizitlar,
+  qatorlar, jami, to‘lov va qaytim, nasiya qarzi va muddati, fiskal belgi va QR, pastki matn; bekor
+  qilingan chekda «BEKOR QILINGAN». Lenta balandligi mazmunga teng. Token bilan olinadi (`<a href>`
+  ishlamaydi): `fetch` → `blob` → yangi oyna / chop etish / saqlash ([12.3](#flows)). Qaytarish hujjati
+  (`QAYT-…`) ham shu yo‘l bilan.
 
 **Qisqa yo‘llar (F9 to‘lash, F2 qidiruv), skaner, «qoldirilgan savatlar»** — to‘liq frontend
 ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageSize=5`
@@ -861,6 +936,9 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
 
 - Faqat asl chek QATORI bo‘yicha: `saleItemId` = `GET /sales/:id` dagi `items[].id`; miqdor —
   o‘sha qator birligida; oldingi qaytarishlar bilan birga sotilgandan oshmaydi (422 `RETURN_EXCEEDS_SOLD`).
+- **Qancha qaytarish mumkin:** `GET /sales/:id` → `items[].returnedQty` (bekor qilinmagan
+  qaytarishlar yig‘indisi, qator birligida) — maksimum `qty − returnedQty`. Chekning qaytarish
+  hujjatlari — `GET /sales?relatedSaleId=<chek id>`.
 - Bekor qilingan chekdan — 409 `SALE_ALREADY_CANCELLED`; qaytarish hujjatidan — 422 `SALE_NOT_RETURNABLE`.
 - Tovar asl omborga qaytadi (ombor qoldig‘i bilan cheklanmaydi). Ochiq smena shart.
 - Pul: QQS asl chek foizi bo‘yicha, chegirma va bonus ulushi bilan hisoblanadi. **Nasiya chekda
@@ -932,9 +1010,9 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 - Sotuv/taklif qatorida `unit` — asosiy yoki qo‘shimcha birlik (boshqasi — 400). Server `baseQty`
   (asosiy birlikdagi miqdor) ni hisoblaydi va qoldiqni shundan kamaytiradi. Funksiyalar —
   `unitOptions`, `toBaseQty`, `fromBaseQty`, `priceForUnit` (`@crm/shared` dan — paketda sub-path yo‘q).
-- Narxlar: `price` (chakana), `wholesalePrice` (ulgurji), `cost` (o‘rtacha tannarx) — butun so‘m,
-  asosiy birlik uchun. `cost` qo‘lda kiritiladi, keyin har kirimda (`unitCost` bilan) va kirim buyurtmasi
-  qabulida **o‘rtacha tortilgan** usulda qayta hisoblanadi.
+- Narxlar: `price` (chakana), `wholesalePrice` (ulgurji; sotuvchiga — `sellerWholesaleEnabled` bilan),
+  `cost` (o‘rtacha tannarx) — butun so‘m, asosiy birlik uchun. `cost` qo‘lda kiritiladi, keyin har
+  kirimda (`unitCost` bilan) va kirim buyurtmasi qabulida **o‘rtacha tortilgan** usulda qayta hisoblanadi.
 - `stock` — barcha omborlar yig‘indisi; `stocks` — `{ [warehouseId]: qty }`; `warehouseStock` —
   so‘rovda `warehouseId` berilganda shu ombor qoldig‘i. Qoldiq mahsulot formasida o‘zgarmaydi.
 - `sku` — do‘kon ichida noyob (409 `DUPLICATE_SKU`); `barcode` — noyob (409 `ALREADY_EXISTS`).
@@ -950,9 +1028,12 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 ### 10.6 Omborlar va ombor amallari
 
 - Ro‘yxatdan o‘tishda «Asosiy ombor» (`isDefault: true`) yaratiladi — arxivlanmaydi.
-- **Joriy ombor:** `warehouseId` berilmagan amallar do‘konning joriy omboriga tushadi. Uni API orqali
-  o‘zgartirib bo‘lmaydi (amalda — sukut ombor). Bir nechta ombor bilan ishlasangiz, tanlangan omborni
-  frontendda (qurilma/foydalanuvchi bo‘yicha) saqlab, `warehouseId` ni HAR DOIM aniq yuboring.
+- **Ombor tanlash — frontendda.** Tanlangan omborni qurilmada (foydalanuvchi bo‘yicha) saqlab,
+  `warehouseId` ni HAR DOIM aniq yuboring — uni barcha amallar qabul qiladi: sotuv, ombor amallari,
+  kirim buyurtmasi, taklifni sotuvga aylantirish.
+- **Joriy ombor** — `warehouseId` berilmaganda ishlatiladigan zaxira qiymat: butun do‘kon uchun BITTA
+  (ro‘yxatdan o‘tishda sukut ombor, faqat u arxivlanganda o‘zgaradi). Uni API orqali o‘zgartirish
+  ataylab yo‘q: bir kassir almashtirsa, boshqa kassirlarniki ham almashardi.
 - Arxiv ombor: kirim, ko‘chirib kiritish, sotuv yo‘q (422 `WAREHOUSE_ARCHIVED`); undan chiqim/ko‘chirib
   chiqarish mumkin. Arxivlashda tovar qolgan bo‘lsa — javobda `stockWarning.productCount`.
 - Qoldiq manfiy bo‘lmaydi: chiqim, ko‘chirish, sotuv — 422 `STOCK_INSUFFICIENT`.
@@ -984,20 +1065,25 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
   qarzigacha (`outstanding = receivedValue − paid`), oldindan to‘lov yo‘q (422 `PAYMENT_EXCEEDS_DEBT`).
 - Ta’minotchiga qarzimiz — faqat kelgan tovar bo‘yicha: `GET /suppliers` (qatorda), `/suppliers/summary`,
   `/suppliers/:id` (buyurtmalar, to‘lovlar).
+- Sotuvchi buyurtma va ta’minotchilarni summalarsiz oladi (qarz, buyurtma summasi, to‘lov miqdori yo‘q —
+  [6.2](#hidden)); pul ustunlarini `field in obj` bilan yashiring.
 
 ### 10.8 Takliflar (smeta)
 
 - `POST /quotes { customerId?, sellerId?, priceTier?, items, discount?, validUntil?, note? }` —
   summalar sotuv qoidasida (QQS, chegirma chegarasi; bonus va yetkazishsiz). `priceTier` berilmasa:
   `wholesaleEnabled` bo‘lsa — `retail` bo‘lmagan har qanday guruh (`wholesale`, `vip`) → ulgurji, aks holda
-  chakana; aniq berilgan `priceTier` `wholesaleEnabled=false` da ham qo‘llanadi (sotuvdan farqli).
+  chakana; `wholesaleEnabled=false` da har doim chakana (aniq berilgan `priceTier` ham — sotuvdagidek).
+  Sotuvchi (`sellerWholesaleEnabled` o‘chiq): so‘ralgan `wholesale` — 403, mijoz guruhidan kelgani — chakana.
   Qoldiq band QILINMAYDI. Raqam `TKLF-1001`.
 - Holatlar (`PATCH`): `draft` → `sent` → `accepted` / `rejected`; `converted` — faqat aylantirish bilan.
   Server o‘tish tartibini TEKSHIRMAYDI (istalgan holatga `PATCH` mumkin) — tartib frontend qoidasi.
   `expired: true` — `validUntil` o‘tgan ochiq taklif (ro‘yxatda `expired=true` filtri).
-- Aylantirish: `POST /quotes/:id/convert { method: cash|card|transfer|debt }` — to‘liq to‘lov shu usulda
-  yoki nasiya (`debt` — mijoz shart, nasiya qoidalari). Qoldiq tekshiriladi (422 `QUOTE_STOCK_SHORT`),
-  bir marta (409 `QUOTE_ALREADY_CONVERTED`), ochiq smena shart, ombor — joriy. Aylantirilmagan HAR QANDAY
+- Aylantirish: `POST /quotes/:id/convert { method: cash|card|transfer|debt, warehouseId? }` — to‘liq to‘lov
+  shu usulda yoki nasiya (`debt` — mijoz shart, nasiya qoidalari). Qoldiq AYNAN tanlangan omborda
+  (`warehouseId` — kassada tanlangani; berilmasa — joriy ombor) tekshiriladi va kamayadi (422
+  `QUOTE_STOCK_SHORT`, arxiv ombor — 422 `WAREHOUSE_ARCHIVED`), bir marta (409 `QUOTE_ALREADY_CONVERTED`),
+  ochiq smena shart. Aylantirilmagan HAR QANDAY
   taklif (`draft`, `rejected`, muddati o‘tgan ham) aylantiriladi — «Sotuvga aylantirish» tugmasini faqat
   `accepted` da ko‘rsating. Javob — yaratilgan chek (`SaleDto`); taklifda `saleId`.
 
@@ -1037,8 +1123,12 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 - **Foydalanuvchi** (`/users`) — kirish hisobi: email, parol, rol, `isActive`; mavjud xodimga 1:1
   bog‘lanadi. Ism va lavozim xodimdan keladi (foydalanuvchida takrorlanmaydi). Hisob ochish: avval xodim,
   keyin `POST /users { employeeId, email, password, role }`. Hisobsiz xodim — `EmployeeDto.userId === null`
-  (lekin hisobi O‘CHIRILGAN xodim ham `null` ko‘rinadi — unga yangi hisob ochib bo‘lmaydi, 409
-  `EMPLOYEE_HAS_USER`; eski hisobni `POST /users/:id/restore` bilan tiklash kerak — [14-bo‘lim](#muammolar), 5-band).
+  (hisobi O‘CHIRILGAN xodim ham `null` ko‘rinadi — unga yangi hisob ochilmaydi: 409 `EMPLOYEE_HAS_USER`,
+  `errors[0].meta: { userId, deleted: true }` → yangisi o‘rniga «Tiklash» taklif qiling).
+- **O‘chirilgan hisoblar:** `GET /users?deleted=true` — faqat o‘chirilganlar (`deletedAt` bilan; qidiruv,
+  saralash, sahifalash odatdagidek) → «Tiklash» — `POST /users/:id/restore`. Parol, rol va email
+  o‘zgarmaydi, eski sessiyalar qaytmaydi (qayta kiradi); faol hisob tarif joyini oladi (402). Xodimi ham
+  o‘chirilgan bo‘lsa — 422 `REFERENCE_NOT_FOUND` (`field: employeeId`): avval `POST /employees/:id/restore`.
 - Email do‘kon ichida noyob; bir email bir necha do‘konda bo‘lishi mumkin (login’da do‘kon tanlanadi).
 - Himoya: oxirgi admin (422 `LAST_ADMIN`), o‘zini o‘chirish (`SELF_DELETE`), o‘z rolini o‘zgartirish
   (`SELF_ROLE_CHANGE`); tarif chegarasi (402).
@@ -1058,11 +1148,13 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
   da bir xil. P&L `trend`, top ro‘yxatlar va `/analytics` — YALPI sotuv (qaytarishsiz); `trend` faqat
   sotuv bo‘lgan kunlarni o‘z ichiga oladi (bo‘sh kunlarni grafikda 0 bilan to‘ldiring).
 - `GET /dashboard?days=7|30|90` — bugun/kecha, debitor (`receivables`, `debtors`), kreditor
-  (`payables`), kam qolganlar, trend, top mahsulot/qarzdor, oxirgi cheklar.
+  (`payables` — sotuvchida yo‘q), kam qolganlar, trend, top mahsulot/qarzdor, oxirgi cheklar.
 - `GET /reports/pnl?from&to&limit` — davr ≤ ~3 yil («butun davr» = so‘nggi 3 yil); oldingi teng davr
   bilan solishtirish (`change`), `granularity` (kun/oy), to‘lov turlari, xarajat kategoriyalari, top
-  mahsulotlar va sotilmayotgan tovar (`deadStock`) — ikkalasining soni `limit` bilan, sotuvchilar (`sellers`).
-- `GET /analytics?from&to` — ABC (80/95 %), kategoriya va to‘lov taqsimoti, trend (`limit` bu yerda ishlatilmaydi).
+  mahsulotlar, sotuvchilar (`sellers`) va sotilmayotgan tovar (`deadStock`) — uchalasining uzunligi `limit`
+  bilan (sukut 20, ≤ 100; tushum bo‘yicha kamayish tartibida).
+- `GET /analytics?from&to` — ABC (80/95 %) — sotilgan BARCHA mahsulot (jadvalni brauzerda sahifalang),
+  kategoriya va to‘lov taqsimoti, trend. `limit` parametri yo‘q (yuborilsa 400).
 - Foyda/tannarx maydonlari rolga qarab yo‘q ([6.2](#roles)). Tugagan davrlar keshlanadi, bugun — jonli.
 
 ### 10.15 Audit jurnali
@@ -1206,8 +1298,11 @@ javobini KUTMAYDI va OFD ishlamasa ham to‘xtamaydi). `GET /sales/:id/receipt` 
 ### 10.21 Sozlamalar va dastlabki sozlash
 
 `GET /settings` — ilova ochilganda (hamma rol). Maydonlar: `storeName`, `currency`, `taxEnabled`,
-`taxRate`, `wholesaleEnabled`, `loyaltyEnabled`, `loyaltyRate`, `maxDiscountPct`, `receiptPhone`,
-`receiptAddress`, `receiptFooter`, `onboarded`. `PATCH /settings` — faqat o‘zgarganlarini.
+`taxRate`, `wholesaleEnabled`, `sellerWholesaleEnabled`, `loyaltyEnabled`, `loyaltyRate`, `maxDiscountPct`,
+`receiptPhone`, `receiptAddress`, `receiptFooter`, `onboarded`. `PATCH /settings` — faqat o‘zgarganlarini.
+`sellerWholesaleEnabled` (sukut `false`) — «Sotuvchiga ulgurji narxda sotishga ruxsat»: yoqilsa sotuvchi
+`wholesalePrice` ni ko‘radi va ulgurji chek qila oladi ([6.2](#hidden)); faqat `wholesaleEnabled` bilan
+ma’noga ega.
 Ro‘yxatdan o‘tgan yangi do‘konda `onboarded: false` → sehrgar (do‘kon ma’lumoti, QQS, ombor,
 kategoriyalar, birinchi mahsulotlar, xodimlar) → oxirida `PATCH /settings { onboarded: true }`.
 
@@ -1226,16 +1321,16 @@ realtime hodisada yangilanadi.
 | **Ro‘yxatdan o‘tish** (yangi) | — | `POST /tenants/register` → sehrgar: `PATCH /settings`, `POST /warehouses`, `/categories`, `/products`, `/employees`, `/users` | — |
 | **Ilova qobig‘i** (Header, UserMenu, Sidebar) | `POST /auth/refresh` (token yo‘q bo‘lsa), `GET /settings`, socket ulanishi; admin — `GET /tenants/current` (banner) | `POST /auth/logout`, `/auth/logout-all`, `/auth/change-password` | — |
 | **Dashboard** (`/`, finance) | `GET /dashboard?days=30` | davr 7/30/90 | `sale.*`, `debt.paid`, `po.received`, `stock.changed` |
-| **POS** (`/pos`, sales) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
-| **Cheklar** (`/sales`, sales) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id`, `GET /sales/:id/receipt`, `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
+| **POS** (`/pos`, sales) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` (yoki `?format=pdf`) | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
+| **Cheklar** (`/sales`, sales) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id` (`returnedQty`), `GET /sales?relatedSaleId=` (qaytarishlar), `GET /sales/:id/receipt` (JSON yoki `?format=pdf`), `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
 | **Mahsulotlar** (`/products`, products) | `GET /products` (server sahifa/saralash), `GET /products/summary`, `GET /categories`, `GET /suppliers` (filtr), `GET /files/urls` | CRUD, `.../restore`, `POST /products/import`, `/products/bulk-price`, rasm (`/files/*`), `GET /exports/products` | `stock.changed`, `sale.*`, `po.received` |
 | **Mahsulot kartasi** (`/products/:id`) | `GET /products/:id`, `/products/:id/stats`, `GET /stock/movements?productId=`, admin: `GET /audit?entityId=` | tahrir, rasm | `stock.changed` (shu id) |
 | **Ombor** (`/warehouse`, products) | `GET /warehouses`, `GET /warehouses/stock`, `GET /stock/movements`, `GET /stock/reorder-suggestions` | `POST /stock/intake`, `/writeoff`, `/adjust`, `/transfer`, ombor CRUD/arxiv, `GET /exports/stock-movements` | `stock.changed`, `sale.*`, `po.received` |
 | **Yetkazish** (`/deliveries`, deliveries) | `GET /deliveries`, `/deliveries/summary`; haydovchi: `GET /deliveries/my`; admin/manager: `GET /employees?status=active` | `POST/PATCH/DELETE /deliveries`, `.../status`, `.../restore`, `GET /deliveries/route` | `delivery.status`, `sale.*` |
-| **Takliflar** (`/quotes`, quotes) | `GET /quotes`, `/quotes/summary` | CRUD, `.../restore`, `POST /quotes/:id/convert`, chop etish (`GET /quotes/:id` + `GET /settings`) | `sale.created` |
-| **Ta’minotchilar** (`/suppliers`, suppliers) | `GET /suppliers`, `/suppliers/summary` | CRUD, `.../restore` | `po.received` |
+| **Takliflar** (`/quotes`, quotes) | `GET /quotes`, `/quotes/summary` | CRUD, `.../restore`, `POST /quotes/:id/convert` (`warehouseId` — tanlangan ombor), chop etish (`GET /quotes/:id` + `GET /settings`) | `sale.created` |
+| **Ta’minotchilar** (`/suppliers`, suppliers) | `GET /suppliers`, `/suppliers/summary` (sotuvchida qarz yo‘q) | CRUD, `.../restore` | `po.received` |
 | **Ta’minotchi kartasi** (`/suppliers/:id`) | `GET /suppliers/:id` | tahrir, buyurtma yaratish | `po.received` |
-| **Xaridlar** (`/purchases`, suppliers) | `GET /purchase-orders`, `/purchase-orders/summary`, `GET /suppliers`, `GET /stock/reorder-suggestions` (to‘ldirish) | CRUD, `.../cancel`, `.../receive`, `.../pay` (finance), `.../restore` | `po.received` |
+| **Xaridlar** (`/purchases`, suppliers) | `GET /purchase-orders`, `/purchase-orders/summary` (sotuvchida summalar yo‘q), `GET /suppliers`, `GET /stock/reorder-suggestions` (to‘ldirish) | CRUD, `.../cancel`, `.../receive`, `.../pay` (finance), `.../restore` | `po.received` |
 | **Kassa** (`/cash`, finance) | `GET /cash/shifts/current`, `GET /cash/shifts`, `GET /cash/movements` | `POST /cash/shifts/open`, `/close`, `POST /cash/movements`, `GET /cash/shifts/:id/report` | `shift.*`, `sale.*`, `debt.paid` |
 | **Qarzlar** (`/debts`, finance) | `GET /debts?view=customers` (+ `summary`) | `view=receipts`, `aging`, `overdue`; `POST /debts/payments`, `GET /debts/payments`; eslatma SMS → Xabarlar | `debt.paid`, `sale.*` |
 | **Xarajatlar** (`/expenses`, expenses) | `GET /expenses`, `/expenses/summary`, `GET /expense-templates` | CRUD, `.../restore`, shablon CRUD, `POST /expense-templates/run-due`, `GET /exports/expenses` | — |
@@ -1245,8 +1340,8 @@ realtime hodisada yangilanadi.
 | **Mijoz kartasi** (`/clients/:id`) | `GET /clients/:id`, `/clients/:id/stats`, `GET /sales?customerId=`, `GET /debts?view=receipts&customerId=`, `GET /debts/payments?customerId=` | tahrir, qarz to‘lovi, SMS | `sale.*`, `debt.paid` |
 | **Xabarlar** (`/messages`, customers) | `GET /messages` | `POST /messages/preview`, `POST /messages` | — |
 | **Xodimlar** (`/employees`, employees) | `GET /employees` | CRUD, `.../restore` | — |
-| **Foydalanuvchilar** (`/users`, users) | `GET /users`, `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD, `.../restore`, parolni tiklash | — |
-| **Sozlamalar** (`/settings`, settings) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings`; admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
+| **Foydalanuvchilar** (`/users`, users) | `GET /users`, `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD, «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | — |
+| **Sozlamalar** (`/settings`, settings) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
 | **Audit** (`/audit`, users) | `GET /audit` (kursor) | filtrlar, `GET /exports/audit` | — |
 | **Migratsiya sehrgari** (yangi, admin) | brauzer `localStorage` | `POST /migration/validate`, `POST /migration/import` | — |
 | **Bildirishnomalar** (Notifications) | `GET /products?lowStock=true&pageSize=5`, `GET /debts?overdue=true&pageSize=5` (finance) | — | `stock.changed`, `sale.*`, `debt.paid` |
@@ -1381,9 +1476,11 @@ const totals = saleTotals({
 
 // 2) "To'lash". Kalit — SHU savat uchun: savat yoki to'lov o'zgarganda `checkoutKey = null`,
 //    qayta urinishda (xato, tarmoq) — o'zgarmaydi.
+// Ulgurji: do'konda yoqilgan va sotuvchiga ochilgan bo'lsa (aks holda server 403 qaytaradi)
+const wholesaleAllowed = settings.wholesaleEnabled && (user.role !== 'sotuvchi' || settings.sellerWholesaleEnabled)
 const body = {
   customerId: customer?.id, warehouseId,
-  priceTier: settings.wholesaleEnabled ? priceTier : 'retail',
+  priceTier: wholesaleAllowed ? priceTier : 'retail',
   // price — FAQAT kassir qo'lda o'zgartirgan bo'lsa (aks holda server narxni o'zi qo'yadi va solishtiradi)
   items: cart.map(({ productId, unit, qty, manualPrice, discount }) =>
     ({ productId, unit, qty, discount, ...(manualPrice !== undefined && { price: manualPrice }) })),
@@ -1396,7 +1493,7 @@ try {
   const sale = await api<Schemas['SaleDto']>('/sales', { method: 'POST', idempotencyKey: checkoutKey, body })
   checkoutKey = null
   clearCart()
-  printReceipt(await api(`/sales/${sale.id}/receipt`))  // qaytim: sale.change
+  await openReceiptPdf(sale.id)                         // yoki o'z shabloningiz: api(`/sales/${sale.id}/receipt`); qaytim: sale.change
 } catch (e) {
   if (!(e instanceof ApiError)) return enqueueOffline(checkoutKey, body)  // javob yo'q — o'sha kalit bilan navbat
   if (e.status >= 500) return toast(`Server xatosi (${e.traceId}) — qayta urinib ko'ring`)  // kalit o'zgarmaydi
@@ -1404,6 +1501,20 @@ try {
   else if (e.code === 'STOCK_INSUFFICIENT') markShortLines(e.errors)       // field: items[i].qty, meta.available
   else if (e.code === 'TOTAL_MISMATCH') { await reloadProducts(); toast(e.detail) }
   else toast(e.detail)                                                     // CREDIT_*, DISCOUNT_LIMIT, ...
+}
+
+/** Tayyor 80 mm PDF chek. Token kerak — `<a href>` yoki `window.open(apiUrl)` ishlamaydi */
+async function openReceiptPdf(saleId: string, retried = false): Promise<void> {
+  const res = await fetch(`${BASE}/api/v1/sales/${saleId}/receipt?format=pdf`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  })
+  if (res.status === 401 && !retried && (await refreshAccessToken())) return openReceiptPdf(saleId, true)
+  if (!res.ok) throw new Error(`Chek PDF: ${res.status}`)
+  const url = URL.createObjectURL(await res.blob())
+  window.open(url)                                      // brauzer PDF ko'ruvchisi: chop etish
+  setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  // Faylga saqlash kerak bo'lsa — 12.6 dagi saveBlob(blob, nom): blob havolada brauzer
+  // Content-Disposition dagi nomni (CHEK-….pdf) o'zi qo'ymaydi
 }
 ```
 
@@ -1497,10 +1608,10 @@ const z = await api<Schemas['ShiftReportDto']>(`/cash/shifts/${closed.id}/report
 
 | Oqim | Qadamlar |
 |------|----------|
-| Qaytarish | `GET /sales/:id` → qatorlarni tanlash (`items[].id`, miqdor ≤ `qty`; oldin qaytarilgani API’da ko‘rinmaydi — oshsa 422 `RETURN_EXCEEDS_SOLD`, `meta.returned`) → `POST /sales/:id/return` (kalit) → javobdagi `paid.cash` ni kassir beradi → chop etish (`GET /sales/{qaytarish id}/receipt`) |
+| Qaytarish | `GET /sales/:id` → qatorlarni tanlash (`items[].id`, miqdor ≤ `qty − returnedQty`; oshsa 422 `RETURN_EXCEEDS_SOLD`, `meta.returned`) → `POST /sales/:id/return` (kalit) → javobdagi `paid.cash` ni kassir beradi → chop etish (`GET /sales/{qaytarish id}/receipt`, `?format=pdf` bilan ham) |
 | Qarz to‘lovi | `GET /debts?view=receipts&customerId=` → chek tanlash → `POST /debts/payments { saleId, amount, method }` (kalit) → javobdagi `sale.outstanding` |
 | Kirim buyurtmasi | `GET /stock/reorder-suggestions` (ixtiyoriy) → `POST /purchase-orders` → tovar kelganda `POST /purchase-orders/:id/receive` (kalit) → `POST /purchase-orders/:id/pay` (kalit) |
-| Taklif | `POST /quotes` → `PATCH { status: "sent" }` → chop etish → `PATCH { status: "accepted" }` → `POST /quotes/:id/convert { method }` (kalit) → chek |
+| Taklif | `POST /quotes` → `PATCH { status: "sent" }` → chop etish → `PATCH { status: "accepted" }` → `POST /quotes/:id/convert { method, warehouseId }` (kalit) → chek |
 | Yetkazish | `POST /sales` (`delivery` bilan) → manager `PATCH /deliveries/:id { driverId }` → haydovchi `GET /deliveries/my` → `POST .../status { on_way }` → `{ delivered }` |
 | Inventarizatsiya | `GET /products` (filtrsiz, sahifalab; ombor qoldig‘i — `stocks[warehouseId] ?? 0`; `?warehouseId=` faqat qoldig‘i bor tovarlarni beradi) → `POST /stock/adjust { warehouseId, items: [{ productId, countedQty }] }` (kalit) |
 | Tarif to‘lovi | `GET /tenants/current` → `POST /billing/invoices` → havolani ochish → qaytganda `GET /billing/invoices`, `GET /tenants/current` |
@@ -1519,15 +1630,15 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 | T-099 | API mijozi va tiplar | `openapi-typescript` bilan tiplar generatsiya qilinadi; token yangilash **bir vaqtda bitta** (parallel 401’lar bitta refresh’ni kutadi) — [3.3](#connect), [12.1](#flow-client) |
 | T-100 | Auth oqimini serverga o‘tkazish | Auth store serverdan ishlaydi; demo foydalanuvchilar va parollar **o‘chiriladi**; parol brauzerda saqlanmaydi (formalar parolni faqat serverga yuboradi) — [5](#auth) |
 | T-101 | So‘rov qatlami (TanStack Query) | Kalitlar konvensiyasi; xato ko‘rsatish bir joyda; yozuvchi amal qayta urinilmaydi — [12.2](#flow-query) |
-| T-102 | Spravochnik sahifalari | Mahsulotlar, Mijozlar, Ta’minotchilar, Xodimlar, Foydalanuvchilar, Omborlar — serverdan; sahifalash/saralash **serverda**; ko‘rinish o‘zgarmaydi — [4.3](#lists) |
-| T-103 | Kassa (POS) | Savat lokal; `checkout` — bitta `POST /sales`; server xatosi (qoldiq, limit) kassada aniq ko‘rsatiladi; F9/F2 yorliqlari va skaner ishlaydi — [10.1](#pos), [12.3](#flows) |
+| T-102 | Spravochnik sahifalari | Mahsulotlar, Mijozlar, Ta’minotchilar, Xodimlar, Foydalanuvchilar (+ «O‘chirilganlar» va tiklash), Omborlar — serverdan; sahifalash/saralash **serverda**; ko‘rinish o‘zgarmaydi; sotuvchida yashirin maydonlar ko‘rinmaydi — [4.3](#lists), [6.2](#hidden) |
+| T-103 | Kassa (POS) | Savat lokal; `checkout` — bitta `POST /sales`; server xatosi (qoldiq, limit) kassada aniq ko‘rsatiladi; F9/F2 yorliqlari va skaner ishlaydi; ulgurji tugmasi sotuvchida `sellerWholesaleEnabled` ga qarab; chek chop etish (JSON shablon yoki `?format=pdf`) — [10.1](#pos), [12.3](#flows) |
 | T-104 | Ombor, kassa, qarz, ta’minot sahifalari | Barcha amallar server orqali; optimistik yangilash xatoda orqaga qaytariladi |
 | T-105 | Hisobot va analitika | Hisob **serverdan**; brauzerdagi `reduce` hisoblari olib tashlanadi; grafiklar o‘zgarmaydi — [10.14](#rules) |
 | T-106 | Rasm yuklash S3’ga | `resizeImage` maksimal o‘lchami 1600; presign → PUT → confirm; `dataURL` **umuman ishlatilmaydi**; offline’da IndexedDB navbati — [10.16](#files) |
 | T-107 | Realtime va uzilishga chidamlilik | Boshqa kassir sotgan tovar qoldig‘i darhol yangilanadi; internet uzilganda ogohlantirish va navbat; tiklanganda avtomatik yuborish — [9](#realtime), [12.4](#flow-offline) |
 | T-112 | Migratsiya sehrgari (UI) | 4 qadam (hisob → tekshirish → yuborish → natija); jarayon ko‘rsatkichi; xato bo‘lsa localStorage **o‘chirilmaydi** — [10.19](#migration) |
 | T-113 | Orqaga qaytish yo‘li | Migratsiyadan keyin ham localStorage nusxasi 30 kun saqlanadi; JSON zaxira yuklab olinadi — [10.19](#migration) |
-| T-119 | Frontend deploy (Cloudflare Pages) | SPA yo‘llari ishlaydi; `sw.js` keshlanmaydi; `VITE_API_URL` to‘g‘ri; PWA o‘rnatiladi — [3.1](#connect) |
+| T-119 | Frontend deploy (API bilan bitta serverda va domenda) | SPA yo‘llari ishlaydi; `sw.js` keshlanmaydi; `VITE_API_URL` bo‘sh (nisbiy yo‘llar), service worker `/api` ni ushlamaydi; PWA o‘rnatiladi; build ikki bosqichda yuklanadi — [3.1](#connect) |
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
 sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
@@ -1547,28 +1658,31 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 ### 14.1 Backend’da ochiq qolgan masalalar (qaror kutilmoqda)
 
-1. **Sotuvchi kirim buyurtmasi summalarini ko‘radi** (`suppliers:view`): bitta qatorli buyurtmada
-   `total` / miqdor = tannarx. Variantlar: sotuvchidan PO ro‘yxatini yopish yoki PO summalarini ham
-   yashirin maydonlarga qo‘shish.
-2. **Joriy omborni API orqali tanlab bo‘lmaydi.** `warehouseId` berilmagan amallar do‘konning joriy
-   omboriga (amalda sukut ombor) tushadi; taklifni aylantirishda va `warehouseId` siz qabulda ombor
-   tanlash imkoni yo‘q. Frontend: tanlangan omborni lokal saqlab, `warehouseId` ni doim yuborish.
-3. **PDF chek amalga oshirilmagan.** `GET /sales/:id/receipt?format=pdf`: `PDF_ENABLED=false` — 501,
-   `true` — baribir JSON qaytadi (Swagger’dagi «PDF» va’dasi bajarilmaydi). Frontend JSON’dan chop etadi.
-4. **Chek qatori bo‘yicha qaytarilgan miqdor ko‘rinmaydi.** `SaleItemDto` da `returnedQty` yo‘q,
-   `GET /sales` da `relatedSaleId` filtri yo‘q — qaytarish oynasi «qancha qaytarish mumkin» ni oldindan
-   ko‘rsata olmaydi (faqat 422 `RETURN_EXCEEDS_SOLD` dagi `meta`). Taklif: `returnedQty` qo‘shish.
-5. **O‘chirilgan foydalanuvchini qayta ochib bo‘lmaydi.** Hisobi o‘chirilgan xodimga yangi hisob — 409
-   `EMPLOYEE_HAS_USER` (`users.employee_id` noyob indeksi o‘chirilganlarni ham hisoblaydi); tiklash uchun
-   eski hisob id’si kerak, lekin `GET /users` o‘chirilganlarni bermaydi (faqat o‘chirish toast’idagi undo).
-6. **Narxni qo‘lda o‘zgartirish cheklanmagan; sotuvchi ulgurji narxni ko‘rmaydi.** Chek qatorida `price`
-   (savdolashish) `maxDiscountPct` ga bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da
-   kimga ruxsat berishni hal qiling. Sotuvchidan `wholesalePrice` yashirilgan, lekin u
-   `priceTier: "wholesale"` bilan sota oladi — ekranda jamini oldindan hisoblab bo‘lmaydi (`total` yubormang
-   yoki sotuvchiga ulgurji rejimni yopib qo‘ying).
-7. Kichik: `/analytics` `limit` ni e’tiborsiz qoldiradi; P&L `limit` sotuvchilar ro‘yxatini cheklamaydi.
+1. **Narxni qo‘lda o‘zgartirish cheklanmagan.** Chek qatorida `price` (savdolashish) `maxDiscountPct` ga
+   bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da kimga ruxsat berishni hal qiling.
 
-### 14.2 Hujjat yozilgach tuzatilganlar (2026-09-24)
+### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-09-28** — frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Frontend — Cloudflare Pages, API — alohida domen (`api.domen.uz`), `VITE_API_URL` shart edi | Frontend va API bitta serverda, bitta domenda (`crm.domen.uz`): `/api`, `/socket.io`, `/health` — API, qolgani — SPA ([3.1](#connect)) | `VITE_API_URL` bo‘sh, socket — `io('/events')`; `navigateFallbackDenylist`; build — ikki bosqichli `rsync` ([3.1](#connect)) |
+
+**2026-09-27** — frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Sotuvchi kirim buyurtmasi va ta’minotchi summalarini ko‘rardi (bitta qatorli buyurtmadan tannarx tiklanardi) | Sotuvchi javobida xarid summalari yo‘q; dashboard’da `payables` yo‘q ([6.2](#hidden)) | Pul ustunlari va kartalarini `field in obj` bilan yashirish |
+| PDF chek yo‘q edi (501 yoki JSON) | `GET /sales/:id/receipt?format=pdf` — 80 mm termal chek (fiskal QR bilan); `PDF_ENABLED` va `FEATURE_DISABLED` olib tashlandi | «PDF» / «Chop etish»: `fetch` → `blob` → yangi oyna ([12.3](#flows)) |
+| Chek qatorida qaytarilgan miqdor ko‘rinmasdi | `items[].returnedQty`; `GET /sales?relatedSaleId=` — chekning qaytarishlari | Qaytarish oynasida maksimum `qty − returnedQty` |
+| O‘chirilgan hisobni topib, tiklab bo‘lmasdi | `GET /users?deleted=true` (+ `deletedAt`); 409 `EMPLOYEE_HAS_USER` da `meta.userId`, `meta.deleted`; xodimi o‘chirilgan hisobni tiklash — 422 | «O‘chirilganlar» ro‘yxati va «Tiklash» tugmasi |
+| Sotuvchi ulgurji narxni ko‘rmay turib, unda sota olardi | `settings.sellerWholesaleEnabled` (sukut `false`): yoqilsa — ko‘radi va sotadi; o‘chiq — narx yashirin, `wholesale` → 403 | Sozlamalarda yangi katakcha; sotuvchida ulgurji tugmasi shunga qarab |
+| Taklifda aniq `priceTier` ulgurji savdo o‘chiq bo‘lsa ham qo‘llanardi | Sotuvdagidek — o‘chiq bo‘lsa chakana | — |
+| `/analytics` `limit` ni qabul qilib, e’tiborsiz qoldirardi; P&L `limit` sotuvchilarni cheklamasdi | Analitikada `limit` yo‘q (400); P&L `limit` — top mahsulot, sotuvchilar, sotilmayotgan tovar | Analitikaga `limit` yubormang |
+| Taklifni sotuvga aylantirishda omborni tanlab bo‘lmasdi (do‘konning joriy omboriga tushardi) | `POST /quotes/:id/convert { method, warehouseId? }` — qoldiq tanlangan omborda | Kassada tanlangan omborni yuborish. «Joriy ombor»ni o‘zgartiradigan endpoint ataylab yo‘q (do‘kon uchun bitta — kassirlar bir-birinikini almashtirardi): tanlov qurilmada, har amal `warehouseId` oladi ([10.6](#rules)) |
+
+**2026-09-24:**
 
 | Muammo | Endi |
 |--------|------|
@@ -1583,6 +1697,7 @@ tanlangan ombor, til, mavzu, offline navbat.
 - Rol o‘zgarishi ≤ 15 daqiqada kuchga kiradi (access token muddati).
 - 429 (rate limit) javobida `code: "INTERNAL"` — `status` bo‘yicha aniqlang.
 - DTO validatsiyasi (400) xatolarida `errors[].field` yo‘q — `meta.message` / `detail`.
+- Sotuvchi javoblarida ba’zi kalitlar umuman yo‘q ([6.2](#hidden)) — `undefined` ni `0` deb ko‘rsatmang.
 - `GET /files/:id/raw` token talab qiladi — `<img src>` uchun `/files/urls`.
 - `GET /employees` faqat admin/manager — sotuvchi/omborchi xodim tanlay olmaydi.
 - `sale.cancelled` hodisasida mahsulot id’lari yo‘q — barcha mahsulot/qoldiq keshini yangilang.

@@ -2,9 +2,10 @@ import {
   lineTotal, priceForUnit, refundTotals, saleTotals, toBaseQty, unitOptions,
   type RoundStep, type SaleTotals, type UnitSpec,
 } from '@crm/shared'
-import type { PriceTier, ProductUnit } from '@prisma/client'
-import { DomainError } from '@/common/errors/domain.error'
+import type { PriceTier, ProductUnit, Role } from '@prisma/client'
+import { DomainError, PermissionDeniedError } from '@/common/errors/domain.error'
 import { fromMilli, toMilli } from '@/common/quantity'
+import { canSeeField, visibilityPolicy } from '@/common/security/field-visibility'
 
 /**
  * Chek hisobi — sof funksiyalar (T-052, 04 §4.5).
@@ -52,6 +53,33 @@ export interface PricedLine {
   discount: number
   /** narx × miqdor − qator chegirmasi */
   total: number
+}
+
+/** Narx darajasini hal qiladigan sozlamalar */
+export interface TierSettings {
+  wholesaleEnabled: boolean
+  sellerWholesaleEnabled: boolean
+}
+
+/**
+ * Narx darajasi (sotuv, taklif). Ulgurji — faqat do'konda yoqilgan bo'lsa
+ * (aks holda jimgina chakana). Ulgurji narxni ko'rmaydigan rol (sotuvchi,
+ * `sellerWholesaleEnabled` o'chiq) unda sotmaydi: ataylab so'ralgani — 403,
+ * mijoz guruhidan avtomatik tanlangani — chakana.
+ */
+export function resolvePriceTier(
+  requested: PriceTier | undefined,
+  fallback: PriceTier,
+  settings: TierSettings,
+  role: Role,
+): PriceTier {
+  if (!settings.wholesaleEnabled) return 'retail'
+  const tier = requested ?? fallback
+  if (tier === 'retail' || canSeeField(role, 'wholesalePrice', visibilityPolicy(settings))) return tier
+  if (requested) {
+    throw new PermissionDeniedError('Ulgurji narxda sotish sotuvchiga yopiq — administrator sozlamada yoqadi')
+  }
+  return 'retail'
 }
 
 /**

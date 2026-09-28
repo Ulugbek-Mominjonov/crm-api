@@ -1,6 +1,6 @@
 import { DomainError } from '@/common/errors/domain.error'
 import {
-  computeTotals, priceLines, refundFor, returnLines, settle,
+  computeTotals, priceLines, refundFor, resolvePriceTier, returnLines, settle,
   type PricingProduct, type SoldLine,
 } from './sale-totals'
 
@@ -27,6 +27,31 @@ const codeOf = (fn: () => unknown): string => {
   }
   throw new Error('xato kutilgan edi')
 }
+
+describe('resolvePriceTier', () => {
+  const settings = (wholesaleEnabled: boolean, sellerWholesaleEnabled = false) => ({ wholesaleEnabled, sellerWholesaleEnabled })
+
+  it('do‘konda ulgurji o‘chiq — har doim chakana (so‘ralgan bo‘lsa ham)', () => {
+    expect(resolvePriceTier('wholesale', 'retail', settings(false), 'admin')).toBe('retail')
+    expect(resolvePriceTier(undefined, 'wholesale', settings(false, true), 'manager')).toBe('retail')
+  })
+
+  it('admin/menejer — so‘ralgani yoki mijoz guruhidan', () => {
+    expect(resolvePriceTier('wholesale', 'retail', settings(true), 'manager')).toBe('wholesale')
+    expect(resolvePriceTier(undefined, 'wholesale', settings(true), 'admin')).toBe('wholesale')
+    expect(resolvePriceTier('retail', 'wholesale', settings(true), 'admin')).toBe('retail')
+  })
+
+  it('sotuvchi ruxsatsiz: so‘ralgan ulgurji — 403, mijoz guruhidan kelgani — chakana', () => {
+    expect(codeOf(() => resolvePriceTier('wholesale', 'retail', settings(true), 'sotuvchi'))).toBe('PERMISSION_DENIED')
+    expect(resolvePriceTier(undefined, 'wholesale', settings(true), 'sotuvchi')).toBe('retail')
+  })
+
+  it('sotuvchiga ruxsat berilgan (`sellerWholesaleEnabled`) — ulgurji', () => {
+    expect(resolvePriceTier('wholesale', 'retail', settings(true, true), 'sotuvchi')).toBe('wholesale')
+    expect(resolvePriceTier(undefined, 'wholesale', settings(true, true), 'sotuvchi')).toBe('wholesale')
+  })
+})
 
 describe('priceLines', () => {
   it('asosiy birlik va chakana narx — sukut', () => {

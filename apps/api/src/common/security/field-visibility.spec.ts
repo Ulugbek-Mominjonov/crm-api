@@ -1,4 +1,4 @@
-import { canSeeField, hiddenFieldsFor, stripHidden } from './field-visibility'
+import { canSeeField, canSeePurchaseAmounts, hiddenFieldsFor, stripHidden, visibilityPolicy } from './field-visibility'
 
 describe('Maydon ko‘rinuvchanligi', () => {
   it('sotuvchi tannarx va ulgurji narxni ko‘rmaydi', () => {
@@ -29,6 +29,22 @@ describe('Maydon ko‘rinuvchanligi', () => {
     expect(canSeeField('omborchi', 'salary')).toBe(false)
     // Omborchi kirim qiladi — tannarx unga kerak
     expect(canSeeField('omborchi', 'cost')).toBe(true)
+  })
+
+  it('ulgurji narx sotuvchiga faqat do‘kon ruxsat bersa ko‘rinadi (ikkala sozlama yoqilgan)', () => {
+    const policy = (wholesaleEnabled: boolean, sellerWholesaleEnabled: boolean) =>
+      visibilityPolicy({ wholesaleEnabled, sellerWholesaleEnabled })
+    expect(canSeeField('sotuvchi', 'wholesalePrice', policy(true, true))).toBe(true)
+    expect(canSeeField('sotuvchi', 'wholesalePrice', policy(true, false))).toBe(false)
+    expect(canSeeField('sotuvchi', 'wholesalePrice', policy(false, true))).toBe(false)
+    // Siyosat faqat ulgurji narxga tegadi — tannarx baribir yashirin
+    expect(canSeeField('sotuvchi', 'cost', policy(true, true))).toBe(false)
+  })
+
+  it('xarid summalari (buyurtma, ta’minotchi qarzi) tannarxni ko‘radigan rolga', () => {
+    expect(canSeePurchaseAmounts('sotuvchi')).toBe(false)
+    for (const role of ['admin', 'manager', 'omborchi'] as const) expect(canSeePurchaseAmounts(role)).toBe(true)
+    expect(canSeeField('sotuvchi', 'payables')).toBe(false)
   })
 
   it('ichma-ich obyektdan ham olib tashlanadi', () => {

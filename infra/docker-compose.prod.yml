@@ -1,8 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════
-# Production (T-116, 11 §11.5): /opt/crm/docker-compose.prod.yml
+# CRM production (T-116, 11 §11.5): /opt/crm/docker-compose.prod.yml
 #   docker compose -f docker-compose.prod.yml up -d
-# Baza va Redis TASHQARIGA chiqmaydi — faqat ichki tarmoq; tashqi port
-# faqat Caddy (80/443, TLS avtomatik).
+# Hech bir servis port CHIQARMAYDI: baza va Redis — faqat loyihaning ichki
+# tarmog'ida; API — umumiy `edge` tarmog'ida `crm-api` nomi bilan, unga
+# umumiy Caddy (/opt/edge, 80/443, TLS) yo'naltiradi.
 # ═══════════════════════════════════════════════════════════════════
 
 x-logging: &logging
@@ -47,6 +48,10 @@ services:
       redis: { condition: service_started }
     secrets: [jwt_private.pem, jwt_public.pem]
     expose: ['3000']
+    networks:
+      default: {}
+      # Umumiy Caddy shu nom bilan topadi (boshqa loyihaning `api` si bilan aralashmaydi)
+      edge: { aliases: [crm-api] }
     healthcheck:
       test: ['CMD', 'node', '-e', "fetch('http://localhost:3000/health/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
       interval: 30s
@@ -56,18 +61,10 @@ services:
         limits: { memory: 1g }
     logging: *logging
 
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports: ['80:80', '443:443']
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on: [api]
-    logging: *logging
+networks:
+  edge: { external: true }
 
-volumes: { pgdata: , caddy_data: , caddy_config: }
+volumes: { pgdata: }
 
 secrets:
   db_password: { file: ./secrets/db_password.txt }

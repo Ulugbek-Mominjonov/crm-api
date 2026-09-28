@@ -21,6 +21,13 @@ describe('redaction', () => {
     expect(out.total).toBe(1000)
   })
 
+  it('Error obyektini buzmaydi (xabar va stack saqlanadi)', () => {
+    const out = redact({ err: new Error('ulanish uzildi'), password: 'x' })
+    expect(out.err).toBeInstanceOf(Error)
+    expect(out.err.message).toBe('ulanish uzildi')
+    expect(out.password).toBe('[redacted]')
+  })
+
   it('massivlarni ham tozalaydi', () => {
     const out = redact([{ password: 'x' }, { qty: 2 }])
     expect(out[0]?.password).toBe('[redacted]')

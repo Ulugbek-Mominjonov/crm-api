@@ -187,20 +187,22 @@ enum Role {
 }
 
 model Settings {
-  tenantId         String  @id @map("tenant_id") @db.Uuid
-  storeName        String  @default("Qurilish Mollari") @map("store_name")
-  currency         String  @default("so'm")
-  taxEnabled       Boolean @default(true) @map("tax_enabled")
+  tenantId               String  @id @map("tenant_id") @db.Uuid
+  storeName              String  @default("Qurilish Mollari") @map("store_name")
+  currency               String  @default("so'm")
+  taxEnabled             Boolean @default(true) @map("tax_enabled")
   /// QQS foizi, butun son (12 = 12%)
-  taxRate          Int     @default(12) @map("tax_rate")
-  wholesaleEnabled Boolean @default(true) @map("wholesale_enabled")
-  loyaltyEnabled   Boolean @default(true) @map("loyalty_enabled")
-  loyaltyRate      Int     @default(1) @map("loyalty_rate")
-  maxDiscountPct   Int     @default(100) @map("max_discount_pct")
-  receiptPhone     String  @default("") @map("receipt_phone")
-  receiptAddress   String  @default("") @map("receipt_address")
-  receiptFooter    String  @default("") @map("receipt_footer")
-  onboarded        Boolean @default(false)
+  taxRate                Int     @default(12) @map("tax_rate")
+  wholesaleEnabled       Boolean @default(true) @map("wholesale_enabled")
+  /// Sotuvchi ham ulgurji narxda sotadi va ulgurji narxni ko'radi (sukut — yo'q)
+  sellerWholesaleEnabled Boolean @default(false) @map("seller_wholesale_enabled")
+  loyaltyEnabled         Boolean @default(true) @map("loyalty_enabled")
+  loyaltyRate            Int     @default(1) @map("loyalty_rate")
+  maxDiscountPct         Int     @default(100) @map("max_discount_pct")
+  receiptPhone           String  @default("") @map("receipt_phone")
+  receiptAddress         String  @default("") @map("receipt_address")
+  receiptFooter          String  @default("") @map("receipt_footer")
+  onboarded              Boolean @default(false)
 
   tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

@@ -122,7 +122,12 @@ export class CreateSaleDto {
   @IsUUID()
   warehouseId?: string
 
-  @ApiPropertyOptional({ enum: PriceTier, default: PriceTier.retail })
+  @ApiPropertyOptional({
+    enum: PriceTier,
+    default: PriceTier.retail,
+    description:
+      '`wholesale` — `wholesaleEnabled` bo‘lsa (aks holda chakana). Sotuvchiga — `sellerWholesaleEnabled` bilan, aks holda 403',
+  })
   @IsOptional()
   @IsIn(Object.values(PriceTier))
   priceTier?: PriceTier
@@ -239,6 +244,11 @@ export class SaleQueryDto {
   @IsUUID()
   customerId?: string
 
+  @ApiPropertyOptional({ format: 'uuid', description: 'Shu chek bo‘yicha qaytarish hujjatlari (`QAYT-…`)' })
+  @IsOptional()
+  @IsUUID()
+  relatedSaleId?: string
+
   @ApiPropertyOptional({ enum: PAYMENT_FILTERS, description: '`debt` — qolgan qarzi bor cheklar' })
   @IsOptional()
   @IsIn(PAYMENT_FILTERS)
@@ -294,6 +304,13 @@ export class SaleItemDto {
   @ApiPropertyOptional({ example: 45_000, description: 'Tannarx snapshot. Sotuvchi rolida yo‘q' }) cost?: number
   @ApiProperty({ example: 0 }) discount!: number
   @ApiProperty({ nullable: true, type: String, description: 'Qaytarishda — asl chek qatori' }) returnOfId!: string | null
+  @ApiProperty({
+    example: 1,
+    description:
+      'Shu qatordan qaytarilgani (bekor qilinmagan qaytarishlar), `unit` da. Yana qaytarish mumkin: `qty − returnedQty`. ' +
+      'Qaytarish hujjati qatorida va yangi chekda — 0',
+  })
+  returnedQty!: number
 }
 
 export class SaleDeliveryRefDto {

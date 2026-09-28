@@ -33,6 +33,13 @@ export class UserDto {
   @ApiProperty({ example: 'Kassir', description: 'Xodimdan' }) position!: string
   @ApiProperty({ type: String, format: 'date-time', description: 'Versiya — tahrirda `If-Match` ga qo‘yiladi' })
   updatedAt!: Date
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    format: 'date-time',
+    description: 'O‘chirilgan payt — faqat `?deleted=true` ro‘yxatida to‘la; tiklash — `POST /users/{id}/restore`',
+  })
+  deletedAt!: Date | null
 }
 
 export class CreateUserDto {
@@ -98,4 +105,10 @@ export class UserListQueryDto extends ListQueryDto {
   @ToBoolean()
   @IsBoolean()
   isActive?: boolean
+
+  @ApiPropertyOptional({ description: '`true` — faqat o‘chirilgan hisoblar (tiklash uchun)' })
+  @IsOptional()
+  @ToBoolean()
+  @IsBoolean()
+  deleted?: boolean
 }

@@ -31,6 +31,10 @@ export class S3Service implements OnApplicationBootstrap {
       endpoint: config.get('S3_ENDPOINT', { infer: true }),
       region: config.get('S3_REGION', { infer: true }),
       forcePathStyle: config.get('S3_FORCE_PATH_STYLE', { infer: true }),
+      // R2: SDK (>= 3.729) sukut bo'yicha qo'shadigan CRC32 checksum sarlavhalarini qabul
+      // qilmaydi — checksum faqat operatsiya talab qilganda (Cloudflare tavsiyasi; MinIO ham)
+      requestChecksumCalculation: 'WHEN_REQUIRED',
+      responseChecksumValidation: 'WHEN_REQUIRED',
       credentials: {
         accessKeyId: config.get('S3_ACCESS_KEY', { infer: true }),
         secretAccessKey: config.get('S3_SECRET_KEY', { infer: true }),

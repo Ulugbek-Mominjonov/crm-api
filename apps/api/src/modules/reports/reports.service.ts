@@ -5,7 +5,7 @@ import { addDays, BUSINESS_TIME_ZONE, businessDate, daysInclusive } from '@/comm
 import { PrismaService } from '@/prisma/prisma.service'
 import { requireTenantTx } from '@/prisma/tenant-tx'
 import type {
-  AnalyticsDto, DashboardDto, DashboardQueryDto, PeriodQueryDto, PnlChangeDto, PnlDto, PnlTotalsDto,
+  AnalyticsDto, DashboardDto, DashboardQueryDto, PeriodQueryDto, PnlChangeDto, PnlDto, PnlQueryDto, PnlTotalsDto,
 } from './dto/report.dto'
 import { ReportCache } from './report-cache.service'
 
@@ -164,7 +164,7 @@ export class ReportsService {
    * mahsulot/sotuvchi, sotilmayotgan tovar — frontend Hisobotlar sahifasi
    * hisobi bilan bir xil. Bitta so'rov.
    */
-  async pnl(query: PeriodQueryDto): Promise<PnlDto> {
+  async pnl(query: PnlQueryDto): Promise<PnlDto> {
     const { tenantId } = requireTenantTx()
     const { from, to } = assertPeriod(query)
     const length = daysInclusive(from, to)
@@ -211,7 +211,8 @@ export class ReportsService {
                FROM sales s LEFT JOIN employees e ON e.tenant_id = s.tenant_id AND e.id = s.seller_id
               WHERE s.tenant_id = ${tenantId}::uuid AND s.type = 'sale' AND s.status <> 'cancelled'
                 AND s.deleted_at IS NULL AND s.date BETWEEN ${from}::date AND ${to}::date
-              GROUP BY s.seller_id, e.name) t) AS sellers,
+              GROUP BY s.seller_id, e.name
+              ORDER BY SUM(s.total) DESC, s.seller_id LIMIT ${query.limit}) t) AS sellers,
           (SELECT COALESCE(ROUND(SUM(stock * cost)), 0)::float8 FROM products
             WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL AND NOT archived) AS "stockValue",
           (SELECT COALESCE(ROUND(SUM(value)), 0)::float8 FROM dead) AS "deadValue",

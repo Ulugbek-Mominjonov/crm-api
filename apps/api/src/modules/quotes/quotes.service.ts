@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Prisma, type CustomerGroup, type PriceTier, type QuoteStatus } from '@prisma/client'
+import { Prisma, type CustomerGroup, type PriceTier, type QuoteStatus, type Role } from '@prisma/client'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
@@ -7,10 +7,13 @@ import { milliToDb, toMilli } from '@/common/quantity'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import { businessDate } from '@/common/time'
 import { AuditService } from '@/modules/audit/audit.service'
+import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { CashRegisterService } from '@/modules/cash/cash-register.service'
 import { DocNumberService } from '@/modules/doc-numbers/doc-number.service'
 import type { SaleDto, SaleItemInputDto } from '@/modules/sales/dto/sale.dto'
-import { computeTotals, priceLines, type PricedLine, type PricingProduct } from '@/modules/sales/sale-totals'
+import {
+  computeTotals, priceLines, resolvePriceTier, type PricedLine, type PricingProduct,
+} from '@/modules/sales/sale-totals'
 import { SalesService } from '@/modules/sales/sales.service'
 import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService } from '@/prisma/prisma.service'
@@ -143,9 +146,9 @@ export class QuotesService {
     return toQuoteDto(quote, businessDate())
   }
 
-  async create(dto: CreateQuoteDto, defaultSellerId: string): Promise<QuoteDto> {
+  async create(dto: CreateQuoteDto, user: Pick<AuthContext, 'employeeId' | 'role'>): Promise<QuoteDto> {
     const { tenantId } = requireTenantTx()
-    const priced = await this.price(dto.items, dto.discount ?? 0, dto.priceTier, dto.customerId)
+    const priced = await this.price(dto.items, dto.discount ?? 0, dto.priceTier, dto.customerId, user.role)
     const number = await this.numbers.next('TKLF')
     const quote = await this.prisma.scoped.quote
       .create({
@@ -153,7 +156,7 @@ export class QuotesService {
           tenantId,
           number,
           customerId: dto.customerId ?? null,
-          sellerId: dto.sellerId ?? defaultSellerId,
+          sellerId: dto.sellerId ?? user.employeeId,
           ...priced.header,
           date: dateToDb(businessDate()),
           validUntil: dto.validUntil ? dateToDb(dto.validUntil) : null,
@@ -176,7 +179,7 @@ export class QuotesService {
    * Tahrirlash: qatorlar berilsa — to'liq almashtiriladi va qayta
    * narxlanadi. Aylantirilgan taklif o'zgarmaydi (I20).
    */
-  async update(id: string, dto: UpdateQuoteDto): Promise<QuoteDto> {
+  async update(id: string, dto: UpdateQuoteDto, role: Role): Promise<QuoteDto> {
     const current = await this.lockQuote(id)
     assertNotConverted(current)
 
@@ -188,6 +191,7 @@ export class QuotesService {
           dto.discount ?? moneyFromDb(current.discount),
           dto.priceTier,
           dto.customerId ?? current.customerId ?? undefined,
+          role,
         )
       : undefined
 
@@ -259,6 +263,7 @@ export class QuotesService {
         {
           customerId: quote.customerId ?? undefined,
           sellerId: quote.sellerId ?? undefined,
+          warehouseId: dto.warehouseId,
           priceTier: tierOf(quote.customerGroup),
           lines,
           discount: moneyFromDb(quote.discount),
@@ -309,6 +314,7 @@ export class QuotesService {
     discount: number,
     priceTier: PriceTier | undefined,
     customerId: string | undefined,
+    role: Role,
   ): Promise<PricedQuote> {
     const tx = this.prisma.scoped
     const { tenantId } = requireTenantTx()
@@ -344,7 +350,7 @@ export class QuotesService {
         },
       ]),
     )
-    const tier = priceTier ?? (settings.wholesaleEnabled ? tierOf(customer?.group ?? null) : 'retail')
+    const tier = resolvePriceTier(priceTier, tierOf(customer?.group ?? null), settings, role)
     const lines = priceLines(items, pricing, tier)
     const taxRate = settings.taxEnabled ? settings.taxRate : 0
     const totals = computeTotals(lines, { discount, taxRate, maxDiscountPct: settings.maxDiscountPct })

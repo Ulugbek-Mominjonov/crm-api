@@ -117,6 +117,52 @@ describe('Ta’minotchiga to‘lov va kreditorlik', () => {
     })
   })
 
+  describe('Sotuvchi xarid summalarini ko‘rmaydi (03 §3.6)', () => {
+    it('buyurtma, ta’minotchi, kreditorlik va to‘lov xatosida summa yo‘q — bitta qatorli buyurtmadan tannarx tiklanmasin', async () => {
+      const o = await order(10, 40_000)
+      await po.receive(o.id).expect(200)
+      await po.pay(o.id, { amount: 100_000, method: 'bank' }).expect(201)
+      const seller = await bearer(app, a, 'sotuvchi')
+      const get = async (url: string) =>
+        (await request(app.getHttpServer()).get(url).set('Authorization', seller).expect(200)).body
+      const money = ['total', 'receivedValue', 'paid', 'outstanding']
+
+      const [listed] = (await get('/api/v1/purchase-orders')).items
+      const single = await get(`/api/v1/purchase-orders/${o.id}`)
+      for (const body of [listed, single]) {
+        expect(body).toMatchObject({ number: o.number, status: 'received' })
+        for (const key of money) expect(body).not.toHaveProperty(key)
+        expect(body.items[0]).toMatchObject({ qty: 10, receivedQty: 10 })
+        expect(body.items[0]).not.toHaveProperty('cost')
+      }
+      expect(await get('/api/v1/purchase-orders/summary')).toEqual({ openOrders: 0 })
+
+      expect((await get('/api/v1/suppliers')).items[0]).not.toHaveProperty('debt')
+      expect(await get('/api/v1/suppliers/summary')).toEqual({ suppliersWithDebt: 1 })
+      const card = await get(`/api/v1/suppliers/${supplier}`)
+      expect(card).toMatchObject({ id: supplier, openOrders: 0 })
+      for (const key of ['debt', 'totalPurchased']) expect(card).not.toHaveProperty(key)
+      expect(card.orders[0]).toMatchObject({ number: o.number })
+      for (const key of money) expect(card.orders[0]).not.toHaveProperty(key)
+      expect(card.payments[0]).toMatchObject({ poId: o.id, method: 'bank' })
+      expect(card.payments[0]).not.toHaveProperty('amount')
+
+      const dashboard = await get('/api/v1/dashboard')
+      expect(dashboard).toHaveProperty('receivables')
+      expect(dashboard).not.toHaveProperty('payables')
+
+      // Qarzdan oshgan to'lov — qarz miqdori aytilmaydi
+      const over = await po.pay(o.id, { amount: 10_000_000, method: 'bank' }, seller).expect(422)
+      expect(over.body.code).toBe('PAYMENT_EXCEEDS_DEBT')
+      expect(over.body.errors[0].meta).toEqual({ requested: 10_000_000 })
+      expect(over.body.detail).not.toContain('300')
+
+      // Administrator — hammasi bilan
+      expect((await request(app.getHttpServer()).get(`/api/v1/purchase-orders/${o.id}`).set('Authorization', auth).expect(200)).body)
+        .toMatchObject({ total: 400_000, receivedValue: 400_000, paid: 100_000, outstanding: 300_000 })
+    })
+  })
+
   describe('Audit (T-073)', () => {
     it('buyurtma, qabul va to‘lov jurnalda summa bilan', async () => {
       const o = await order(10, 40_000)

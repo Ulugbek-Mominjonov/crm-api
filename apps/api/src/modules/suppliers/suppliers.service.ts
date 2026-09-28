@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
+import { currentRole } from '@/common/context/request-context'
 import { crudDelegate, SoftDeleteCrudService, type CrudDelegate } from '@/common/crud/crud.service'
 import type { Paged } from '@/common/crud/paging'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
+import { canSeePurchaseAmounts } from '@/common/security/field-visibility'
 import { PrismaService } from '@/prisma/prisma.service'
 import { requireTenantTx } from '@/prisma/tenant-tx'
 import {
@@ -76,10 +78,12 @@ export class SuppliersService extends SoftDeleteCrudService<
   /**
    * Ro'yxat: har qatorda mahsulotlar soni (`_count`, sahifa so'rovida) va
    * qarz — sahifa id'lari bo'yicha BITTA `groupBy`. Jami 3 so'rov, qatorlar
-   * soniga bog'liq emas. Qarz — `purchase_orders.outstanding` (I18).
+   * soniga bog'liq emas. Qarz — `purchase_orders.outstanding` (I18); xarid
+   * pulini ko'rmaydigan rolga (sotuvchi) qarz qo'shilmaydi va so'ralmaydi.
    */
   override async list(query: SupplierListQueryDto): Promise<Paged<SupplierListItemDto>> {
     const page = await super.list(query)
+    if (!canSeePurchaseAmounts(currentRole())) return page
     const debts = await this.prisma.scoped.purchaseOrder.groupBy({
       by: ['supplierId'],
       where: { supplierId: { in: page.items.map((s) => s.id) }, deletedAt: null },
@@ -89,14 +93,16 @@ export class SuppliersService extends SoftDeleteCrudService<
     return { ...page, items: page.items.map((s) => ({ ...s, debt: debt.get(s.id) ?? 0 })) }
   }
 
-  /** Do'kon bo'yicha kreditorlik: jami qarz va qarzimiz bor ta'minotchilar — bitta agregat */
+  /** Do'kon bo'yicha kreditorlik: jami qarz (sotuvchida yo'q) va qarzimiz bor ta'minotchilar — bitta agregat */
   async summary(): Promise<SupplierSummaryDto> {
     const { tenantId } = requireTenantTx()
     const [row] = await this.prisma.scoped.$queryRaw<{ debt: bigint; suppliers: bigint }[]>`
       SELECT COALESCE(SUM(outstanding), 0)::bigint AS debt, COUNT(DISTINCT supplier_id) AS suppliers
         FROM purchase_orders
        WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL AND outstanding > 0`
-    return { debt: Number(row!.debt), suppliersWithDebt: Number(row!.suppliers) }
+    const suppliersWithDebt = Number(row!.suppliers)
+    if (!canSeePurchaseAmounts(currentRole())) return { suppliersWithDebt }
+    return { debt: Number(row!.debt), suppliersWithDebt }
   }
 
   /** Nom (`suppliers_name_trgm`), aloqa shaxsi, STIR va telefon raqamlari bo'yicha; qarzi borlar */
@@ -120,7 +126,8 @@ export class SuppliersService extends SoftDeleteCrudService<
   /**
    * Ta'minotchi kartasi (T-072) — BITTA so'rov: ta'minotchi, jami qarz va
    * ochiq buyurtmalar soni, oxirgi buyurtmalar va to'lovlar (N+1 yo'q).
-   * Qarz — `purchase_orders.outstanding` (faqat kelgan tovar, I18).
+   * Qarz — `purchase_orders.outstanding` (faqat kelgan tovar, I18). Xarid
+   * pulini ko'rmaydigan rolga (sotuvchi) summalar qo'shilmaydi.
    */
   async card(id: string): Promise<SupplierCardDto> {
     const { tenantId } = requireTenantTx()
@@ -150,6 +157,14 @@ export class SuppliersService extends SoftDeleteCrudService<
        WHERE s.tenant_id = ${tenantId}::uuid AND s.id = ${id}::uuid AND s.deleted_at IS NULL`
     if (!row) throw new NotFoundError(this.resource, id)
     const { debt, purchased, openOrders, orders, payments, ...supplier } = row
+    if (!canSeePurchaseAmounts(currentRole())) {
+      return {
+        ...supplier,
+        openOrders: Number(openOrders),
+        orders: orders.map(({ id: orderId, number, status, date, dueDate }) => ({ id: orderId, number, status, date, dueDate })),
+        payments: payments.map(({ id: paymentId, poId, method, date }) => ({ id: paymentId, poId, method, date })),
+      }
+    }
     return {
       ...supplier,
       debt: Number(debt),

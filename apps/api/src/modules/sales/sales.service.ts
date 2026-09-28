@@ -10,6 +10,7 @@ import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import { uuidv7 } from '@/common/ids'
 import { businessDate } from '@/common/time'
 import { AuditService } from '@/modules/audit/audit.service'
+import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { CashRegisterService, type RegisterState } from '@/modules/cash/cash-register.service'
 import { assertCreditAllowed, CreditService } from '@/modules/credit/credit.service'
 import { DocNumberService, type DocPrefix } from '@/modules/doc-numbers/doc-number.service'
@@ -21,7 +22,7 @@ import { PrismaService } from '@/prisma/prisma.service'
 import { requireTenantTx } from '@/prisma/tenant-tx'
 import type { CreateSaleDto, DeliveryInputDto, ReturnSaleDto, SaleDto } from './dto/sale.dto'
 import {
-  computeTotals, priceLines, refundFor, returnLines, settle,
+  computeTotals, priceLines, refundFor, resolvePriceTier, returnLines, settle,
   type LineInput, type PaidInput, type PricingProduct, type SoldLine,
 } from './sale-totals'
 import {
@@ -114,14 +115,17 @@ export class SalesService {
     private readonly fiscal: FiscalService,
   ) {}
 
-  /** `POST /sales` — narx darajasi, QQS, bonus va chegirma chegarasi sozlamadan */
-  async create(dto: CreateSaleDto, defaultSellerId: string): Promise<SaleDto> {
+  /**
+   * `POST /sales` — narx darajasi (sotuvchiga ulgurji — sozlama bilan), QQS,
+   * bonus va chegirma chegarasi sozlamadan
+   */
+  async create(dto: CreateSaleDto, user: Pick<AuthContext, 'employeeId' | 'role'>): Promise<SaleDto> {
     const settings = await this.settings.get()
     return this.place({
       customerId: dto.customerId,
-      sellerId: dto.sellerId ?? defaultSellerId,
+      sellerId: dto.sellerId ?? user.employeeId,
       warehouseId: dto.warehouseId,
-      priceTier: settings.wholesaleEnabled ? (dto.priceTier ?? 'retail') : 'retail',
+      priceTier: resolvePriceTier(dto.priceTier, 'retail', settings, user.role),
       lines: dto.items,
       discount: dto.discount ?? 0,
       bonusRequested: settings.loyaltyEnabled ? (dto.bonusUsed ?? 0) : 0,

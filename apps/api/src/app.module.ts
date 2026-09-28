@@ -6,6 +6,7 @@ import { ConfigModule } from '@/config/config.module'
 import { PrismaModule } from '@/prisma/prisma.module'
 import { LoggingModule } from '@/common/logging/logging.module'
 import { RequestContextMiddleware } from '@/common/middleware/request-context.middleware'
+import { FieldVisibilityInterceptor } from '@/common/interceptors/field-visibility.interceptor'
 import { HealthModule } from '@/modules/health/health.module'
 import { AuthModule } from '@/modules/auth/auth.module'
 import { AuditModule } from '@/modules/audit/audit.module'
@@ -106,10 +107,13 @@ import { QueueModule } from '@/modules/queue/queue.module'
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     // TARTIB MUHIM: birinchisi — tashqi.
-    //  0. faqat-o'qish holatidagi do'kon yozuvi — tranzaksiya ochilmasdan rad (T-127)
-    //  1. tenant tranzaksiyasi — qolgan hamma narsa uning ICHIDA
-    //  2. idempotentlik — takroriy so'rov handler va jurnalga yetmaydi
-    //  3. audit — jurnal amal bilan birga saqlanadi yoki birga bekor bo'ladi
+    //  0. maxfiy maydonlar (03 §3.6) — javob va idempotent takror ham rolga qarab tozalanadi;
+    //     sotuvchida ulgurji narx do'kon sozlamasiga bog'liq (SettingsService)
+    //  1. faqat-o'qish holatidagi do'kon yozuvi — tranzaksiya ochilmasdan rad (T-127)
+    //  2. tenant tranzaksiyasi — qolgan hamma narsa uning ICHIDA
+    //  3. idempotentlik — takroriy so'rov handler va jurnalga yetmaydi
+    //  4. audit — jurnal amal bilan birga saqlanadi yoki birga bekor bo'ladi
+    { provide: APP_INTERCEPTOR, useClass: FieldVisibilityInterceptor },
     { provide: APP_INTERCEPTOR, useClass: ReadOnlyTenantInterceptor },
     { provide: APP_INTERCEPTOR, useClass: TenantTransactionInterceptor },
     { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },

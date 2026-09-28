@@ -4,7 +4,6 @@ import cookieParser from 'cookie-parser'
 import { json } from 'express'
 import helmet from 'helmet'
 import { DomainExceptionFilter } from '@/common/filters/domain-exception.filter'
-import { FieldVisibilityInterceptor } from '@/common/interceptors/field-visibility.interceptor'
 import { RealtimeIoAdapter } from '@/modules/realtime/realtime-io.adapter'
 
 /**
@@ -75,8 +74,7 @@ export function setupApp(
     }),
   )
   app.useGlobalFilters(new DomainExceptionFilter())
-  // Maxfiy maydonlar javobdan olib tashlanadi (03-security §3.6)
-  app.useGlobalInterceptors(new FieldVisibilityInterceptor())
+  // Maxfiy maydonlar (03-security §3.6) — `FieldVisibilityInterceptor`, AppModule'da (DI: do'kon sozlamasi)
 
   // `health` ataylab prefiksdan tashqarida: orkestrator va yuk balanslagich
   // sozlamalari API versiyasiga bog'liq bo'lib qolmasin.

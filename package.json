@@ -15,6 +15,7 @@
     "lint": "eslint . --max-warnings 0",
     "typecheck": "npm run typecheck -w packages/shared && npm run typecheck -w apps/api",
     "verify": "npm run lint && npm run typecheck && npm test",
+    "docs:api": "python3 scripts/api-docs/gen_docs.py && python3 scripts/api-docs/check.py",
     "services:up": "bash scripts/dev-services.sh up",
     "services:down": "bash scripts/dev-services.sh down",
     "services:status": "bash scripts/dev-services.sh status",

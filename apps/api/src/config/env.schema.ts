@@ -110,7 +110,6 @@ export const envSchema = z
     OFD_TOKEN: z.string().optional(),
     /** Fiskal navbat ishchisi qayta urinishlar uchun qanchalik tez-tez aylanadi (ms); 0 — o'chiq (testlar) */
     OFD_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(30_000),
-    PDF_ENABLED: bool('false'),
     SENTRY_DSN: z.string().optional(),
   })
   // Bog'liq shartlar: bir o'zgaruvchi ikkinchisini talab qiladi

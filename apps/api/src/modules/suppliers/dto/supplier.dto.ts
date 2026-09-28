@@ -39,14 +39,14 @@ export class SupplierDto {
   @ApiProperty({ example: 14, description: 'Shu ta’minotchi mahsulotlari (o‘chirilmagan)' }) productCount!: number
 }
 
-/** Kartadagi buyurtma — qarzi bilan (I18) */
+/** Kartadagi buyurtma — qarzi bilan (I18). Summalar sotuvchi rolida yo'q */
 export class SupplierOrderSummaryDto {
   @ApiProperty() id!: string
   @ApiProperty({ example: 'BUY-1001' }) number!: string
   @ApiProperty({ enum: POStatus }) status!: POStatus
-  @ApiProperty() total!: number
-  @ApiProperty() paid!: number
-  @ApiProperty({ description: 'Faqat kelgan tovar uchun' }) outstanding!: number
+  @ApiPropertyOptional({ description: 'Sotuvchi rolida yo‘q' }) total?: number
+  @ApiPropertyOptional({ description: 'Sotuvchi rolida yo‘q' }) paid?: number
+  @ApiPropertyOptional({ description: 'Faqat kelgan tovar uchun. Sotuvchi rolida yo‘q' }) outstanding?: number
   @ApiProperty() date!: string
   @ApiProperty({ nullable: true, type: String }) dueDate!: string | null
 }
@@ -54,15 +54,19 @@ export class SupplierOrderSummaryDto {
 export class SupplierPaymentSummaryDto {
   @ApiProperty() id!: string
   @ApiProperty() poId!: string
-  @ApiProperty() amount!: number
+  @ApiPropertyOptional({ description: 'Sotuvchi rolida yo‘q' }) amount?: number
   @ApiProperty({ enum: PayMethod }) method!: PayMethod
   @ApiProperty() date!: string
 }
 
-/** Ta'minotchi kartasi (T-072): tarix, jami qarz, oxirgi to'lovlar */
+/**
+ * Ta'minotchi kartasi (T-072): tarix, jami qarz, oxirgi to'lovlar. Xarid
+ * summalari sotuvchi rolida yo'q — bitta qatorli buyurtmada ulardan tannarx tiklanadi.
+ */
 export class SupplierCardDto extends SupplierDto {
-  @ApiProperty({ description: 'Jami qarz — kelgan, to‘lanmagan tovar (I18)' }) debt!: number
-  @ApiProperty({ description: 'Jami xarid — kelgan tovar qiymati (qisman qabul ham)' }) totalPurchased!: number
+  @ApiPropertyOptional({ description: 'Jami qarz — kelgan, to‘lanmagan tovar (I18). Sotuvchi rolida yo‘q' }) debt?: number
+  @ApiPropertyOptional({ description: 'Jami xarid — kelgan tovar qiymati (qisman qabul ham). Sotuvchi rolida yo‘q' })
+  totalPurchased?: number
   @ApiProperty({ description: 'Ochiq buyurtmalar (kutilayotgan yoki qisman)' }) openOrders!: number
   @ApiProperty({ type: [SupplierOrderSummaryDto], description: 'Oxirgi buyurtmalar' }) orders!: SupplierOrderSummaryDto[]
   @ApiProperty({ type: [SupplierPaymentSummaryDto], description: 'Oxirgi to‘lovlar' }) payments!: SupplierPaymentSummaryDto[]
@@ -137,11 +141,12 @@ export class SupplierListQueryDto extends ListQueryDto {
 }
 
 export class SupplierListItemDto extends SupplierDto {
-  @ApiProperty({ example: 2_500_000, description: 'Kreditorlik: kelgan tovar uchun to‘lanmagan (I18)' }) debt!: number
+  @ApiPropertyOptional({ example: 2_500_000, description: 'Kreditorlik: kelgan tovar uchun to‘lanmagan (I18). Sotuvchi rolida yo‘q' })
+  debt?: number
 }
 
 export class SupplierSummaryDto {
-  @ApiProperty({ example: 7_800_000, description: 'Barcha ta’minotchilarga jami qarz' }) debt!: number
+  @ApiPropertyOptional({ example: 7_800_000, description: 'Barcha ta’minotchilarga jami qarz. Sotuvchi rolida yo‘q' }) debt?: number
   @ApiProperty({ example: 3, description: 'Qarzimiz bor ta’minotchilar soni' }) suppliersWithDebt!: number
 }
 

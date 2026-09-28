@@ -30,6 +30,14 @@ export function createRootLogger({ level, pretty }: LoggerOptions): PinoLogger {
   }
 }
 
+type Level = 'info' | 'error' | 'warn' | 'debug' | 'trace'
+
+const isRecord = (v: unknown): v is Record<string, unknown> =>
+  v !== null && typeof v === 'object' && !Array.isArray(v) && !(v instanceof Error)
+
+/** `error('xabar', err.stack)` dagi stack — kontekst (klass nomi) emas */
+const isStack = (v: unknown): v is string => typeof v === 'string' && v.includes('\n    at ')
+
 /**
  * Nest logger'i pino ustida.
  *
@@ -47,34 +55,55 @@ export class AppLogger implements LoggerService {
     this.context = context
   }
 
-  private base(): Record<string, unknown> {
+  private base(context = this.context): Record<string, unknown> {
     const ctx = tryContext()
     return {
-      ...(this.context ? { context: this.context } : {}),
+      ...(context ? { context } : {}),
       ...(ctx?.requestId ? { requestId: ctx.requestId } : {}),
       ...(ctx?.tenantId ? { tenantId: ctx.tenantId } : {}),
       ...(ctx?.userId ? { userId: ctx.userId } : {}),
     }
   }
 
-  log(message: unknown, ...meta: unknown[]): void {
-    this.root.info({ ...this.base(), ...this.meta(meta) }, String(message))
+  log(message: unknown, ...params: unknown[]): void {
+    this.write('info', message, params)
   }
-  error(message: unknown, ...meta: unknown[]): void {
-    this.root.error({ ...this.base(), ...this.meta(meta) }, String(message))
+  error(message: unknown, ...params: unknown[]): void {
+    this.write('error', message, params)
   }
-  warn(message: unknown, ...meta: unknown[]): void {
-    this.root.warn({ ...this.base(), ...this.meta(meta) }, String(message))
+  warn(message: unknown, ...params: unknown[]): void {
+    this.write('warn', message, params)
   }
-  debug(message: unknown, ...meta: unknown[]): void {
-    this.root.debug({ ...this.base(), ...this.meta(meta) }, String(message))
+  debug(message: unknown, ...params: unknown[]): void {
+    this.write('debug', message, params)
   }
-  verbose(message: unknown, ...meta: unknown[]): void {
-    this.root.trace({ ...this.base(), ...this.meta(meta) }, String(message))
+  verbose(message: unknown, ...params: unknown[]): void {
+    this.write('trace', message, params)
   }
 
-  private meta(meta: unknown[]): Record<string, unknown> {
-    const obj = meta.find((m) => m !== null && typeof m === 'object')
-    return obj ? redact(obj as Record<string, unknown>) : {}
+  /**
+   * Ikkala chaqiruv shakli: pino — `warn({ fileId, err }, 'Rasm o‘qilmadi')` (kodda asosan shu)
+   * va Nest — `log('xabar', { maydon })`, `error('xabar', stack)`. `new Logger(Klass)` oxirgi
+   * argument sifatida kontekstni (klass nomini) qo'shadi.
+   */
+  private write(level: Level, message: unknown, params: unknown[]): void {
+    const args = params.filter((p) => p !== undefined)
+    const fields: Record<string, unknown> = {}
+    let msg = message
+    if (message instanceof Error) {
+      fields.err = message
+      msg = message.message
+    } else if (isRecord(message)) {
+      Object.assign(fields, message)
+      msg = typeof args[0] === 'string' ? args.shift() : ''
+    }
+    const last = args.at(-1)
+    const context = typeof last === 'string' && !isStack(last) ? (args.pop() as string) : this.context
+    for (const arg of args) {
+      if (isStack(arg)) fields.stack = arg
+      else if (arg instanceof Error) fields.err = arg
+      else if (isRecord(arg)) Object.assign(fields, arg)
+    }
+    this.root[level]({ ...this.base(context), ...redact(fields) }, String(msg))
   }
 }

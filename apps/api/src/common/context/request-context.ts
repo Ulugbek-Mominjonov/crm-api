@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
+import type { Role } from '@prisma/client'
 
 /**
  * So'rov konteksti — loglar, audit va tenant izolyatsiyasi shu yerdan o'qiydi.
@@ -12,7 +13,7 @@ export interface RequestContext {
   requestId: string
   tenantId?: string
   userId?: string
-  role?: string
+  role?: Role
 }
 
 const storage = new AsyncLocalStorage<RequestContext>()
@@ -51,6 +52,15 @@ export function currentTenantId(): string {
     throw new Error('Tenant konteksti yo‘q: so‘rov autentifikatsiyadan o‘tmagan')
   }
   return tenantId
+}
+
+/** Joriy foydalanuvchi roli — rolga qarab javob yasaydigan servislar uchun */
+export function currentRole(): Role {
+  const role = currentContext().role
+  if (!role) {
+    throw new Error('Rol konteksti yo‘q: so‘rov autentifikatsiyadan o‘tmagan')
+  }
+  return role
 }
 
 /** Kontekstni to'ldiradi (login tekshiruvidan keyin tenant/user ma'lum bo'ladi) */

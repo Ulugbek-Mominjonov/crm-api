@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Prisma, type POStatus } from '@prisma/client'
 import { dueDateFor, lineTotal } from '@crm/shared'
-import { currentContext } from '@/common/context/request-context'
+import { currentContext, currentRole } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
@@ -9,6 +9,7 @@ import { withCtes } from '@/common/db/sql'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import { uuidv7 } from '@/common/ids'
 import { fromMilli, milliToDb, toMilli } from '@/common/quantity'
+import { canSeePurchaseAmounts } from '@/common/security/field-visibility'
 import { businessDate } from '@/common/time'
 import { AuditService } from '@/modules/audit/audit.service'
 import { CashRegisterService } from '@/modules/cash/cash-register.service'
@@ -113,10 +114,14 @@ export class PurchaseOrdersService {
       }),
       this.prisma.scoped.purchaseOrder.count({ where }),
     ])
-    return toPaged(rows.map(toPoDto), total, query)
+    const amounts = amountsVisible()
+    return toPaged(rows.map((row) => toPoDto(row, amounts)), total, query)
   }
 
-  /** Sahifa kartalari — BITTA agregat (`(tenant_id, status)` indeksi; jadval kichik) */
+  /**
+   * Sahifa kartalari — BITTA agregat (`(tenant_id, status)` indeksi; jadval
+   * kichik). Summalar — faqat xarid pulini ko'radigan rolga.
+   */
   async summary(): Promise<PurchaseOrderSummaryDto> {
     const { tenantId } = requireTenantTx()
     const monthStart = `${businessDate().slice(0, 7)}-01`
@@ -129,9 +134,11 @@ export class PurchaseOrdersService {
              COALESCE(SUM(total) FILTER (WHERE status = 'received'), 0) AS received
         FROM purchase_orders
        WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL`
+    const openOrders = Number(row!.open)
+    if (!amountsVisible()) return { openOrders }
     return {
       outstanding: row!.outstanding.toNumber(),
-      openOrders: Number(row!.open),
+      openOrders,
       monthTotal: row!.month.toNumber(),
       receivedTotal: row!.received.toNumber(),
     }
@@ -140,7 +147,7 @@ export class PurchaseOrdersService {
   async get(id: string): Promise<PurchaseOrderDto> {
     const row = await this.prisma.scoped.purchaseOrder.findFirst({ where: { id, deletedAt: null }, select: PO_SELECT })
     if (!row) throw new NotFoundError(RESOURCE, id)
-    return toPoDto(row)
+    return toPoDto(row, amountsVisible())
   }
 
   /** Raqam `BUY-NNNN` (I12); to'lov muddati berilmasa — ta'minotchi shartidan */
@@ -181,7 +188,7 @@ export class PurchaseOrdersService {
       entityId: row.id,
       diff: { number, supplierId: dto.supplierId, total: moneyFromDb(row.total), lines: items.length },
     })
-    return toPoDto(row)
+    return toPoDto(row, amountsVisible())
   }
 
   /** Faqat `ordered` holatida; qatorlar berilsa — to'liq almashtiriladi */
@@ -210,7 +217,7 @@ export class PurchaseOrdersService {
       entityId: id,
       diff: { number: order.number, total: moneyFromDb(row.total) },
     })
-    return toPoDto(row)
+    return toPoDto(row, amountsVisible())
   }
 
   /** Bekor qilish faqat `ordered` holatida — qisman kelgani bekor qilinmaydi (I19) */
@@ -324,11 +331,7 @@ export class PurchaseOrdersService {
     const register = await this.register.lock()
     const order = await this.lockOrder(id)
     const outstanding = moneyFromDb(order.outstanding)
-    if (dto.amount > outstanding) {
-      throw new DomainError('PAYMENT_EXCEEDS_DEBT', `${order.number}: qarz ${outstanding} so‘m, to‘lov ${dto.amount} so‘m`, [
-        { field: 'amount', code: 'PAYMENT_EXCEEDS_DEBT', meta: { outstanding, requested: dto.amount } },
-      ])
-    }
+    if (dto.amount > outstanding) throw paymentExceedsDebt(order.number, outstanding, dto.amount)
     const shiftId = dto.method === 'cash' ? this.register.requireOpenShift(register) : register.activeShiftId
     const paymentId = uuidv7()
     const date = businessDate()
@@ -409,6 +412,23 @@ function totalOf(items: readonly PoItemInputDto[]): bigint {
   return BigInt(items.reduce((sum, item) => sum + lineTotal(item.cost, item.qty), 0))
 }
 
+/** Xarid summalari joriy rolga ko'rinadimi — sotuvchiga yo'q: bitta qatorli buyurtmada summadan tannarx tiklanadi */
+function amountsVisible(): boolean {
+  return canSeePurchaseAmounts(currentRole())
+}
+
+/** Qarzdan oshgan to'lov (I18). Xarid pulini ko'rmaydigan rolga qarz miqdori aytilmaydi */
+function paymentExceedsDebt(number: string, outstanding: number, requested: number): DomainError {
+  if (!amountsVisible()) {
+    return new DomainError('PAYMENT_EXCEEDS_DEBT', `${number}: to‘lov kelgan tovar qarzidan oshmaydi`, [
+      { field: 'amount', code: 'PAYMENT_EXCEEDS_DEBT', meta: { requested } },
+    ])
+  }
+  return new DomainError('PAYMENT_EXCEEDS_DEBT', `${number}: qarz ${outstanding} so‘m, to‘lov ${requested} so‘m`, [
+    { field: 'amount', code: 'PAYMENT_EXCEEDS_DEBT', meta: { outstanding, requested } },
+  ])
+}
+
 function assertOrdered(order: LockedOrder): void {
   if (order.status === 'cancelled') throw new DomainError('PO_CANCELLED', `${order.number} bekor qilingan`)
   if (order.status !== 'ordered') {
@@ -459,17 +479,20 @@ function receiveLines(
   })
 }
 
-function toPoDto(r: PoRecord): PurchaseOrderDto {
+/** `amounts` — xarid summalari (`amountsVisible`) */
+function toPoDto(r: PoRecord, amounts: boolean): PurchaseOrderDto {
   return {
     id: r.id,
     number: r.number,
     supplier: r.supplier,
     warehouseId: r.warehouseId,
     status: r.status,
-    total: moneyFromDb(r.total),
-    receivedValue: moneyFromDb(r.receivedValue),
-    paid: moneyFromDb(r.paid),
-    outstanding: moneyFromDb(r.outstanding),
+    ...(amounts && {
+      total: moneyFromDb(r.total),
+      receivedValue: moneyFromDb(r.receivedValue),
+      paid: moneyFromDb(r.paid),
+      outstanding: moneyFromDb(r.outstanding),
+    }),
     date: dateFromDb(r.date),
     receivedDate: r.receivedDate ? dateFromDb(r.receivedDate) : null,
     dueDate: r.dueDate ? dateFromDb(r.dueDate) : null,

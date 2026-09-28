@@ -1,0 +1,60 @@
+# ═══════════════════════════════════════════════════════════════════
+# CRM sayti (T-116, T-119): frontend va API BITTA domenda — CORS kerak emas,
+# refresh cookie birinchi tomonniki, dev'dagi Vite proksi bilan bir xil yo'llar.
+# Domen — /opt/edge/.env dagi CRM_DOMAIN. API — `edge` tarmog'ida `crm-api`,
+# frontend build — /opt/www/crm (konteynerda /srv/crm).
+# ═══════════════════════════════════════════════════════════════════
+{$CRM_DOMAIN} {
+	encode zstd gzip
+
+	# API, realtime (WebSocket) va sog'liq. Swagger — production'da yopiq (12 §12.6; API ham bermaydi)
+	@backend {
+		path /api/* /socket.io/* /health/*
+		not path /api/docs*
+	}
+	handle @backend {
+		# Deploy'da API qayta yaratiladi (~3 s): so'rov xato olmaydi — yangi konteyner ko'tarilguncha
+		# ulanish qayta uriniladi. Faol sog'liq tekshiruvi (health_uri) ATAYLAB yo'q: yagona upstream'ni
+		# "nosog'lom" deb belgilab, API tiklangach ham keyingi tekshiruvgacha (30 s) 503 berardi
+		reverse_proxy crm-api:3000 {
+			lb_try_duration 15s
+			lb_try_interval 250ms
+		}
+	}
+	handle /api/docs* {
+		respond 404
+	}
+
+	# Vite build'ning hash'li fayllari — o'zgarmaydi: uzoq kesh (faqat MAVJUD faylga — deploy paytidagi
+	# 404 bir yilga keshlanib qolmasin); yo'q bo'lsa 404, index.html EMAS
+	handle /assets/* {
+		root * /srv/crm
+		@exists file
+		header @exists Cache-Control "public, max-age=31536000, immutable"
+		file_server
+	}
+
+	# SPA: qolgan yo'l — mavjud fayl yoki index.html; keshsiz (yangi versiya va sw.js darhol)
+	handle {
+		root * /srv/crm
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# Access log: URL'da sir yo'q (token — sarlavhada va WebSocket qo'l siqishida)
+	log {
+		output file /data/logs/crm-access.log {
+			roll_size 50mb
+			roll_keep 5
+		}
+	}
+}

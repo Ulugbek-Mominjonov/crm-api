@@ -25,6 +25,7 @@ const SETTINGS_SELECT = {
   taxEnabled: true,
   taxRate: true,
   wholesaleEnabled: true,
+  sellerWholesaleEnabled: true,
   loyaltyEnabled: true,
   loyaltyRate: true,
   maxDiscountPct: true,
@@ -56,15 +57,23 @@ export class SettingsService {
         : new TtlCache(CACHE_TTL_MS, CACHE_MAX_TENANTS)
   }
 
-  async get(): Promise<Readonly<SettingsDto>> {
-    const tenantId = currentTenantId()
+  /** Joriy so'rov do'koni */
+  get(): Promise<Readonly<SettingsDto>> {
+    return this.forTenant(currentTenantId())
+  }
+
+  /**
+   * Berilgan do'kon. So'rov tranzaksiyasi bo'lsa — unga qo'shiladi; bo'lmasa
+   * (javobni tranzaksiya yopilgach ko'radigan global interceptor) — kesh bo'sh
+   * bo'lganda o'z qisqa tranzaksiyasida o'qiydi.
+   */
+  async forTenant(tenantId: string): Promise<Readonly<SettingsDto>> {
     const cached = this.cache.get(tenantId)
     if (cached) return cached
 
-    const row = await this.prisma.scoped.settings.findUnique({
-      where: { tenantId },
-      select: SETTINGS_SELECT,
-    })
+    const row = await this.prisma.inTenantTransaction(tenantId, (tx) =>
+      tx.settings.findUnique({ where: { tenantId }, select: SETTINGS_SELECT }),
+    )
     if (!row) throw new NotFoundError(RESOURCE)
 
     // Muzlatilgan: keshdagi obyektni hech bir chaqiruvchi o'zgartira olmaydi

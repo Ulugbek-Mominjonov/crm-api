@@ -5,7 +5,7 @@ import { IsIn, IsInt, IsOptional, Max, Min } from 'class-validator'
 import { IsDateOnly } from '@/common/validation/decorators'
 
 export const DASHBOARD_DAYS = [7, 30, 90] as const
-/** Ro'yxat bo'limlari (top mahsulot, sotilmayotgan tovar) chegarasi */
+/** P&L ro'yxat bo'limlari (top mahsulot, sotuvchilar, sotilmayotgan tovar) chegarasi */
 export const REPORT_LIST_DEFAULT = 20
 export const REPORT_LIST_MAX = 100
 
@@ -17,6 +17,7 @@ export class DashboardQueryDto {
   days: (typeof DASHBOARD_DAYS)[number] = 30
 }
 
+/** Davr — analitika (ABC to'liq ro'yxat: mijoz o'zi sahifalaydi) */
 export class PeriodQueryDto {
   @ApiProperty({ example: '2026-09-01' })
   @IsDateOnly()
@@ -25,8 +26,15 @@ export class PeriodQueryDto {
   @ApiProperty({ example: '2026-09-30' })
   @IsDateOnly()
   to!: string
+}
 
-  @ApiPropertyOptional({ minimum: 1, maximum: REPORT_LIST_MAX, default: REPORT_LIST_DEFAULT })
+export class PnlQueryDto extends PeriodQueryDto {
+  @ApiPropertyOptional({
+    minimum: 1,
+    maximum: REPORT_LIST_MAX,
+    default: REPORT_LIST_DEFAULT,
+    description: '`topProducts`, `sellers` va `deadStock.items` ro‘yxatlari chegarasi',
+  })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -81,7 +89,7 @@ export class DashboardDto {
   @ApiProperty({ type: DayTotalsDto }) yesterday!: DayTotalsDto
   @ApiProperty({ description: 'Mijozlar qarzi (debitorlik)' }) receivables!: number
   @ApiProperty() debtors!: number
-  @ApiProperty({ description: 'Ta’minotchilarga qarz (kreditorlik, I18)' }) payables!: number
+  @ApiPropertyOptional({ description: 'Ta’minotchilarga qarz (kreditorlik, I18). Sotuvchi rolida yo‘q' }) payables?: number
   @ApiProperty() payableOrders!: number
   @ApiProperty() lowStockCount!: number
   @ApiProperty({ type: [LowStockItemDto] }) lowStock!: LowStockItemDto[]

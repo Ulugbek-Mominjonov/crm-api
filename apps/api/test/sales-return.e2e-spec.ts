@@ -99,6 +99,30 @@ describe('Qaytarish (POST /sales/:id/return)', () => {
     expect(rest.body.number).toBe('QAYT-1002')
   })
 
+  it('chek qatorida qaytarilgani (`returnedQty`) va chek bo‘yicha qaytarishlar ro‘yxati; bekor qilingan hisobga olinmaydi', async () => {
+    const sale = await sell(3)
+    expect(sale.items[0].returnedQty).toBe(0)
+    const item = sale.items[0].id
+    const first = (await giveBack(sale.id, [{ saleItemId: item, qty: 1 }]).expect(201)).body
+    const second = (await giveBack(sale.id, [{ saleItemId: item, qty: 0.5 }]).expect(201)).body
+    expect(second.items[0].returnedQty).toBe(0)
+
+    const returnedQty = async () =>
+      (await request(app.getHttpServer()).get(`/api/v1/sales/${sale.id}`).set('Authorization', auth).expect(200)).body.items[0].returnedQty
+    expect(await returnedQty()).toBe(1.5)
+    const receipt = await request(app.getHttpServer()).get(`/api/v1/sales/${sale.id}/receipt`).set('Authorization', auth).expect(200)
+    expect(receipt.body.sale.items[0].returnedQty).toBe(1.5)
+
+    await request(app.getHttpServer()).post(`/api/v1/sales/${first.id}/cancel`).set('Authorization', auth).set('Idempotency-Key', randomUUID()).expect(200)
+    expect(await returnedQty()).toBe(0.5)
+
+    const related = await request(app.getHttpServer()).get(`/api/v1/sales?relatedSaleId=${sale.id}`).set('Authorization', auth).expect(200)
+    expect(related.body.items.map((r: { number: string; status: string }) => [r.number, r.status])).toEqual(
+      expect.arrayContaining([['QAYT-1001', 'cancelled'], ['QAYT-1002', 'completed']]),
+    )
+    expect(related.body.items).toHaveLength(2)
+  })
+
   it('nasiya chek: qaytgan tovar avval qarzni yopadi, naqd berilmaydi', async () => {
     const c = await seedClient(a.tenantId)
     const sale = await sell(2, { customerId: c, paid: { cash: 100_000, card: 0, transfer: 0 } }) // qarz 124 000

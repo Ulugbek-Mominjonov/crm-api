@@ -3140,7 +3140,7 @@
     },
     "/api/v1/users": {
       "get": {
-        "description": "Ism va lavozim xodim yozuvidan (D1).",
+        "description": "Ism va lavozim xodim yozuvidan (D1). `deleted=true` — o‘chirilganlar (tiklash uchun).",
         "operationId": "Users_list",
         "parameters": [
           {
@@ -3213,6 +3213,15 @@
             "name": "isActive",
             "required": false,
             "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "deleted",
+            "required": false,
+            "in": "query",
+            "description": "`true` — faqat o‘chirilgan hisoblar (tiklash uchun)",
             "schema": {
               "type": "boolean"
             }
@@ -3317,7 +3326,7 @@
             }
           },
           "409": {
-            "description": "EMPLOYEE_HAS_USER | ALREADY_EXISTS (email)",
+            "description": "EMPLOYEE_HAS_USER (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) | ALREADY_EXISTS (email)",
             "content": {
               "application/json": {
                 "schema": {
@@ -3537,6 +3546,7 @@
     },
     "/api/v1/users/{id}/restore": {
       "post": {
+        "description": "O‘chirilganlar — `GET /users?deleted=true`. Parol va rol o‘zgarmaydi; eski sessiyalar qaytmaydi.",
         "operationId": "Users_restore",
         "parameters": [
           {
@@ -3578,6 +3588,16 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "REFERENCE_NOT_FOUND — xodim o‘chirilgan (avval uni tiklang)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -3585,7 +3605,7 @@
             "bearer": []
           }
         ],
-        "summary": "O‘chirilgan foydalanuvchini tiklash (undo)",
+        "summary": "O‘chirilgan foydalanuvchini tiklash",
         "tags": [
           "users"
         ]
@@ -4011,6 +4031,16 @@
               }
             }
           },
+          "403": {
+            "description": "PERMISSION_DENIED — sotuvchi `priceTier: \"wholesale\"` yubordi, `sellerWholesaleEnabled` o‘chiq",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
           "422": {
             "description": "STOCK_INSUFFICIENT | DISCOUNT_LIMIT | TOTAL_MISMATCH | PAYMENT_EXCEEDS_TOTAL | CREDIT_REQUIRES_CUSTOMER | CREDIT_LIMIT_EXCEEDED | CREDIT_OVERDUE | PRODUCT_ARCHIVED | WAREHOUSE_ARCHIVED | REFERENCE_NOT_FOUND",
             "content": {
@@ -4102,6 +4132,16 @@
             "name": "customerId",
             "required": false,
             "in": "query",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "relatedSaleId",
+            "required": false,
+            "in": "query",
+            "description": "Shu chek bo‘yicha qaytarish hujjatlari (`QAYT-…`)",
             "schema": {
               "format": "uuid",
               "type": "string"
@@ -4223,7 +4263,7 @@
     },
     "/api/v1/sales/{id}/receipt": {
       "get": {
-        "description": "Do‘kon rekvizitlari bilan. `pdf` — faqat `PDF_ENABLED=true` serverda (09 §9.13).",
+        "description": "Do‘kon rekvizitlari bilan. `format=pdf` — 80 mm termal chek (brauzerdagi chek ko‘rinishida, fiskal QR bilan), `Content-Disposition: inline; filename=\"<raqam>.pdf\"` (09 §9.13).",
         "operationId": "Sales_receipt",
         "parameters": [
           {
@@ -4250,19 +4290,30 @@
         ],
         "responses": {
           "200": {
-            "description": "",
+            "description": "`format=json` (sukut) — chek ma’lumoti; `format=pdf` — PDF fayl",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ReceiptDto"
                 }
+              },
+              "application/pdf": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
               }
             }
           },
-          "501": {
-            "description": "FEATURE_DISABLED — PDF o‘chirilgan",
+          "404": {
+            "description": "",
             "content": {
               "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              },
+              "application/pdf": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiErrorDto"
                 }
@@ -4958,6 +5009,16 @@
               }
             }
           },
+          "403": {
+            "description": "PERMISSION_DENIED — sotuvchiga ulgurji narx yopiq",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
           "422": {
             "description": "DISCOUNT_LIMIT | PRODUCT_ARCHIVED | REFERENCE_NOT_FOUND",
             "content": {
@@ -5087,6 +5148,16 @@
               }
             }
           },
+          "403": {
+            "description": "PERMISSION_DENIED — sotuvchiga ulgurji narx yopiq",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
           "409": {
             "description": "QUOTE_ALREADY_CONVERTED",
             "content": {
@@ -5194,7 +5265,7 @@
     },
     "/api/v1/quotes/{id}/convert": {
       "post": {
-        "description": "Qoldiq tekshiriladi, bir marta (I20); to‘lov usuli chaqiruvchidan; nasiyada mijoz shart. Idempotent.",
+        "description": "Qoldiq tanlangan omborda (`warehouseId`, berilmasa — joriy) tekshiriladi, bir marta (I20); to‘lov usuli chaqiruvchidan; nasiyada mijoz shart. Idempotent.",
         "operationId": "Quotes_convert",
         "parameters": [
           {
@@ -5247,7 +5318,7 @@
             }
           },
           "422": {
-            "description": "QUOTE_STOCK_SHORT | CREDIT_REQUIRES_CUSTOMER | CREDIT_*",
+            "description": "QUOTE_STOCK_SHORT | CREDIT_REQUIRES_CUSTOMER | CREDIT_* | WAREHOUSE_ARCHIVED | REFERENCE_NOT_FOUND (ombor)",
             "content": {
               "application/json": {
                 "schema": {
@@ -7373,6 +7444,7 @@
             "name": "limit",
             "required": false,
             "in": "query",
+            "description": "`topProducts`, `sellers` va `deadStock.items` ro‘yxatlari chegarasi",
             "schema": {
               "minimum": 1,
               "maximum": 100,
@@ -7406,7 +7478,7 @@
     },
     "/api/v1/analytics": {
       "get": {
-        "description": "ABC (80/95 %), kategoriya va to‘lov taqsimoti, kunlik trend",
+        "description": "ABC (80/95 %) — sotilgan BARCHA mahsulot (sahifalash mijozda), kategoriya va to‘lov taqsimoti, kunlik trend",
         "operationId": "Reports_analytics",
         "parameters": [
           {
@@ -7425,17 +7497,6 @@
             "schema": {
               "example": "2026-09-30",
               "type": "string"
-            }
-          },
-          {
-            "name": "limit",
-            "required": false,
-            "in": "query",
-            "schema": {
-              "minimum": 1,
-              "maximum": 100,
-              "default": 20,
-              "type": "number"
             }
           }
         ],
@@ -8886,6 +8947,10 @@
           "wholesaleEnabled": {
             "type": "boolean"
           },
+          "sellerWholesaleEnabled": {
+            "type": "boolean",
+            "description": "Sotuvchi ham ulgurji narxda sota oladi va `wholesalePrice` ni ko‘radi (`wholesaleEnabled` bilan birga). `false` — sotuvchiga ulgurji narx yashirin, `priceTier: \"wholesale\"` → 403"
+          },
           "loyaltyEnabled": {
             "type": "boolean"
           },
@@ -8922,6 +8987,7 @@
           "taxEnabled",
           "taxRate",
           "wholesaleEnabled",
+          "sellerWholesaleEnabled",
           "loyaltyEnabled",
           "loyaltyRate",
           "maxDiscountPct",
@@ -8954,6 +9020,10 @@
           },
           "wholesaleEnabled": {
             "type": "boolean"
+          },
+          "sellerWholesaleEnabled": {
+            "type": "boolean",
+            "description": "Sotuvchiga ulgurji narxda sotishni ochish"
           },
           "loyaltyEnabled": {
             "type": "boolean"
@@ -10184,7 +10254,7 @@
           "debt": {
             "type": "number",
             "example": 2500000,
-            "description": "Kreditorlik: kelgan tovar uchun to‘lanmagan (I18)"
+            "description": "Kreditorlik: kelgan tovar uchun to‘lanmagan (I18). Sotuvchi rolida yo‘q"
           }
         },
         "required": [
@@ -10199,8 +10269,7 @@
           "paymentTermDays",
           "createdAt",
           "updatedAt",
-          "productCount",
-          "debt"
+          "productCount"
         ]
       },
       "SupplierSummaryDto": {
@@ -10209,7 +10278,7 @@
           "debt": {
             "type": "number",
             "example": 7800000,
-            "description": "Barcha ta’minotchilarga jami qarz"
+            "description": "Barcha ta’minotchilarga jami qarz. Sotuvchi rolida yo‘q"
           },
           "suppliersWithDebt": {
             "type": "number",
@@ -10218,7 +10287,6 @@
           }
         },
         "required": [
-          "debt",
           "suppliersWithDebt"
         ]
       },
@@ -10242,14 +10310,16 @@
             ]
           },
           "total": {
-            "type": "number"
+            "type": "number",
+            "description": "Sotuvchi rolida yo‘q"
           },
           "paid": {
-            "type": "number"
+            "type": "number",
+            "description": "Sotuvchi rolida yo‘q"
           },
           "outstanding": {
             "type": "number",
-            "description": "Faqat kelgan tovar uchun"
+            "description": "Faqat kelgan tovar uchun. Sotuvchi rolida yo‘q"
           },
           "date": {
             "type": "string"
@@ -10263,9 +10333,6 @@
           "id",
           "number",
           "status",
-          "total",
-          "paid",
-          "outstanding",
           "date",
           "dueDate"
         ]
@@ -10280,7 +10347,8 @@
             "type": "string"
           },
           "amount": {
-            "type": "number"
+            "type": "number",
+            "description": "Sotuvchi rolida yo‘q"
           },
           "method": {
             "type": "string",
@@ -10296,7 +10364,6 @@
         "required": [
           "id",
           "poId",
-          "amount",
           "method",
           "date"
         ]
@@ -10360,11 +10427,11 @@
           },
           "debt": {
             "type": "number",
-            "description": "Jami qarz — kelgan, to‘lanmagan tovar (I18)"
+            "description": "Jami qarz — kelgan, to‘lanmagan tovar (I18). Sotuvchi rolida yo‘q"
           },
           "totalPurchased": {
             "type": "number",
-            "description": "Jami xarid — kelgan tovar qiymati (qisman qabul ham)"
+            "description": "Jami xarid — kelgan tovar qiymati (qisman qabul ham). Sotuvchi rolida yo‘q"
           },
           "openOrders": {
             "type": "number",
@@ -10398,8 +10465,6 @@
           "createdAt",
           "updatedAt",
           "productCount",
-          "debt",
-          "totalPurchased",
           "openOrders",
           "orders",
           "payments"
@@ -10765,6 +10830,12 @@
             "type": "string",
             "format": "date-time",
             "description": "Versiya — tahrirda `If-Match` ga qo‘yiladi"
+          },
+          "deletedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "O‘chirilgan payt — faqat `?deleted=true` ro‘yxatida to‘la; tiklash — `POST /users/{id}/restore`"
           }
         },
         "required": [
@@ -10777,7 +10848,8 @@
           "employeeId",
           "name",
           "position",
-          "updatedAt"
+          "updatedAt",
+          "deletedAt"
         ]
       },
       "CreateUserDto": {
@@ -11439,7 +11511,8 @@
               "retail",
               "wholesale"
             ],
-            "default": "retail"
+            "default": "retail",
+            "description": "`wholesale` — `wholesaleEnabled` bo‘lsa (aks holda chakana). Sotuvchiga — `sellerWholesaleEnabled` bilan, aks holda 403"
           },
           "items": {
             "maxItems": 200,
@@ -11565,6 +11638,11 @@
             "type": "string",
             "nullable": true,
             "description": "Qaytarishda — asl chek qatori"
+          },
+          "returnedQty": {
+            "type": "number",
+            "example": 1,
+            "description": "Shu qatordan qaytarilgani (bekor qilinmagan qaytarishlar), `unit` da. Yana qaytarish mumkin: `qty − returnedQty`. Qaytarish hujjati qatorida va yangi chekda — 0"
           }
         },
         "required": [
@@ -11576,7 +11654,8 @@
           "baseQty",
           "price",
           "discount",
-          "returnOfId"
+          "returnOfId",
+          "returnedQty"
         ]
       },
       "SaleDeliveryRefDto": {
@@ -12709,7 +12788,7 @@
               "retail",
               "wholesale"
             ],
-            "description": "Berilmasa — mijoz guruhidan"
+            "description": "Berilmasa — mijoz guruhidan. `wholesale` — `wholesaleEnabled` bo‘lsa; sotuvchiga — `sellerWholesaleEnabled` bilan (aks holda so‘ralgani 403, mijoz guruhidan kelgani — chakana)"
           },
           "items": {
             "maxItems": 200,
@@ -12753,7 +12832,8 @@
             "enum": [
               "retail",
               "wholesale"
-            ]
+            ],
+            "description": "Yaratishdagi qoida bilan"
           },
           "items": {
             "description": "Berilsa — qatorlar TO‘LIQ almashtiriladi",
@@ -12797,6 +12877,11 @@
               "debt"
             ],
             "description": "To‘lov usuli chaqiruvchidan (I20) — `debt`: nasiya"
+          },
+          "warehouseId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Chiqim ombori (kassada tanlangani); berilmasa — joriy ombor"
           }
         },
         "required": [
@@ -13662,18 +13747,20 @@
             ]
           },
           "total": {
-            "type": "number"
+            "type": "number",
+            "description": "Buyurtma summasi. Sotuvchi rolida yo‘q (summadan tannarx tiklanadi)"
           },
           "receivedValue": {
             "type": "number",
-            "description": "Kelgan tovar qiymati"
+            "description": "Kelgan tovar qiymati. Sotuvchi rolida yo‘q"
           },
           "paid": {
-            "type": "number"
+            "type": "number",
+            "description": "To‘langan. Sotuvchi rolida yo‘q"
           },
           "outstanding": {
             "type": "number",
-            "description": "Ta’minotchiga qarz — faqat kelgan tovar uchun (I18)"
+            "description": "Ta’minotchiga qarz — faqat kelgan tovar uchun (I18). Sotuvchi rolida yo‘q"
           },
           "date": {
             "type": "string"
@@ -13707,10 +13794,6 @@
           "supplier",
           "warehouseId",
           "status",
-          "total",
-          "receivedValue",
-          "paid",
-          "outstanding",
           "date",
           "receivedDate",
           "dueDate",
@@ -13755,7 +13838,7 @@
           "outstanding": {
             "type": "number",
             "example": 1200000,
-            "description": "Ta’minotchilarga jami qarz (kelgan tovar uchun, I18)"
+            "description": "Ta’minotchilarga jami qarz (kelgan tovar uchun, I18). Sotuvchi rolida yo‘q"
           },
           "openOrders": {
             "type": "number",
@@ -13765,19 +13848,16 @@
           "monthTotal": {
             "type": "number",
             "example": 5400000,
-            "description": "Joriy oy buyurtmalari (bekor qilinganlarsiz)"
+            "description": "Joriy oy buyurtmalari (bekor qilinganlarsiz). Sotuvchi rolida yo‘q"
           },
           "receivedTotal": {
             "type": "number",
             "example": 9800000,
-            "description": "To‘liq qabul qilingan buyurtmalar summasi"
+            "description": "To‘liq qabul qilingan buyurtmalar summasi. Sotuvchi rolida yo‘q"
           }
         },
         "required": [
-          "outstanding",
-          "openOrders",
-          "monthTotal",
-          "receivedTotal"
+          "openOrders"
         ]
       },
       "PoItemInputDto": {
@@ -14785,7 +14865,7 @@
           },
           "payables": {
             "type": "number",
-            "description": "Ta’minotchilarga qarz (kreditorlik, I18)"
+            "description": "Ta’minotchilarga qarz (kreditorlik, I18). Sotuvchi rolida yo‘q"
           },
           "payableOrders": {
             "type": "number"
@@ -14830,7 +14910,6 @@
           "yesterday",
           "receivables",
           "debtors",
-          "payables",
           "payableOrders",
           "lowStockCount",
           "lowStock",

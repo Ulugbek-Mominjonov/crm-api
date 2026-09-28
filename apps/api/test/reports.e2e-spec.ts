@@ -166,6 +166,22 @@ describe('Hisobotlar', () => {
       expect(seller.body.deadStock).toEqual({ items: [{ productId: idle, name: 'Sement M400', unit: 'qop', stock: 4 }] })
     })
 
+    it('`limit` ro‘yxatlarni cheklaydi: top mahsulot va sotuvchilar (tushum bo‘yicha)', async () => {
+      const p1 = await seedProduct(a.tenantId, a.warehouseId, { sku: 'L1', qty: '100', price: 10_000n })
+      const p2 = await seedProduct(a.tenantId, a.warehouseId, { sku: 'L2', qty: '100', price: 5_000n })
+      const other = await testDb.employee.create({
+        data: { tenantId: a.tenantId, name: 'Kassir 2', position: 'Kassir', phone: '+998900000001', hiredAt: new Date('2026-01-01') },
+      })
+      await api.sell({ items: [{ productId: p1, qty: 2 }], paid: cash(20_000) })
+      await api.sell({ sellerId: other.id, items: [{ productId: p2, qty: 1 }], paid: cash(5_000) })
+
+      const all = await get(`reports/pnl?from=${today}&to=${today}`).expect(200)
+      expect(all.body.sellers).toHaveLength(2)
+      const top = await get(`reports/pnl?from=${today}&to=${today}&limit=1`).expect(200)
+      expect(top.body.topProducts.map((t: { productId: string }) => t.productId)).toEqual([p1])
+      expect(top.body.sellers.map((x: { sellerId: string }) => x.sellerId)).toEqual([a.employeeId])
+    })
+
     it('noto‘g‘ri davr — 400', async () => {
       await get('reports/pnl?from=2026-09-20&to=2026-09-01').expect(400)
       await get('reports/pnl?from=2020-01-01&to=2026-09-01').expect(400)
@@ -187,6 +203,8 @@ describe('Hisobotlar', () => {
         [p70, 'A', 70], [p15, 'B', 85], [p10, 'B', 95], [p5, 'C', 100],
       ])
       expect(result.body.payments).toMatchObject({ cash: 100_000 })
+      // ABC — to'liq ro'yxat (sahifalash mijozda): `limit` qabul qilinmaydi
+      await get(`analytics?from=${today}&to=${today}&limit=2`).expect(400)
     })
   })
 

@@ -19,8 +19,9 @@ hisobi avtomatik yangilanadi.
 Frontend (`/home/ulugbek/personal/front/crm-qurilish`) — **alohida frontend dasturchi** bajaradi
 (E13, T-112, T-113, T-119); bu repodan frontendga o'zgartirish kiritilmaydi. Unga qo'llanma —
 [`docs/api/`](./docs/api/README.md): README qo'lda yozilgan, `endpoints.md`/`schemas.md` —
-`apps/api/openapi.json` dan generatsiya. Backend DTO o'zgarsa: `npm run build -w @crm/api &&
-npm run openapi -w @crm/api` va `docs/api` ni yangilash.
+`apps/api/openapi.json` dan generatsiya (`scripts/api-docs/`). Backend DTO o'zgarsa: `npm run build -w @crm/api &&
+npm run openapi -w @crm/api`, keyin `npm run docs:api` (generatsiya + havola/jadval tekshiruvi); endpoint
+xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README ham.
 
 ## Muhit (bu mashinada)
 
@@ -30,7 +31,7 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 | Docker | bor; **`docker compose` plagini YO'Q** → `scripts/dev-services.sh` |
 | Postgres | Docker konteynerda, **port 5433** (native PG 5432 da band) |
 | Redis | Docker konteynerda, **port 6380** (native Redis 6379 da band) |
-| MinIO | Docker, 9000/9001; bucket: `crm-media-dev`, `crm-backup-dev` |
+| MinIO | Docker, 9000/9001; bucket: `crm-media-dev`, `crm-backup-dev`; yangi o'rnatishda obraz — `cgr.dev/chainguard/minio` (Q112) |
 | sudo | parol so'raydi — ishlatib bo'lmaydi |
 
 ## Rejadan chetlanishlar (sabab bilan)
@@ -49,7 +50,7 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 | C10 | T-052: mijoz yuborgan `total` farq qilsa — **422** `TOTAL_MISMATCH` | TZ ziddiyatli: core 04 §4.5 "xato emas, faqat log", PLAN T-052 va 12-standards "422". Kassada ekrandagidan boshqa summa olinmasligi uchun 422 tanlandi; farq baribir loglanadi. `total` ixtiyoriy — yuborilmasa solishtirilmaydi |
 | C11 | I22 #3 ("audit yiqilsa ham sotuv o'tadi") bajarilmaydi | Audit so'rov tranzaksiyasida (Q25): Postgres'da tranzaksiya ichidagi xatoni yutib bo'lmaydi — COMMIT jimgina ROLLBACK bo'lardi. TZ matni ham: "moliyaviy amal ichidagi audit … yiqilsa hammasi qaytariladi" |
 | C12 | T-053: yetmagan qoldiq — **422** `STOCK_INSUFFICIENT` (rejada 409 `INSUFFICIENT_STOCK`) | Xato katalogi (C8 bilan bir xil); PLAN nusxasi tuzatildi |
-| C13 | T-056: `GET /sales/:id/receipt?format=pdf` → **501** `FEATURE_DISABLED` | PDF — `puppeteer-core` + Chromium (09 §9.13); bepul instansiyada `PDF_ENABLED=false`. JSON chek to'liq |
+| C13 | T-056: PDF chek (`?format=pdf`) — **`pdfkit`**, 09 §9.13 dagi `puppeteer-core` + Chromium emas (2026-09-27; avval 501 `FEATURE_DISABLED`) | TZ Chromium'ni "brauzerdagi HTML shablon bilan bir xil, ikkinchi shablon yo'q" deb tanlagan, lekin shablon (`Receipt.tsx`) boshqa repoda — serverda baribir alohida shablon kerak; Chromium bepul instansiyada ishlamaydi (TZ ham `PDF_ENABLED=false` degan). `pdfkit`: ~MB xotira, chek — millisekund, hamma serverda. `PDF_ENABLED` va `FEATURE_DISABLED` olib tashlandi (Q104) |
 | C14 | T-060: smena yopiq — **423** `SHIFT_REQUIRED` (rejada 409); T-066: limit — **422** `CREDIT_LIMIT_EXCEEDED` (rejada 409) | Xato katalogi va 04-api §5 (C8 kabi); PLAN nusxasi tuzatildi |
 | C15 | `GET /cash/shifts/current` → `{ shift, cashBalance }` (TZ: "smena yoki null") | Bo'sh (`null`) javob tanasi mijozda noqulay; POS kassa balansini ham ko'rsatadi |
 | C16 | T-063: tungi cron naqd shablon xarajatini smena YOPIQ bo'lsa kassaga ta'sirsiz yozadi | I9 (balans faqat ochiq smenada) va frontend qoidasi; qo'lda naqd xarajat esa smenasiz 423 |
@@ -71,6 +72,8 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 | C32 | E13 (T-099…T-107), T-112, T-113 frontend qismi **qaytarildi** (2026-09-24) — vazifalar yana ochiq | Foydalanuvchi: frontendni frontend dasturchi qiladi. Mening implementatsiyam patch sifatida saqlangan: `/home/ulugbek/personal/front/crm-qurilish-e13-integration.patch` (148 fayl, HEAD ga `git apply` bilan qo'llanadi). Undagi yondashuvlar tavsiya sifatida `docs/api/README.md` §9, §12, §13 da |
 | C33 | Audit eksporti — server CSV (`GET /exports/audit`, faqat admin) | Jurnal cheksiz o'sadi — brauzerda yig'ilmaydi |
 | C34 | E13 davomida topilgan maydon sizishi tuzatildi: `netProfit`, `deadValue` va sotilmayotgan tovar qiymati (`items[].value` → `stockValue`) sotuvchiga chiqmaydi | `netProfit + expenses = grossProfit`, `value / stock = cost` — yashirin maydonlar tiklanardi (03 §3.6) |
+| C35 | E15: server — **Contabo VPS** (Ubuntu 24.04, x86_64), 11-deploy-free dagi Oracle Always Free ARM emas (foydalanuvchi, 2026-09-28). T-114 — amd64 obraz (ARM — `DEPLOY_PLATFORM`); T-115 — `deploy` foydalanuvchisi + `ufw` (Oracle iptables/VCN yo'q); `postgres.conf` — 8 GB RAM asosi | Contabo faqat `root` va parol beradi — kalitli alohida foydalanuvchisiz SSH'ni yopish serverdan qulflardi. Ubuntu 24.04 da `ufw` va `iptables-persistent` ziddiyatli (biri ikkinchisini o'chiradi) — faqat `ufw`; Docker portlari ufw'ni chetlab o'tadi, lekin compose'da port faqat Caddy'da (80/443) |
+| C36 | E15: frontend, API va baza — BITTA Contabo VPS'da (4 CPU / 8 GB / 100 GB SSD), keyinchalik boshqa loyihalar ham shu serverga (foydalanuvchi, 2026-09-28). 80/443 — serverning umumiy Caddy'si (`/opt/edge`: har loyiha — `sites/<loyiha>.caddy`, `edge` docker tarmog'i); CRM stack'i (`/opt/crm`) port chiqarmaydi, API `edge` da `crm-api` nomi bilan. Frontend build — `/opt/www/crm`, API bilan bitta domenda (`crm.<domen>`: `/api`, `/socket.io`, `/health` → API, qolgani — SPA; foydalanuvchi tasdiqladi, 2026-09-28: bitta domen, backend `/api` da, alohida `crm-api.` subdomen emas). T-119 — Cloudflare Pages o'rniga shu Caddy; `api.` subdomen yo'q. Fayllar va zaxira — R2'da qoladi | Bitta domen: CORS va preflight yo'q, refresh cookie birinchi tomonniki, yo'llar dev'dagi Vite proksi bilan bir xil. Har loyiha o'z Caddy'si bilan 80/443 uchun to'qnashardi — umumiy kirish yangi loyihani bitta `.caddy` fayl bilan ulaydi, CRM deploy'i faqat `api` ni almashtiradi (boshqa saytlar tegilmaydi). R2: server diski faqat baza uchun, server yo'qolsa ham fayllar va zaxira saqlanadi |
 
 ## Bajarilgan vazifalar — tekshiruv dalillari
 
@@ -166,7 +169,8 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 | T-109 | `test:e2e -- migration-dryrun` | ✅ 4 test; hisobot (soni, o'tkaziladigan/tuzatiladigan) — bazaga hech narsa yozilmaydi; `existing` — takroriy importni ko'rsatadi; buzuq yozuv so'rovni yiqitmaydi |
 | T-110 | `test:e2e -- migration-repair` | ✅ 4 test; osilgan havolalar (07 §7.4: mahsulotsiz chek — o'tkaziladi, yo'q mijoz — NULL), I1/I2/I8/I12, SKU va chek raqami to'qnashuvi — `-2` qo'shimchasi; serverdagi ochiq smena bilan to'qnashuv |
 | T-111 | `test:e2e -- migration-images` | ✅ 2 test; data-URL rasm — sehrli bayt tekshiruvi → S3 (`putDirect`) → mahsulotga; yaroqsizi o'tkaziladi, import davom etadi; bir xil rasm — bitta fayl, qayta import — yangi fayl yo'q |
-| T-117 | `SHOW shared_buffers; SELECT count(*) FROM pg_stat_statements` (PG 16 konteyner + `infra/postgres.conf`) | ✅ 12 GB ARM VM uchun (`shared_buffers=3GB`, `work_mem=16MB`, `max_connections=40`); `pg_stat_statements` + `auto_explain` (200 ms) yuklangan |
+| T-114 | `docker build -f apps/api/Dockerfile .` + konteynerni production rejimida ishga tushirish (2026-09-28) | ✅ amd64 (Contabo, C35), 196 MB; `app` foydalanuvchisi (root emas); `/health/live` va `/health/ready` — 200 (Postgres, Redis, S3), Swagger — 404; `npx prisma migrate deploy` konteyner ichida (25 migratsiya); argon2 bilan login; PDF chek alpine'da (DejaVu shriftlari `dist/assets` da) |
+| T-117 | `SHOW shared_buffers; SELECT count(*) FROM pg_stat_statements` (PG 16 konteyner + `infra/postgres.conf`) | ✅ 12 GB ARM VM uchun (`shared_buffers=3GB`, `work_mem=16MB`, `max_connections=40`); `pg_stat_statements` + `auto_explain` (200 ms) yuklangan. 2026-09-28: 8 GB VPS, boshqa loyihalar bilan umumiy (C36, Q108) — `shared_buffers=1GB`, `effective_cache_size=3GB`, `work_mem=8MB`, `maintenance_work_mem=256MB`; PG 16 da shu fayl bilan qayta tekshirildi (`SHOW shared_buffers` — 1GB, `pg_stat_statements` yuklangan) |
 | T-123 | `test:e2e -- invariants` + `npm run job:invariants -w apps/api` | ✅ 3 test; 7 denormalizatsiya (qoldiq, `balance_after`, qarz to'lovi, ta'minotchiga to'lov, kassa, band hajm, hisoblagich) noldan qayta hisoblanadi; farq — `critical` (Sentry), tuzatilmaydi; CLI chiqish kodi 1/0 |
 | T-124 | `test:e2e -- signup` | ✅ 3 test; `POST /auth/register` — do'kon + admin + sozlama + ombor bitta tranzaksiyada, sessiya darhol (token + refresh cookie); validatsiya 400 (hech narsa yaratilmaydi); bir IP dan 5/soat — 429 |
 | T-125 | `test:e2e -- plan-limits` + `test -w packages/shared -- plans` | ✅ 6 + 4 test; tariflar `@crm/shared` da (`free/basic/pro`); foydalanuvchi, ombor (arxivdan qaytarish ham), kunlik SMS (tarif va provayder chegarasidan kichigi), hajm — 402 `PLAN_LIMIT_EXCEEDED` (`meta.limit/used`); oxirgi joyga parallel ikki so'rov — bittasi; qayta faollashtirish va tiklash ham tekshiriladi; migratsiya importi chegaradan oshirsa — 402, hech narsa yozilmaydi (takroriy import o'tadi) |
@@ -177,24 +181,31 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 
 ## Keyingi qadamlar
 
-**Bajarildi (backend): E0–E12, E14 ning backend qismi (T-108…T-111), E16; E15 dan T-117, T-123.**
+**Bajarildi (backend): E0–E12, E14 ning backend qismi (T-108…T-111), E16; E15 dan T-114, T-117, T-123.**
 Frontend integratsiyasi (E13, T-112, T-113) — frontend dasturchida (C32); backend unga tayyor va
 hujjatlangan: [`docs/api/`](./docs/api/README.md). Qolgani — haqiqiy server talab qiladigan E15 vazifalari.
 
-Oxirgi to'liq tekshiruv (2026-09-24): `npm run verify` (121 unit) va e2e — 79 fayl, **533 test** (3 tasi o'tkazildi: `s3-prod-smoke`, R2 kaliti kerak).
+Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run verify` (lint, typecheck; unit — shared 106, api 136), migratsiya, e2e — 80 fayl, **539 test o'tdi** (3 tasi o'tkazildi: `s3-prod-smoke`, R2 kaliti kerak), OpenAPI drift yo'q.
+
+**Production'ga o'xshash sinov** (2026-09-28, bu mashinada): joriy commit'dan Docker obrazi (amd64, 196 MB, `app`), `infra/README.md` 1–2-bo'limlari va `deploy.yml` skripti AYNAN (umumiy Caddy, `crm_app` roli migratsiyadan oldin, 25 migratsiya, `TAG` `.env` ga, tashqi sog'liq tekshiruvi; GHCR o'rnida mahalliy obraz, R2 o'rnida MinIO, domen `crm.localhost` — Caddy ichki TLS):
+- API: **150/150 operatsiya muvaffaqiyatli yo'li bilan** HTTPS orqali (193 so'rov, 61 tekshiruv, 5xx yo'q, kod spec'dagi 2xx/3xx ga mos): sotuv → chek JSON/PDF → qaytarish (`returnedQty`) → bekor; taklif → sotuv (`warehouseId`); xarid → qabul → to'lov; S3 presign → PUT → confirm → raw (302); fon eksporti > 5000 qator (BullMQ + Redis → S3); migratsiya importi (yangi do'kon); zaxira havolasi; WebSocket (wss) va sotuv hodisasi; sotuvchida yashirin maydonlar va 403; refresh rotatsiyasi, chiqishdan keyin 401; do'konni o'chirish → 423 → tiklash; login rate limit mijoz IP'si bo'yicha (soxta `X-Forwarded-For` yordam bermaydi); SPA, kesh, HSTS, Swagger 404, HTTP → HTTPS
+- `backup.sh` → `verify-backup.sh` Ubuntu 24.04 paketlari bilan (docker-compose-v2 2.40, age 1.1.1, aws-cli 2.37): shifrlangan zaxira S3 ga, vaqtinchalik Postgres'ga tiklandi (8 tenant, 31 chek, 25 migratsiya)
+- Resurslar sinovdan keyin: API 101 MiB (chegara 1 GiB), Postgres 101 MiB, Redis 5 MiB, Caddy 21 MiB; faqat Caddy port ochadi
+- Topilib tuzatildi: loglar `[object Object]` (Q110), deploy paytida 502/503 (Q111)
 
 ### Keyingi sessiyada
 
-1. **E15** — haqiqiy serverda: T-114 (ARM64 yig'ish), T-115, T-116, T-118…T-122. Production `.env` da
-   `TRUST_PROXY=1` (Q97) — `infra/.env.prod.example` da bor
+1. **E15** — haqiqiy serverda (Contabo VPS, C35; frontend, API va baza — shu serverda, umumiy Caddy, C36):
+   T-115, T-116, T-118…T-122 — qadamlar `infra/README.md` da
+   (0-bo'lim: domen/DNS, R2, GitHub secret'lari, deploy va zaxira kalitlari). Production `.env` da
+   `TRUST_PROXY=1` (Q97), `crm.<domen>` — Cloudflare'da "DNS only"
 2. **Ochiq savollar (qaror kerak)** — batafsil `docs/api/README.md` §14.1:
-   - sotuvchi `suppliers:view` orqali kirim buyurtmalarini ko'radi — bitta qatorli buyurtmada `total` dan
-     tannarx tiklanadi (PO ro'yxatini sotuvchidan yopish yoki summalarni yashirin maydonlarga qo'shish);
-   - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq;
-     sotuvchi `wholesalePrice` ni ko'rmaydi, lekin ulgurji narxda sota oladi;
-   - joriy omborni API orqali tanlab bo'lmaydi; PDF chek amalga oshirilmagan (`PDF_ENABLED=true` da ham JSON);
-   - `SaleItemDto.returnedQty` yo'q; o'chirilgan foydalanuvchini ro'yxatdan topib tiklab bo'lmaydi
-3. **Frontend** (E13, T-112, T-113, T-119) — frontend dasturchi; vazifalar va qabul mezonlari —
+   - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq.
+   - 2026-09-27 da hal qilindi: sotuvchidan xarid summalari (Q100), PDF chek (C13, Q104), `returnedQty`
+     (Q101), o'chirilgan hisoblarni tiklash (Q102), sotuvchiga ulgurji rejim (Q103), analitika `limit` (Q105),
+     taklifni aylantirishda ombor tanlash (Q106)
+3. **Frontend** (E13, T-112, T-113, T-119; T-119 ning server qismi — Caddy sayti, `/opt/www/crm` — tayyor, C36) —
+   frontend dasturchi; vazifalar va qabul mezonlari —
    `docs/api/README.md` §13. Oldingi implementatsiyam: `/home/ulugbek/personal/front/crm-qurilish-e13-integration.patch`
 
 ### E13 uchun backendga qo'shilganlar
@@ -219,14 +230,14 @@ Oxirgi to'liq tekshiruv (2026-09-24): `npm run verify` (121 unit) va e2e — 79 
 
 | Vazifa | Bu mashinada tekshirildi | Serverda qoladi |
 |--------|--------------------------|-----------------|
-| T-114 Dockerfile | amd64 obraz yig'ildi; root'siz; `HEALTHCHECK` sog'lom; konteynerda `prisma migrate deploy`; Swagger production'da 404 | `--platform linux/arm64` (QEMU/buildx yo'q) |
-| T-115 VM | `infra/vm-setup.sh` (ufw, iptables, swap, SSH kalit) yozildi | Oracle VM yo'q |
-| T-116 compose + Caddy | `infra/docker-compose.prod.yml`, `Caddyfile` | compose plagini yo'q; TLS — domen kerak |
+| T-114 Dockerfile | ✅ bajarildi (2026-09-28): amd64 obraz joriy kod bilan yig'ildi va production rejimida sinaldi (yuqoridagi dalil) | — (server ARM bo'lsa — `DEPLOY_PLATFORM=linux/arm64`) |
+| T-115 VPS | `infra/vm-setup.sh` (Contabo: `deploy` foydalanuvchisi, ufw, fail2ban, swap, SSH faqat kalit — kalit bo'lsa; `edge` tarmog'i, `/opt/{edge,www,crm}` — C36) yozildi | Serverda ishga tushirish |
+| T-116 compose + Caddy | `infra/docker-compose.prod.yml` (port chiqarmaydi; API — `edge` da `crm-api`), umumiy Caddy — `infra/edge/` (C36): marshrutlar, SPA, kesh sarlavhalari, WebSocket (101), HTTPS'ga yo'naltirish mahalliy sinaldi; production'ga o'xshash to'liq sinov (yuqorida) — 150/150 operatsiya, deploy paytida 0 xato (Q111); birinchi ishga tushirish tartibi `infra/README.md` da (rol migratsiyadan oldin) | Domen (`crm.<domen>` — "DNS only"), serverda ishga tushirish |
 | T-118 R2 | `infra/r2-cors.json`, `r2-lifecycle.json`; `test:e2e -- s3-prod-smoke` (3 test, `S3_SMOKE_*` bo'lmasa o'tkaziladi) | R2 kalitlari yo'q |
-| T-119 Pages | — (frontend repo) | Cloudflare hisobi |
-| T-120 CI/CD | `ci.yml` (Postgres, Redis, MinIO, kalitlar, `crm_app`, OpenAPI drift), `deploy.yml` (ARM64 → migratsiya alohida qadam → yangi versiya) | GitHub Actions ishga tushirilmagan |
-| T-121 zaxira | `infra/backup.sh` (`age` shifr, R2), `verify-backup.sh`; dump → tiklash mahalliy sinaldi | R2 va cron serverda |
-| T-122 kuzatuv | Sentry (`SENTRY_DSN` bo'lsa), `alertCritical`, log rotatsiyasi compose'da | UptimeRobot, Sentry DSN |
+| T-119 frontend | `infra/edge/sites/crm.caddy` (SPA; `index.html`/`sw.js` — keshsiz, `/assets` — 1 yil, yo'q asset — 404) mahalliy sinaldi; ikki bosqichli yuklash — `infra/README.md` 3-bo'lim (C36) | Frontend build (`VITE_API_URL` bo'sh, `navigateFallbackDenylist`, CI — `docs/api/README.md` §3.1) — frontend dasturchi; `crm-web-deploy` kaliti (Q109), serverga yuklash |
+| T-120 CI/CD | `ci.yml` (Postgres, Redis, MinIO, kalitlar, `crm_app`, OpenAPI drift), `deploy.yml` (`master` → obraz → GHCR token bilan tortish → migratsiya alohida qadam → yangi versiya → tashqi sog'liq tekshiruvi; Q107); ikkala YAML tekshirildi | GitHub secret'lari (`SSH_HOST`, `SSH_KEY`, `SSH_FINGERPRINT` — ECDSA, Q109), birinchi ishga tushirish |
+| T-121 zaxira | `infra/backup.sh` (`age` shifr, R2), `verify-backup.sh` (qo'lda, istalgan mashinada), `backup.env.example`; dump → tiklash mahalliy sinaldi | R2, cron, `age` kaliti; birinchi haqiqiy tiklash sinovi natijasini shu yerga yozish |
+| T-122 kuzatuv | Sentry (`SENTRY_DSN` bo'lsa), `alertCritical`, log rotatsiyasi compose'da (Caddy access log ham) | UptimeRobot (`https://crm.<domen>/health/ready`), Sentry DSN |
 
 ### Production'da RLS — HAL QILINDI (E5 dan oldin)
 
@@ -261,7 +272,6 @@ natija berardi. Yechim (Q24–Q27):
 | `RETURN_EXCEEDS_SOLD` | 422 | Qaytarish sotilgandan ko'p (oldingi qaytarishlar bilan) |
 | `SALE_NOT_RETURNABLE` | 422 | Qaytarish hujjatidan qaytarib bo'lmaydi |
 | `SALE_NOT_CANCELLABLE` | 409 | Chekda qaytarish yoki qarz to'lovi bor (`meta.reason`) |
-| `FEATURE_DISABLED` | 501 | Serverda o'chirilgan imkoniyat (PDF chek) |
 | `PO_CANCELLED` | 409 | Bekor qilingan kirim buyurtmasini qabul/tahrir qilib bo'lmaydi |
 | `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati faqat oldinga (`meta.from/to`) |
 | `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit/used/requested`) |
@@ -375,6 +385,19 @@ natija berardi. Yechim (Q24–Q27):
 | Q97 | `TRUST_PROXY` — ishonchli proksi hop'lari soni (sukut 0, production 1); `true` ishlatilmaydi | Rate limit kaliti `req.ip`: proksi ortida hamma bitta IP edi (butun tizimga 10 login/daq). `true` X-Forwarded-For dagi mijoz yozgan manzilni olardi — soxtalashtirib chegarani aylanib o'tish mumkin bo'lardi |
 | Q98 | `ExportJobDto.url` + `expiresAt` — tayyor fon eksportining imzolangan havolasi | `…/download` (302) ga `fetch` API alohida domenda bo'lsa CORS'da yiqiladi (yo'naltirishda `Origin: null`); JSON havola `window.location` bilan ochiladi. 302 yo'li qoldi |
 | Q99 | Seed: sement `altFactor` `0.02` (asosiy `qop`, qo'shimcha `kg`) | `altFactor` = 1 qo'shimcha birlik necha asosiy birlik (`@crm/shared` units); `50` «1 kg = 50 qop» degani edi |
+| Q100 | Sotuvchiga xarid summalari berilmaydi: kirim buyurtmasi (`total`, `receivedValue`, `paid`, `outstanding`), xulosa summalari, ta'minotchi `debt`/`totalPurchased`, kartadagi buyurtma summalari va to'lov `amount`, dashboard `payables`, `PAYMENT_EXCEEDS_DEBT` dagi `meta.outstanding`. Qoida — `canSeePurchaseAmounts(role)` = `canSeeField(role, 'cost')`; javobni servis rolga qarab yasaydi (`currentRole()`) | Bitta qatorli buyurtmada summa ÷ miqdor = tannarx (03 §3.6). Kalitlar (`total`, `paid`, `outstanding`, `debt`) chek va mijoz qarzida ham bor — global `HIDDEN_BY_ROLE` ularni sotuvdan ham o'chirardi; yagona noyob kalit `payables` — global ro'yxatda. Sotuvchi buyurtmalarni ko'radi (qachon, nima keladi), faqat pulsiz |
+| Q101 | `SaleItemDto.returnedQty` — o'qishda hisoblanadi: sotuv chekida bitta `groupBy` (qaytarishlar `sales (tenant_id, related_sale_id)`, qatorlari `sale_items (tenant_id, sale_id)` indeksi); yangi chek va qaytarish hujjatida 0. `GET /sales?relatedSaleId=` | Qaytarish kam uchraydi — denormalizatsiya (ustun + trigger + invariant) ortiqcha; `soldLines` (qaytarish tekshiruvi) bilan bir xil qoida: bekor qilingan qaytarish hisobga olinmaydi |
+| Q102 | O'chirilgan hisoblar: `GET /users?deleted=true` (+ `UserDto.deletedAt`); tiklash — mavjud `POST /users/:id/restore`, xodimi o'chirilgan bo'lsa 422 `REFERENCE_NOT_FOUND` (`employeeId`); `POST /users` dagi 409 `EMPLOYEE_HAS_USER` — `meta: { userId, deleted }` (xodim so'rovining o'zida, qo'shimcha so'rovsiz) | `users.employee_id` noyob indeksi o'chirilganlarni ham hisoblaydi — o'chirilgan xodimga yangi hisob ochilmaydi, yagona yo'l — tiklash; D1: hisob doim tirik xodimga tegishli |
+| Q103 | `settings.sellerWholesaleEnabled` (sukut `false`, migratsiya `20260927000000_seller_wholesale`) — do'kon darajasida. Qoida bitta: ulgurji narxni ko'radigan rol unda sota oladi (`resolvePriceTier` → `canSeeField(role, 'wholesalePrice', visibilityPolicy(settings))`). Ataylab so'ralgan `wholesale` — 403, mijoz guruhidan avtomatik — chakana; `wholesaleEnabled=false` da taklif ham chakana (sotuv bilan bir xil). Ko'rinish: `FieldVisibilityInterceptor` sotuvchi uchun sozlamani `SettingsService.forTenant` dan oladi (60 s kesh; interceptor so'rov tranzaksiyasidan TASHQARIDA — kesh bo'sh bo'lsa o'z qisqa tranzaksiyasi), eksport ustunlari ham | Oldin sotuvchi ulgurji narxni ko'rmay, unda sota olardi (jamini hisoblab bo'lmasdi). Foydalanuvchi qarori: administrator sotuvchiga ulgurji rejimni yoqadi. Do'kon sozlamasi (har sotuvchiga alohida emas) — `wholesaleEnabled`/`maxDiscountPct` bilan bir joyda, token/`users` sxemasiga tegmaydi. Zaxira va migratsiya importi maydonni ko'chiradi |
+| Q104 | PDF chek: 80 mm lenta, balandlik mazmunga teng (avval uzun sahifada o'lchanadi, keyin aniq balandlikda chiziladi); shrift — DejaVu Sans Mono (`src/assets/fonts`, litsenziyasi bilan; `nest build` `dist/assets` ga ko'chiradi); fiskal QR — `qrcode-generator` (vektor, 4 modul bo'sh joy); `Content-Disposition: inline; filename="<raqam>.pdf"`; bekor qilingan chekda belgi. Yo'l `@ManualTransaction`: ma'lumot servisning qisqa tranzaksiyasida o'qiladi, chizish (~0,1 s) undan keyin | Termal printer ortiqcha qog'oz chiqarmasin; chizish paytida so'rov tranzaksiyasi (ulanish) band turmasin; o'zbek (o‘, g‘) va kirill (ў, қ, ғ, ҳ) harflari standart PDF shriftlarida yo'q; QR — bog'liqliksiz kichik paket (`qrcode` CLI uchun `yargs` tortadi) |
+| Q105 | `/analytics` — `limit` parametri olib tashlandi (yuborilsa 400); P&L `limit` sotuvchilar ro'yxatiga ham qo'llanadi | ABC — sotilgan BARCHA mahsulot (frontend jadvali o'zi sahifalaydi) — `limit` bu yerda ma'nosiz edi, qabul qilinib e'tiborsiz qolardi |
+| Q106 | `POST /quotes/:id/convert` — ixtiyoriy `warehouseId` (qoldiq AYNAN shu omborda, arxiv — 422). Do'konning "joriy ombori"ni (`tenant_state.active_warehouse_id`) o'zgartiradigan endpoint ATAYLAB qo'shilmadi — u faqat `warehouseId` berilmaganda zaxira qiymat (amalda sukut ombor) | TZ (05-client §2, 04 `/auth/me`) joriy omborni foydalanuvchi tanlovi deb biladi, bazada esa u do'kon uchun bitta: endpoint bir kassir tanlovini boshqa kassirlarga ham o'tkazardi. Tanlov qurilmada saqlanadi va har amalga yuboriladi — aylantirish yagona istisno edi. Foydalanuvchi qarori (2026-09-28) |
+| Q107 | Deploy tuzatishlari (serverga chiqishdan oldin, 2026-09-28): CI/deploy `main` → `master`; obraz nomi egasi kichik harfda (`ghcr.io` katta harfni rad etadi); serverda GHCR'ga deploy'ning `GITHUB_TOKEN` i bilan kirish (keyin chiqish) — doimiy token saqlanmaydi; joriy `TAG`/`GH_OWNER` `.env` ga yoziladi (qo'lda `compose up` ham shu obrazni oladi); deploy faqat `api` ni almashtiradi (Caddy — umumiy, C36); sog'liq tekshiruvi `CRM_DOMAIN` ni `/opt/edge/.env` dan oladi, qayta urinadi va yiqilsa ishni qizil qiladi (`api` loglari bilan); `vm-setup.sh`: `aws-cli` — snap (24.04 apt'da `awscli` yo'q), interaktivsiz apt; zaxira skriptlari `backup.env` ni eksport qiladi (`set -a`), `backup.env.example` (R2: `AWS_DEFAULT_REGION=auto`, checksum `when_required`), cron logi `/opt/crm`; tiklash sinovi — qo'lda (kalit serverda yo'q), istalgan mashinada; S3 klienti `requestChecksumCalculation`/`responseChecksumValidation: WHEN_REQUIRED` (SDK ≥ 3.729 CRC32 sarlavhalari R2'da ishlamaydi — Cloudflare tavsiyasi); parollar hex (base64 dagi `/`, `+` ulanish URL'ini buzadi); `crm_app` roli migratsiyadan OLDIN kuchli parol bilan yaratiladi; domen Cloudflare'da "DNS only"; JWT kalitlari `644`, ularni `secrets/` papkasi (`700`) himoya qiladi | Fayllar haqiqiy serverda sinalmagan edi: ko'rib chiqishda har biri deploy'ni to'xtatadigan yoki jimgina buzadigan xato topildi (masalan `awscli` yo'qligi butun `vm-setup.sh` ni, katta harfli egasi obraz yig'ishni yiqitardi; eksport qilinmagan `backup.env` bilan zaxira kalitsiz qolardi; `chmod 600 secrets/*` bilan API ishga tushmasdi — compose secret'i bind-mount, `deploy` (uid 1000) fayliga konteynerdagi `app` (uid 100) kira olmaydi, mahalliy sinaldi) |
+| Q108 | Resurs byudjeti (8 GB, server umumiy — C36): OS + Docker + umumiy Caddy ~0,7 GB; CRM API ≤ 1 GB (compose `limits.memory`); Postgres ~1,5 GB — `shared_buffers=1GB`, `effective_cache_size=3GB`, `work_mem=8MB`, `maintenance_work_mem=256MB`; Redis ≤ 256 MB (`maxmemory`); ~4 GB — keyingi loyihalarga, swap 4 GB. Server faqat CRM'niki bo'lsa — `postgres.conf` sarlavhasidagi qiymatlar (2GB / 6GB / 16MB / 512MB). Yangi loyiha — o'z Postgres konteyneri, kichik `shared_buffers` (tartib — `infra/README.md` 7-bo'lim) | Postgres RAM'ning 25% ini olsa keyingi loyihalarga joy qolmaydi; fayllar R2'da — CRM bazasi dastlabki yillarda kichik, o'sganda bufer oson kattalashadi (`postgres.conf` + `restart db`). Har loyiha bazasi alohida konteynerda: biri qayta ishga tushsa yoki yangilansa, boshqasi tegilmaydi |
+| Q109 | Umumiy server xavfsizligi (C36): frontend CI kaliti — alohida (`crm-web-deploy`), `authorized_keys` da `restrict,command="/usr/bin/rrsync /opt/www/crm"` — faqat shu papkaga `rsync` (yo'llar nisbiy; `..` rad etiladi, mutlaq yo'l papkaga bog'lanadi, shell ochilmaydi), `known_hosts` — secret'da; CI namunasi — `docs/api/README.md` §3.1. Caddy o'zgarishi — `caddy reload` (uzilishsiz; xato konfiguratsiya rad etiladi, eskisi ishlab turadi), `restart` emas. Backend deploy'da ixtiyoriy `SSH_FINGERPRINT` — server kalitining **ECDSA** izi; `vm-setup.sh` — `rsync`, `python3` (rrsync uchun) | `crm-deploy` serverda to'liq huquqli (docker, sudo) — boshqa dasturchi CI'siga berilmaydi. `restart` serverdagi HAMMA loyihani to'xtatardi, xato sayt fayli bilan esa Caddy umuman ko'tarilmasdi. `appleboy/ssh-action` ning Go klienti ECDSA host kalitini tanlaydi — ed25519 izi (action README misoli) bilan deploy "fingerprint mismatch"; iz bo'lmasa server tekshirilmaydi (soxta server `GHCR_TOKEN` ni olardi). Hammasi mahalliy sinaldi: Ubuntu 24.04 sshd + rrsync (hujjatdagi CI qadami aynan), `drone-ssh` uch turdagi iz bilan, Caddy reload (yangi sayt / xato sayt) |
+| Q110 | `AppLogger` ikkala chaqiruv shaklini qabul qiladi: pino — `warn({ fileId, err }, 'xabar')` (kodda 25 joyda) va Nest — `log('xabar', meta)`, `error('xabar', stack)`; kontekst (klass nomi) — `new Logger(Klass)` ning oxirgi argumenti; `redact()` `Error` ni o'zgartirmaydi (logda pino `err` serializatori yozadi) | Production'ga o'xshash sinovda topildi: pino shaklidagi har yozuv `"msg":"[object Object]"` bo'lib, xabar ham maydonlar ham yo'qolardi — jumladan fon ishlari, S3, SMS, fiskal navbat va invariantlar XATOLARI (`err`); `redact()` `Error` ni `{}` ga aylantirardi (`message`, `stack` sanalmaydi); hech bir yozuvda `context` yo'q edi. Yangi unit testlar eski kodda yiqiladi |
+| Q111 | Umumiy Caddy → API: `lb_try_duration 15s`, `lb_try_interval 250ms`; faol sog'liq tekshiruvi (`health_uri`) olib tashlandi | Yagona upstream'da faol tekshiruv uni "nosog'lom" deb belgilab, API tiklangach ham keyingi tekshiruvgacha (30 s) 503 berardi — birinchi deploy'da aynan shunday bo'ldi (Caddy API'dan oldin ko'tariladi). O'lchov (API qayta yaratilganda, har 200 ms so'rov): avval ~3 s 502 (tekshiruv shu oynaga tushsa — 30 s gacha 503), keyin 0 xato — bitta so'rov 3,5 s kutib javob oldi |
+| Q112 | S3 sinov/dev serveri — `cgr.dev/chainguard/minio:latest` (MinIO'ning o'zi, Chainguard manbadan yig'adi; bepul faqat `latest`), `mc` — `cgr.dev/chainguard/minio-client:latest`: `ci.yml` (`/data` — tmpfs, uid 65532), `scripts/dev-services.sh` va `docker-compose.yml` (`--user 0:0` — avvalgi `minio/minio` root yozgan hajm bilan ham ishlasin; obrazda qobiq, `mc`, `curl` yo'q — tayyorlik xostdan HTTP, bucketlar `MC_HOST_local` bilan) | GitHub'dagi birinchi CI (PR #1) MinIO qadamida yiqildi: `minio/minio` Docker Hub'da ham, `quay.io` da ham yo'q (MinIO bepul versiya obrazlarini to'xtatgan) — yangi mashinada `npm run services:up` ham ishlamasdi. Tekshirildi: S3'ga tegadigan e2e (19 fayl, 97 test) Chainguard MinIO'ga qarshi; dev skripti eski root hajm bilan (eski obyekt o'qildi, yangisi yozildi); dev compose (`minio-init` — 2 bucket) |
 
 ## Muhim eslatmalar
 

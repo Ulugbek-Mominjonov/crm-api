@@ -1,0 +1,33 @@
+# ═══════════════════════════════════════════════════════════════════
+# Serverning umumiy kirishi (edge): BITTA Caddy — barcha loyihalar uchun
+# 80/443 va TLS (Let's Encrypt). /opt/edge/docker-compose.yml
+#   docker network create edge        # bir marta (vm-setup.sh qiladi)
+#   docker compose up -d
+# Loyiha qo'shish: sites/<loyiha>.caddy, statik fayllar — /opt/www/<loyiha>/,
+# loyiha konteyneri `edge` tarmog'ida o'z nomi (alias) bilan. Batafsil — infra/README.md
+# ═══════════════════════════════════════════════════════════════════
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    # 443/udp — HTTP/3
+    ports: ['80:80', '443:443', '443:443/udp']
+    env_file: .env
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./sites:/etc/caddy/sites:ro
+      # Loyihalarning statik fayllari (frontend build'lari)
+      - /opt/www:/srv:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+    logging:
+      # Log rotatsiyasi (T-122): disk to'lib qolmasin
+      driver: json-file
+      options: { max-size: 20m, max-file: '5' }
+
+networks:
+  edge: { external: true }
+
+volumes: { caddy_data: , caddy_config: }
