@@ -1,20 +1,19 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query } from '@nestjs/common'
-import { ConfigService } from '@nestjs/config'
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, StreamableFile } from '@nestjs/common'
 import {
-  ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation,
-  ApiResponse, ApiTags, ApiUnprocessableEntityResponse,
+  ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNotFoundResponse,
+  ApiOkResponse, ApiOperation, ApiProduces, ApiResponse, ApiTags, ApiUnprocessableEntityResponse, getSchemaPath,
 } from '@nestjs/swagger'
 import type { CursorPage } from '@/common/crud/paging'
-import { DomainError } from '@/common/errors/domain.error'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
-import type { Env } from '@/config/env.schema'
 import { AuditedInService } from '@/modules/audit/audit.decorator'
 import { CurrentUser, type AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { RequirePermission } from '@/modules/auth/decorators/require-permission.decorator'
 import { Idempotent } from '@/modules/idempotency/idempotent.decorator'
+import { ManualTransaction } from '@/prisma/tenant-transaction.interceptor'
 import {
   CreateSaleDto, ReceiptDto, ReceiptQueryDto, ReturnSaleDto, SaleDto, SaleListItemDto, SalePageDto, SaleQueryDto,
 } from './dto/sale.dto'
+import { receiptPdf } from './receipt-pdf'
 import { SalesQueriesService } from './sales-queries.service'
 import { SalesService } from './sales.service'
 
@@ -29,7 +28,6 @@ export class SalesController {
   constructor(
     private readonly sales: SalesService,
     private readonly queries: SalesQueriesService,
-    private readonly config: ConfigService<Env, true>,
   ) {}
 
   @Post()
@@ -44,6 +42,10 @@ export class SalesController {
   })
   @ApiCreatedResponse({ type: SaleDto })
   @ApiResponse({ status: 423, description: 'SHIFT_REQUIRED', type: ApiErrorDto })
+  @ApiForbiddenResponse({
+    description: 'PERMISSION_DENIED — sotuvchi `priceTier: "wholesale"` yubordi, `sellerWholesaleEnabled` o‘chiq',
+    type: ApiErrorDto,
+  })
   @ApiUnprocessableEntityResponse({
     description:
       'STOCK_INSUFFICIENT | DISCOUNT_LIMIT | TOTAL_MISMATCH | PAYMENT_EXCEEDS_TOTAL | CREDIT_REQUIRES_CUSTOMER | ' +
@@ -51,7 +53,7 @@ export class SalesController {
     type: ApiErrorDto,
   })
   create(@Body() dto: CreateSaleDto, @CurrentUser() user: AuthContext): Promise<SaleDto> {
-    return this.sales.create(dto, user.employeeId)
+    return this.sales.create(dto, user)
   }
 
   @Get()
@@ -76,17 +78,36 @@ export class SalesController {
 
   @Get(':id/receipt')
   @RequirePermission('sales', 'view')
+  // Ma'lumot servisning qisqa tranzaksiyasida o'qiladi, PDF — undan keyin
+  @ManualTransaction()
   @ApiOperation({
     summary: 'Chop etish uchun chek',
-    description: 'Do‘kon rekvizitlari bilan. `pdf` — faqat `PDF_ENABLED=true` serverda (09 §9.13).',
+    description:
+      'Do‘kon rekvizitlari bilan. `format=pdf` — 80 mm termal chek (brauzerdagi chek ko‘rinishida, fiskal QR bilan), ' +
+      '`Content-Disposition: inline; filename="<raqam>.pdf"` (09 §9.13).',
   })
-  @ApiOkResponse({ type: ReceiptDto })
-  @ApiResponse({ status: 501, description: 'FEATURE_DISABLED — PDF o‘chirilgan', type: ApiErrorDto })
-  receipt(@Param('id', ParseUUIDPipe) id: string, @Query() query: ReceiptQueryDto): Promise<ReceiptDto> {
-    if (query.format === 'pdf' && !this.config.get('PDF_ENABLED', { infer: true })) {
-      throw new DomainError('FEATURE_DISABLED', 'PDF chek bu serverda o‘chirilgan — `format=json` bilan chop eting')
-    }
-    return this.queries.receipt(id)
+  @ApiProduces('application/json', 'application/pdf')
+  @ApiExtraModels(ReceiptDto)
+  @ApiOkResponse({
+    description: '`format=json` (sukut) — chek ma’lumoti; `format=pdf` — PDF fayl',
+    content: {
+      'application/json': { schema: { $ref: getSchemaPath(ReceiptDto) } },
+      'application/pdf': { schema: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiNotFoundResponse({ type: ApiErrorDto })
+  async receipt(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: ReceiptQueryDto,
+  ): Promise<ReceiptDto | StreamableFile> {
+    const receipt = await this.queries.receipt(id)
+    if (query.format === 'json') return receipt
+    const pdf = await receiptPdf(receipt)
+    return new StreamableFile(pdf, {
+      type: 'application/pdf',
+      disposition: `inline; filename="${receipt.sale.number}.pdf"`,
+      length: pdf.length,
+    })
   }
 
   @Post(':id/return')

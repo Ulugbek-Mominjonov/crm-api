@@ -35,8 +35,12 @@ describe('Takliflar (/quotes)', () => {
   const api = () => request(app.getHttpServer())
   const createQuote = async (body: Record<string, unknown> = {}) =>
     (await api().post('/api/v1/quotes').set('Authorization', auth).send({ items: [{ productId: p, qty: 5 }], ...body }).expect(201)).body
-  const convert = (id: string, method: string, token = auth) =>
-    api().post(`/api/v1/quotes/${id}/convert`).set('Authorization', token).set('Idempotency-Key', randomUUID()).send({ method })
+  const convert = (id: string, method: string, token = auth, warehouseId?: string) =>
+    api()
+      .post(`/api/v1/quotes/${id}/convert`)
+      .set('Authorization', token)
+      .set('Idempotency-Key', randomUUID())
+      .send({ method, ...(warehouseId && { warehouseId }) })
   const quoteRow = (id: string) => testDb.quote.findUniqueOrThrow({ where: { id } })
 
   describe('CRUD va holat (T-057)', () => {
@@ -164,6 +168,27 @@ describe('Takliflar (/quotes)', () => {
       expect(await testDb.sale.count()).toBe(1)
       await api().patch(`/api/v1/quotes/${q.id}`).set('Authorization', auth).send({ note: 'x' }).expect(409)
       await api().delete(`/api/v1/quotes/${q.id}`).set('Authorization', auth).expect(409)
+    })
+
+    it('chiqim ombori tanlanadi: qoldiq AYNAN shu omborda tekshiriladi va kamayadi; arxiv ombor — 422', async () => {
+      const yard = await testDb.warehouse.create({ data: { tenantId: a.tenantId, name: 'Hovli' } })
+      await testDb.productStock.create({ data: { tenantId: a.tenantId, productId: p, warehouseId: yard.id, qty: '3' } })
+      const qtyIn = async (warehouseId: string) =>
+        Number((await testDb.productStock.findFirstOrThrow({ where: { productId: p, warehouseId } })).qty)
+
+      // Hovlida 3 ta — 5 tasi yetmaydi (asosiy omborda 10 bo'lsa ham)
+      const short = await createQuote({ items: [{ productId: p, qty: 5 }] })
+      expect((await convert(short.id, 'cash', auth, yard.id).expect(422)).body.code).toBe('QUOTE_STOCK_SHORT')
+
+      const q = await createQuote({ items: [{ productId: p, qty: 2 }] })
+      const sale = (await convert(q.id, 'cash', auth, yard.id).expect(201)).body
+      expect(sale.warehouseId).toBe(yard.id)
+      expect(await qtyIn(yard.id)).toBe(1)
+      expect(await qtyIn(a.warehouseId)).toBe(10)
+
+      await testDb.warehouse.update({ where: { id: yard.id }, data: { archived: true } })
+      const late = await createQuote({ items: [{ productId: p, qty: 1 }] })
+      expect((await convert(late.id, 'cash', auth, yard.id).expect(422)).body.code).toBe('WAREHOUSE_ARCHIVED')
     })
 
     it('QQS taklifdagi foiz bo‘yicha; narx darajasi mijoz guruhidan', async () => {

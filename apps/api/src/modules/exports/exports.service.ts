@@ -5,7 +5,7 @@ import { CSV_BOM, csvLine, hasPermission } from '@crm/shared'
 import { runWithContext } from '@/common/context/request-context'
 import { DomainError, NotFoundError, PermissionDeniedError } from '@/common/errors/domain.error'
 import { uuidv7 } from '@/common/ids'
-import { canSeeField } from '@/common/security/field-visibility'
+import { canSeeField, visibilityPolicy } from '@/common/security/field-visibility'
 import { businessDate } from '@/common/time'
 import { AuditService } from '@/modules/audit/audit.service'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
@@ -13,6 +13,7 @@ import { FILE_RULES } from '@/modules/files/file-rules'
 import { FilesService } from '@/modules/files/files.service'
 import { PRESIGN_TTL_SEC } from '@/modules/files/s3.service'
 import { JobQueue } from '@/modules/queue/job-queue'
+import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import { onCommit, requireTenantTx } from '@/prisma/tenant-tx'
 import type { ExportFormat, ExportJobDto, ExportQueryDto } from './dto/export.dto'
@@ -57,6 +58,7 @@ export class ExportsService implements OnApplicationBootstrap {
     private readonly files: FilesService,
     private readonly queue: JobQueue,
     private readonly audit: AuditService,
+    private readonly settings: SettingsService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -157,7 +159,7 @@ export class ExportsService implements OnApplicationBootstrap {
     }
   }
 
-  /** Sarlavha + qatorlar (matn bo'laklari); ustunlar rolga qarab */
+  /** Sarlavha + qatorlar (matn bo'laklari); ustunlar rolga va do'kon sozlamasiga qarab (javobdagidek) */
   private async collect(
     resource: ExportResource,
     filter: ExportFilter,
@@ -165,7 +167,8 @@ export class ExportsService implements OnApplicationBootstrap {
     role: Role,
     read: (sql: Prisma.Sql) => Promise<Row[]>,
   ): Promise<string[]> {
-    const columns = resource.columns.filter((c) => !c.visibility || canSeeField(role, c.visibility))
+    const policy = visibilityPolicy(await this.settings.forTenant(filter.tenantId))
+    const columns = resource.columns.filter((c) => !c.visibility || canSeeField(role, c.visibility, policy))
     const lines = [format === 'csv' ? csvLine(columns.map((c) => c.label)) : '']
     let after = FIRST_CURSOR
     for (;;) {

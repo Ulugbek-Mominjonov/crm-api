@@ -9,6 +9,12 @@ export class SettingsDto {
   @ApiProperty() taxEnabled!: boolean
   @ApiProperty({ example: 12, description: 'QQS foizi, butun son (12 = 12%)' }) taxRate!: number
   @ApiProperty() wholesaleEnabled!: boolean
+  @ApiProperty({
+    description:
+      'Sotuvchi ham ulgurji narxda sota oladi va `wholesalePrice` ni ko‘radi (`wholesaleEnabled` bilan birga). ' +
+      '`false` — sotuvchiga ulgurji narx yashirin, `priceTier: "wholesale"` → 403',
+  })
+  sellerWholesaleEnabled!: boolean
   @ApiProperty() loyaltyEnabled!: boolean
   @ApiProperty({ example: 1, description: 'Xariddan bonus foizi' }) loyaltyRate!: number
   @ApiProperty({ example: 100, description: 'Kassada ruxsat etilgan maksimal chegirma, %' })
@@ -55,6 +61,11 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   wholesaleEnabled?: boolean
+
+  @ApiPropertyOptional({ description: 'Sotuvchiga ulgurji narxda sotishni ochish' })
+  @IsOptional()
+  @IsBoolean()
+  sellerWholesaleEnabled?: boolean
 
   @ApiPropertyOptional()
   @IsOptional()

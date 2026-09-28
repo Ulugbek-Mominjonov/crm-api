@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
-import type { Prisma } from '@prisma/client'
-import { dateFromDb, dateToDb, moneyFromDb } from '@/common/crud/convert'
+import type { Prisma, SaleType } from '@prisma/client'
+import { currentTenantId } from '@/common/context/request-context'
+import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { decodeCursor, keysetWhere, toCursorPage, type CursorPage } from '@/common/crud/paging'
 import { NotFoundError } from '@/common/errors/domain.error'
 import { SettingsService } from '@/modules/settings/settings.service'
@@ -57,11 +58,11 @@ export class SalesQueriesService {
     private readonly settings: SettingsService,
   ) {}
 
-  /** Chek qatorlari va yetkazish bilan — bitta so'rov */
+  /** Chek qatorlari va yetkazish bilan; sotuv chekida — qatorlar bo'yicha qaytarilgani ham (2-so'rov) */
   async get(id: string): Promise<SaleDto> {
     const sale = await this.prisma.scoped.sale.findFirst({ where: { id, deletedAt: null }, select: SALE_SELECT })
     if (!sale) throw new NotFoundError(RESOURCE, id)
-    return toSaleDto(sale)
+    return toSaleDto(sale, await this.returnedQty(sale))
   }
 
   /**
@@ -76,6 +77,7 @@ export class SalesQueriesService {
     if (query.type) and.push({ type: query.type })
     if (query.sellerId) and.push({ sellerId: query.sellerId })
     if (query.customerId) and.push({ customerId: query.customerId })
+    if (query.relatedSaleId) and.push({ relatedSaleId: query.relatedSaleId })
     if (query.payment) and.push(PAYMENT_WHERE[query.payment])
     if (query.q) {
       and.push({
@@ -99,8 +101,16 @@ export class SalesQueriesService {
     return toCursorPage(rows.map(toListItem), query.limit, (s) => ({ v: s.date, id: s.id }))
   }
 
-  /** Chop etish uchun: do'kon rekvizitlari (sozlama keshidan) + chek + tomonlar */
-  async receipt(id: string): Promise<ReceiptDto> {
+  /**
+   * Chop etish uchun: do'kon rekvizitlari (sozlama keshidan) + chek + tomonlar.
+   * O'z qisqa tranzaksiyasida (so'rovniki bo'lsa — unga qo'shiladi): PDF yo'li
+   * so'rov tranzaksiyasini ochmaydi — chizish (~0,1 s) ulanishni band qilmasin.
+   */
+  receipt(id: string): Promise<ReceiptDto> {
+    return this.prisma.inTenantTransaction(currentTenantId(), () => this.readReceipt(id))
+  }
+
+  private async readReceipt(id: string): Promise<ReceiptDto> {
     const [sale, settings] = await Promise.all([
       this.prisma.scoped.sale.findFirst({
         where: { id, deletedAt: null },
@@ -114,6 +124,7 @@ export class SalesQueriesService {
       this.settings.get(),
     ])
     if (!sale) throw new NotFoundError(RESOURCE, id)
+    const returned = await this.returnedQty(sale)
     return {
       store: {
         name: settings.storeName,
@@ -122,11 +133,29 @@ export class SalesQueriesService {
         footer: settings.receiptFooter,
         currency: settings.currency,
       },
-      sale: toSaleDto(sale),
+      sale: toSaleDto(sale, returned),
       customer: sale.customer,
       seller: sale.seller,
       fiscal: sale.fiscal,
     }
+  }
+
+  /**
+   * Sotuv cheki qatorlaridan qaytarilgan miqdor (bekor qilinmagan
+   * qaytarishlar, qator birligida) — bitta agregat: qaytarishlar
+   * `sales (tenant_id, related_sale_id)`, ularning qatorlari
+   * `sale_items (tenant_id, sale_id)` indeksi bilan. Qaytarish hujjatida — bo'sh.
+   */
+  private async returnedQty(sale: { id: string; type: SaleType }): Promise<Map<string, number>> {
+    if (sale.type !== 'sale') return new Map()
+    const rows = await this.prisma.scoped.saleItem.groupBy({
+      by: ['returnOfId'],
+      where: { sale: { relatedSaleId: sale.id, type: 'return', status: { not: 'cancelled' } } },
+      _sum: { qty: true },
+    })
+    return new Map(
+      rows.flatMap((r) => (r.returnOfId && r._sum.qty ? [[r.returnOfId, qtyFromDb(r._sum.qty)] as const] : [])),
+    )
   }
 }
 

@@ -70,7 +70,6 @@ export const ErrorCode = {
   VERSION_CONFLICT: 'VERSION_CONFLICT',
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
-  FEATURE_DISABLED: 'FEATURE_DISABLED',
   NOT_FOUND: 'NOT_FOUND',
   INTERNAL: 'INTERNAL',
 } as const
@@ -145,7 +144,6 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   VERSION_CONFLICT: { status: 409, title: 'Yozuv boshqa foydalanuvchi tomonidan o‘zgargan' },
   VALIDATION_FAILED: { status: 400, title: 'So‘rov ma’lumotlari noto‘g‘ri' },
   PAYLOAD_TOO_LARGE: { status: 413, title: 'So‘rov hajmi juda katta' },
-  FEATURE_DISABLED: { status: 501, title: 'Bu imkoniyat serverda o‘chirilgan' },
   NOT_FOUND: { status: 404, title: 'Topilmadi' },
   INTERNAL: { status: 500, title: 'Ichki xato' },
 }

@@ -25,7 +25,10 @@ export class UsersController {
 
   @Get()
   @RequirePermission('users', 'view')
-  @ApiOperation({ summary: 'Foydalanuvchilar ro‘yxati', description: 'Ism va lavozim xodim yozuvidan (D1).' })
+  @ApiOperation({
+    summary: 'Foydalanuvchilar ro‘yxati',
+    description: 'Ism va lavozim xodim yozuvidan (D1). `deleted=true` — o‘chirilganlar (tiklash uchun).',
+  })
   @ApiPagedResponse(UserDto)
   list(@Query() query: UserListQueryDto): Promise<Paged<UserDto>> {
     return this.users.list(query)
@@ -49,7 +52,11 @@ export class UsersController {
   })
   @ApiCreatedResponse({ type: UserDto })
   @ApiBadRequestResponse({ description: 'VALIDATION_FAILED — masalan kuchsiz parol', type: ApiErrorDto })
-  @ApiConflictResponse({ description: 'EMPLOYEE_HAS_USER | ALREADY_EXISTS (email)', type: ApiErrorDto })
+  @ApiConflictResponse({
+    description:
+      'EMPLOYEE_HAS_USER (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) | ALREADY_EXISTS (email)',
+    type: ApiErrorDto,
+  })
   @ApiUnprocessableEntityResponse({ description: 'REFERENCE_NOT_FOUND — xodim yo‘q', type: ApiErrorDto })
   @ApiPlanLimit()
   create(@Body() dto: CreateUserDto): Promise<UserDto> {
@@ -93,9 +100,13 @@ export class UsersController {
   @HttpCode(200)
   @RequirePermission('users', 'delete')
   @AuditAction('user.restore')
-  @ApiOperation({ summary: 'O‘chirilgan foydalanuvchini tiklash (undo)' })
+  @ApiOperation({
+    summary: 'O‘chirilgan foydalanuvchini tiklash',
+    description: 'O‘chirilganlar — `GET /users?deleted=true`. Parol va rol o‘zgarmaydi; eski sessiyalar qaytmaydi.',
+  })
   @ApiOkResponse({ type: UserDto })
   @ApiNotFoundResponse({ type: ApiErrorDto })
+  @ApiUnprocessableEntityResponse({ description: 'REFERENCE_NOT_FOUND — xodim o‘chirilgan (avval uni tiklang)', type: ApiErrorDto })
   @ApiPlanLimit()
   restore(@Param('id', ParseUUIDPipe) id: string): Promise<UserDto> {
     return this.users.restore(id)

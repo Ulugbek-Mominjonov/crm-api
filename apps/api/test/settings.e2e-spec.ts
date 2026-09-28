@@ -1,8 +1,9 @@
+import { randomUUID } from 'node:crypto'
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
-import { seedTenant, testDb, truncateAll } from './helpers/db'
+import { openShift, seedProduct, seedTenant, testDb, truncateAll } from './helpers/db'
 import { captureQueries } from './helpers/queries'
 
 describe('Sozlamalar (/settings)', () => {
@@ -116,6 +117,40 @@ describe('Sozlamalar (/settings)', () => {
 
     const resB = await http().get('/api/v1/settings').set('Authorization', authB).expect(200)
     expect(resB.body).toMatchObject({ storeName: 'B nomi', taxRate: 12 })
+  })
+
+  it('sotuvchiga ulgurji savdo: sukut — yopiq (narx yashirin, so‘rasa 403); yoqilsa — narxni ko‘radi va sotadi', async () => {
+    const admin = await bearer(app, a)
+    const seller = await bearer(app, a, 'sotuvchi')
+    const p = await seedProduct(a.tenantId, a.warehouseId)
+    await openShift(a.tenantId)
+    const product = async () => (await http().get(`/api/v1/products/${p}`).set('Authorization', seller).expect(200)).body
+    const sell = (priceTier: string) =>
+      http()
+        .post('/api/v1/sales')
+        .set('Authorization', seller)
+        .set('Idempotency-Key', randomUUID())
+        .send({ priceTier, items: [{ productId: p, qty: 1 }], paid: { cash: 100_000, card: 0, transfer: 0 } })
+    const exportedHeader = async () =>
+      (await http().get('/api/v1/exports/products?format=csv').set('Authorization', seller).expect(200)).text.split('\n')[0]
+
+    expect((await http().get('/api/v1/settings').set('Authorization', admin).expect(200)).body.sellerWholesaleEnabled).toBe(false)
+    expect(await product()).not.toHaveProperty('wholesalePrice')
+    expect((await sell('wholesale').expect(403)).body.code).toBe('PERMISSION_DENIED')
+    expect((await sell('retail').expect(201)).body.items[0].price).toBe(60_000)
+    expect(await exportedHeader()).not.toContain('Ulgurji narx')
+
+    await http().patch('/api/v1/settings').set('Authorization', admin).send({ sellerWholesaleEnabled: true }).expect(200)
+    expect((await product()).wholesalePrice).toBe(55_000)
+    const wholesale = (await sell('wholesale').expect(201)).body
+    expect(wholesale).toMatchObject({ priceTier: 'wholesale', items: [{ price: 55_000 }] })
+    expect(await exportedHeader()).toContain('Ulgurji narx')
+    // Tannarx baribir yashirin
+    expect(await product()).not.toHaveProperty('cost')
+
+    // Do'konda ulgurji savdo o'chirilsa — sotuvchiga ham yopiladi
+    await http().patch('/api/v1/settings').set('Authorization', admin).send({ wholesaleEnabled: false }).expect(200)
+    expect(await product()).not.toHaveProperty('wholesalePrice')
   })
 
   it('o‘zgarish audit jurnaliga tushadi', async () => {

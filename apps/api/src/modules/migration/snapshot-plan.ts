@@ -783,7 +783,9 @@ class SnapshotPlanner {
     }
     const row: Record<string, string | number | boolean | undefined> = {
       store_name: text(s.storeName, SHORT), currency: text(s.currency, 10), tax_enabled: bool(s.taxEnabled),
-      tax_rate: pct(s.taxRate), wholesale_enabled: bool(s.wholesaleEnabled), loyalty_enabled: bool(s.loyaltyEnabled),
+      tax_rate: pct(s.taxRate), wholesale_enabled: bool(s.wholesaleEnabled),
+      // Brauzer nusxasida yo'q — faqat server zaxirasidan (aylanma import)
+      seller_wholesale_enabled: bool(s.sellerWholesaleEnabled), loyalty_enabled: bool(s.loyaltyEnabled),
       loyalty_rate: pct(s.loyaltyRate), max_discount_pct: pct(s.maxDiscountPct), receipt_phone: text(s.receiptPhone, 40),
       receipt_address: text(s.receiptAddress), receipt_footer: text(s.receiptFooter, 2000), onboarded: bool(s.onboarded),
     }

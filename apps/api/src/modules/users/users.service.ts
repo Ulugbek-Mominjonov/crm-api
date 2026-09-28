@@ -24,6 +24,7 @@ const USER_SELECT = {
   lastLoginAt: true,
   createdAt: true,
   updatedAt: true,
+  deletedAt: true,
   employeeId: true,
   // D1: ism va lavozim xodimdan — `relationJoins` bilan o'sha so'rovda
   employee: { select: { name: true, position: true } },
@@ -84,23 +85,35 @@ export class UsersService extends SoftDeleteCrudService<
       }),
       ...(query.role && { role: query.role }),
       ...(query.isActive !== undefined && { isActive: query.isActive }),
+      // Tiklash uchun: `liveWhere` (o'chirilmaganlar) o'rniga — faqat o'chirilganlar
+      ...(query.deleted && { deletedAt: { not: null } }),
     }
   }
 
   /**
    * Xodim mavjud va o'chirilmagan bo'lishi shart (D1). Xodimning hisobi
-   * allaqachon bo'lsa — noyob `employee_id` to'xtatadi (EMPLOYEE_HAS_USER).
+   * allaqachon bo'lsa (o'chirilgani ham — `employee_id` noyob) —
+   * EMPLOYEE_HAS_USER, `meta` da hisob id'si: o'chirilgan bo'lsa mijoz
+   * yangisi o'rniga uni tiklashni taklif qiladi.
    */
   protected async createData(dto: CreateUserDto): Promise<Omit<Prisma.UserUncheckedCreateInput, 'tenantId'>> {
     await this.plans.assertRoom('users')
     const employee = await this.prisma.scoped.employee.findFirst({
       where: { id: dto.employeeId, deletedAt: null },
-      select: { id: true },
+      select: { id: true, user: { select: { id: true, deletedAt: true } } },
     })
     if (!employee) {
       throw new DomainError('REFERENCE_NOT_FOUND', 'Xodim topilmadi', [
         { field: 'employeeId', code: 'REFERENCE_NOT_FOUND' },
       ])
+    }
+    if (employee.user) {
+      const deleted = employee.user.deletedAt !== null
+      throw new DomainError(
+        'EMPLOYEE_HAS_USER',
+        deleted ? 'Xodimning o‘chirilgan hisobi bor — yangisi o‘rniga uni tiklang' : 'Xodimning kirish hisobi bor',
+        [{ field: 'employeeId', code: 'EMPLOYEE_HAS_USER', meta: { userId: employee.user.id, deleted } }],
+      )
     }
     return {
       employeeId: dto.employeeId,
@@ -154,9 +167,21 @@ export class UsersService extends SoftDeleteCrudService<
     })
   }
 
-  /** Tiklangan faol hisob tarifdagi joyni egallaydi (T-125) */
+  /**
+   * O'chirilgan hisobni tiklash (ro'yxat — `GET /users?deleted=true`).
+   * Hisob doim tirik xodimga tegishli (D1): xodim o'chirilgan bo'lsa — avval
+   * u tiklanadi. Tiklangan faol hisob tarifdagi joyni egallaydi (T-125).
+   */
   override async restore(id: string): Promise<UserDto> {
-    const deleted = await this.prisma.scoped.user.findFirst({ where: { id, deletedAt: { not: null } }, select: { isActive: true } })
+    const deleted = await this.prisma.scoped.user.findFirst({
+      where: { id, deletedAt: { not: null } },
+      select: { isActive: true, employee: { select: { deletedAt: true } } },
+    })
+    if (deleted?.employee.deletedAt) {
+      throw new DomainError('REFERENCE_NOT_FOUND', 'Xodim o‘chirilgan — avval xodimni tiklang', [
+        { field: 'employeeId', code: 'REFERENCE_NOT_FOUND' },
+      ])
+    }
     if (deleted?.isActive) await this.plans.assertRoom('users')
     return super.restore(id)
   }

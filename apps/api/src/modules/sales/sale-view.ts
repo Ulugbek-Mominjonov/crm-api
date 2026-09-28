@@ -47,9 +47,10 @@ export type SaleRecord = Prisma.SaleGetPayload<{ select: typeof SALE_SELECT }>
 /**
  * Bazadagi chek → API. `paid.cash` — BERILGAN naqd: bazada kassada qolgani
  * (`paid_cash`) saqlanadi, qaytim alohida — mijoz chekida "berildi /
- * qaytim" ko'rinishi (04-api §4) shundan tiklanadi.
+ * qaytim" ko'rinishi (04-api §4) shundan tiklanadi. `returned` — qator id →
+ * qaytarilgan miqdor (bo'lmasa 0).
  */
-export function toSaleDto(r: SaleRecord): SaleDto {
+export function toSaleDto(r: SaleRecord, returned: ReadonlyMap<string, number> = new Map()): SaleDto {
   return {
     id: r.id,
     number: r.number,
@@ -91,6 +92,7 @@ export function toSaleDto(r: SaleRecord): SaleDto {
       cost: moneyFromDb(item.cost),
       discount: moneyFromDb(item.discount),
       returnOfId: item.returnOfId,
+      returnedQty: returned.get(item.id) ?? 0,
     })),
     delivery: r.delivery,
   }
@@ -145,6 +147,8 @@ export function writtenSaleDto(
         cost: item.cost,
         discount: item.discount,
         returnOfId: item.returnOfId,
+        // Yangi hujjat qatoridan hali hech narsa qaytarilmagan
+        returnedQty: 0,
       }),
     ),
     delivery: written.deliveryId ? { id: written.deliveryId, status: 'pending' } : null,

@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common'
 import {
-  ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse,
-  ApiOperation, ApiTags, ApiUnprocessableEntityResponse,
+  ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse, ApiNoContentResponse, ApiNotFoundResponse,
+  ApiOkResponse, ApiOperation, ApiTags, ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger'
 import type { Paged } from '@/common/crud/paging'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
@@ -52,9 +52,10 @@ export class QuotesController {
   @AuditedInService()
   @ApiOperation({ summary: 'Taklif yaratish', description: 'Raqam `TKLF-…` (I12); summalar sotuv bilan bir xil qoidada.' })
   @ApiCreatedResponse({ type: QuoteDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — sotuvchiga ulgurji narx yopiq', type: ApiErrorDto })
   @ApiUnprocessableEntityResponse({ description: 'DISCOUNT_LIMIT | PRODUCT_ARCHIVED | REFERENCE_NOT_FOUND', type: ApiErrorDto })
   create(@Body() dto: CreateQuoteDto, @CurrentUser() user: AuthContext): Promise<QuoteDto> {
-    return this.quotes.create(dto, user.employeeId)
+    return this.quotes.create(dto, user)
   }
 
   @Patch(':id')
@@ -62,9 +63,14 @@ export class QuotesController {
   @AuditedInService()
   @ApiOperation({ summary: 'Taklifni tahrirlash', description: 'Qatorlar berilsa — to‘liq almashtiriladi. Holat: draft|sent|accepted|rejected.' })
   @ApiOkResponse({ type: QuoteDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — sotuvchiga ulgurji narx yopiq', type: ApiErrorDto })
   @ApiConflictResponse({ description: 'QUOTE_ALREADY_CONVERTED', type: ApiErrorDto })
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateQuoteDto): Promise<QuoteDto> {
-    return this.quotes.update(id, dto)
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateQuoteDto,
+    @CurrentUser() user: AuthContext,
+  ): Promise<QuoteDto> {
+    return this.quotes.update(id, dto, user.role)
   }
 
   @Delete(':id')
@@ -95,10 +101,15 @@ export class QuotesController {
   @AuditedInService()
   @ApiOperation({
     summary: 'Taklifni sotuvga aylantirish',
-    description: 'Qoldiq tekshiriladi, bir marta (I20); to‘lov usuli chaqiruvchidan; nasiyada mijoz shart. Idempotent.',
+    description:
+      'Qoldiq tanlangan omborda (`warehouseId`, berilmasa — joriy) tekshiriladi, bir marta (I20); to‘lov usuli ' +
+      'chaqiruvchidan; nasiyada mijoz shart. Idempotent.',
   })
   @ApiCreatedResponse({ type: SaleDto })
-  @ApiUnprocessableEntityResponse({ description: 'QUOTE_STOCK_SHORT | CREDIT_REQUIRES_CUSTOMER | CREDIT_*', type: ApiErrorDto })
+  @ApiUnprocessableEntityResponse({
+    description: 'QUOTE_STOCK_SHORT | CREDIT_REQUIRES_CUSTOMER | CREDIT_* | WAREHOUSE_ARCHIVED | REFERENCE_NOT_FOUND (ombor)',
+    type: ApiErrorDto,
+  })
   @ApiConflictResponse({ description: 'QUOTE_ALREADY_CONVERTED', type: ApiErrorDto })
   convert(@Param('id', ParseUUIDPipe) id: string, @Body() dto: ConvertQuoteDto): Promise<SaleDto> {
     return this.quotes.convert(id, dto)

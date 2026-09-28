@@ -28,7 +28,12 @@ export class CreateQuoteDto {
   @IsUUID()
   sellerId?: string
 
-  @ApiPropertyOptional({ enum: PriceTier, description: 'Berilmasa — mijoz guruhidan' })
+  @ApiPropertyOptional({
+    enum: PriceTier,
+    description:
+      'Berilmasa — mijoz guruhidan. `wholesale` — `wholesaleEnabled` bo‘lsa; sotuvchiga — `sellerWholesaleEnabled` bilan ' +
+      '(aks holda so‘ralgani 403, mijoz guruhidan kelgani — chakana)',
+  })
   @IsOptional()
   @IsIn(Object.values(PriceTier))
   priceTier?: PriceTier
@@ -70,7 +75,7 @@ export class UpdateQuoteDto {
   @IsUUID()
   sellerId?: string
 
-  @ApiPropertyOptional({ enum: PriceTier })
+  @ApiPropertyOptional({ enum: PriceTier, description: 'Yaratishdagi qoida bilan' })
   @IsOptional()
   @IsIn(Object.values(PriceTier))
   priceTier?: PriceTier
@@ -151,6 +156,11 @@ export class ConvertQuoteDto {
   @ApiProperty({ enum: CONVERT_METHODS, description: 'To‘lov usuli chaqiruvchidan (I20) — `debt`: nasiya' })
   @IsIn(CONVERT_METHODS)
   method!: ConvertMethod
+
+  @ApiPropertyOptional({ format: 'uuid', description: 'Chiqim ombori (kassada tanlangani); berilmasa — joriy ombor' })
+  @IsOptional()
+  @IsUUID()
+  warehouseId?: string
 }
 
 export class QuoteItemDto {

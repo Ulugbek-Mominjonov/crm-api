@@ -23,6 +23,7 @@ const HIDDEN_BY_ROLE: Partial<Record<Role, readonly string[]>> = {
     'profit',
     'cogs',
     'margin',
+    'payables', // ta'minotchilarga qarz — xarid summasi (canSeePurchaseAmounts)
   ],
   omborchi: ['salary', 'grossProfit', 'netProfit', 'profit', 'cogs', 'margin'],
 }
@@ -30,14 +31,41 @@ const HIDDEN_BY_ROLE: Partial<Record<Role, readonly string[]>> = {
 /** Hech qachon javobga chiqmaydigan maydonlar — roldan qat'i nazar */
 const ALWAYS_HIDDEN = ['passwordHash', 'tokenHash', 'bodyHash'] as const
 
+/** Do'kon sozlamasiga bog'liq ko'rinish (sukut — eng qattiq) */
+export interface VisibilityPolicy {
+  /** Sotuvchi ulgurji narxda sota oladi — demak ulgurji narxni ham ko'radi */
+  sellerWholesale?: boolean
+}
+
+/** Siyosat do'kon sozlamasidan: ulgurji savdo yoqilgan VA sotuvchiga ochilgan */
+export function visibilityPolicy(settings: {
+  wholesaleEnabled: boolean
+  sellerWholesaleEnabled: boolean
+}): VisibilityPolicy {
+  return { sellerWholesale: settings.wholesaleEnabled && settings.sellerWholesaleEnabled }
+}
+
 /** Shu rol uchun yashiriladigan maydonlar to'plami */
-export function hiddenFieldsFor(role: Role): Set<string> {
-  return new Set([...ALWAYS_HIDDEN, ...(HIDDEN_BY_ROLE[role] ?? [])])
+export function hiddenFieldsFor(role: Role, policy: VisibilityPolicy = {}): Set<string> {
+  const hidden = new Set<string>([...ALWAYS_HIDDEN, ...(HIDDEN_BY_ROLE[role] ?? [])])
+  if (policy.sellerWholesale) hidden.delete('wholesalePrice')
+  return hidden
 }
 
 /** Rolga maydon ko'rinadimi? */
-export function canSeeField(role: Role, field: string): boolean {
-  return !hiddenFieldsFor(role).has(field)
+export function canSeeField(role: Role, field: string, policy?: VisibilityPolicy): boolean {
+  return !hiddenFieldsFor(role, policy).has(field)
+}
+
+/**
+ * Xarid pullari — kirim buyurtmasi summalari, ta'minotchi qarzi va unga
+ * to'lovlar: bitta qatorli buyurtmada summa ÷ miqdor = tannarx. Kalit
+ * nomlari (`total`, `paid`, `outstanding`, `debt`) sotuv va mijoz qarzida
+ * ham bor, shuning uchun ular global ro'yxatda emas — xarid javobini
+ * yasovchi servis shu qoidaga qarab ularni qo'shmaydi.
+ */
+export function canSeePurchaseAmounts(role: Role): boolean {
+  return canSeeField(role, 'cost')
 }
 
 /**

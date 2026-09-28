@@ -144,11 +144,15 @@ export class PurchaseOrderQueryDto extends ListQueryDto {
   dateTo?: string
 }
 
+/** Summalar — faqat tannarxni ko'radigan rolga (sotuvchida yo'q: xarid summasidan tannarx tiklanadi) */
 export class PurchaseOrderSummaryDto {
-  @ApiProperty({ example: 1_200_000, description: 'Ta’minotchilarga jami qarz (kelgan tovar uchun, I18)' }) outstanding!: number
+  @ApiPropertyOptional({ example: 1_200_000, description: 'Ta’minotchilarga jami qarz (kelgan tovar uchun, I18). Sotuvchi rolida yo‘q' })
+  outstanding?: number
   @ApiProperty({ example: 3, description: 'Kutilayotgan (`ordered`) buyurtmalar' }) openOrders!: number
-  @ApiProperty({ example: 5_400_000, description: 'Joriy oy buyurtmalari (bekor qilinganlarsiz)' }) monthTotal!: number
-  @ApiProperty({ example: 9_800_000, description: 'To‘liq qabul qilingan buyurtmalar summasi' }) receivedTotal!: number
+  @ApiPropertyOptional({ example: 5_400_000, description: 'Joriy oy buyurtmalari (bekor qilinganlarsiz). Sotuvchi rolida yo‘q' })
+  monthTotal?: number
+  @ApiPropertyOptional({ example: 9_800_000, description: 'To‘liq qabul qilingan buyurtmalar summasi. Sotuvchi rolida yo‘q' })
+  receivedTotal?: number
 }
 
 export class PoItemDto {
@@ -172,10 +176,11 @@ export class PurchaseOrderDto {
   @ApiProperty({ type: PoSupplierRefDto }) supplier!: PoSupplierRefDto
   @ApiProperty({ nullable: true, type: String }) warehouseId!: string | null
   @ApiProperty({ enum: POStatus }) status!: POStatus
-  @ApiProperty() total!: number
-  @ApiProperty({ description: 'Kelgan tovar qiymati' }) receivedValue!: number
-  @ApiProperty() paid!: number
-  @ApiProperty({ description: 'Ta’minotchiga qarz — faqat kelgan tovar uchun (I18)' }) outstanding!: number
+  @ApiPropertyOptional({ description: 'Buyurtma summasi. Sotuvchi rolida yo‘q (summadan tannarx tiklanadi)' }) total?: number
+  @ApiPropertyOptional({ description: 'Kelgan tovar qiymati. Sotuvchi rolida yo‘q' }) receivedValue?: number
+  @ApiPropertyOptional({ description: 'To‘langan. Sotuvchi rolida yo‘q' }) paid?: number
+  @ApiPropertyOptional({ description: 'Ta’minotchiga qarz — faqat kelgan tovar uchun (I18). Sotuvchi rolida yo‘q' })
+  outstanding?: number
   @ApiProperty() date!: string
   @ApiProperty({ nullable: true, type: String }) receivedDate!: string | null
   @ApiProperty({ nullable: true, type: String }) dueDate!: string | null

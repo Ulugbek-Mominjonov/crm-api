@@ -249,12 +249,41 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
       await login('ali@crm.uz', 'YangiParol2026!').expect(201)
     })
 
-    it('o‘chirilgan foydalanuvchini tiklash (undo)', async () => {
+    it('o‘chirilgan hisoblar ro‘yxati va tiklash; qayta yaratishda — o‘chirilgan hisob id’si', async () => {
+      const user = await createUser('Ali', 'sotuvchi')
+      await createUser('Vali', 'sotuvchi')
+      await http().delete(`/api/v1/users/${user.id}`).set('Authorization', auth).expect(204)
+
+      const names = (body: { items: { name: string }[] }) => body.items.map((u) => u.name)
+      expect(names((await http().get('/api/v1/users').set('Authorization', auth).expect(200)).body)).not.toContain('Ali')
+      const deleted = await http().get('/api/v1/users?deleted=true').set('Authorization', auth).expect(200)
+      expect(names(deleted.body)).toEqual(['Ali'])
+      expect(deleted.body.items[0]).toMatchObject({ id: user.id, email: 'ali@crm.uz', role: 'sotuvchi' })
+      expect(deleted.body.items[0].deletedAt).not.toBeNull()
+
+      // Yangi hisob o'rniga — eskisini tiklash (id `meta` da)
+      const again = await http()
+        .post('/api/v1/users')
+        .set('Authorization', auth)
+        .send({ employeeId: user.employeeId, email: 'ali2@crm.uz', password: PASSWORD, role: 'sotuvchi' })
+        .expect(409)
+      expect(again.body.errors[0]).toMatchObject({ code: 'EMPLOYEE_HAS_USER', meta: { userId: user.id, deleted: true } })
+
+      const restored = await http().post(`/api/v1/users/${user.id}/restore`).set('Authorization', auth).expect(200)
+      expect(restored.body).toMatchObject({ id: user.id, name: 'Ali', deletedAt: null })
+      await login('ali@crm.uz').expect(201)
+      expect((await http().get('/api/v1/users?deleted=true').set('Authorization', auth).expect(200)).body.items).toHaveLength(0)
+    })
+
+    it('xodimi o‘chirilgan hisob tiklanmaydi — avval xodim tiklanadi (422)', async () => {
       const user = await createUser('Ali', 'sotuvchi')
       await http().delete(`/api/v1/users/${user.id}`).set('Authorization', auth).expect(204)
-      const restored = await http().post(`/api/v1/users/${user.id}/restore`).set('Authorization', auth).expect(200)
-      expect(restored.body).toMatchObject({ id: user.id, name: 'Ali' })
-      await login('ali@crm.uz').expect(201)
+      await http().delete(`/api/v1/employees/${user.employeeId}`).set('Authorization', auth).expect(204)
+
+      const res = await http().post(`/api/v1/users/${user.id}/restore`).set('Authorization', auth).expect(422)
+      expect(res.body).toMatchObject({ code: 'REFERENCE_NOT_FOUND', errors: [{ field: 'employeeId' }] })
+      await http().post(`/api/v1/employees/${user.employeeId}/restore`).set('Authorization', auth).expect(200)
+      await http().post(`/api/v1/users/${user.id}/restore`).set('Authorization', auth).expect(200)
     })
   })
 

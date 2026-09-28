@@ -104,7 +104,7 @@ describe('Cheklar ro‘yxati (GET /sales)', () => {
     expect(queries.length, queries.join('\n')).toBeLessThanOrEqual(2)
   })
 
-  it('chek: do‘kon rekvizitlari va tomonlar bilan; PDF bu serverda o‘chirilgan — 501', async () => {
+  it('chek: do‘kon rekvizitlari va tomonlar bilan; PDF — 80 mm termal chek', async () => {
     const res = await request(app.getHttpServer())
       .get(`/api/v1/sales/${ids.debt}/receipt`)
       .set('Authorization', auth)
@@ -118,8 +118,21 @@ describe('Cheklar ro‘yxati (GET /sales)', () => {
     const pdf = await request(app.getHttpServer())
       .get(`/api/v1/sales/${ids.debt}/receipt?format=pdf`)
       .set('Authorization', auth)
-      .expect(501)
-    expect(pdf.body.code).toBe('FEATURE_DISABLED')
+      .buffer(true)
+      .parse((response, done) => {
+        const chunks: Buffer[] = []
+        response.on('data', (chunk: Buffer) => chunks.push(chunk))
+        response.on('end', () => done(null, Buffer.concat(chunks)))
+      })
+      .expect(200)
+    expect(pdf.headers['content-type']).toBe('application/pdf')
+    expect(pdf.headers['content-disposition']).toBe('inline; filename="CHEK-1003.pdf"')
+    expect((pdf.body as Buffer).subarray(0, 5).toString()).toBe('%PDF-')
+    // Sotuvchi ham chop etadi (tannarx PDF'da umuman yo'q)
+    await request(app.getHttpServer())
+      .get(`/api/v1/sales/${ids.debt}/receipt?format=pdf`)
+      .set('Authorization', await bearer(app, a, 'sotuvchi'))
+      .expect(200)
   })
 
   it('boshqa do‘kon cheki — 404; omborchi ro‘yxatni ko‘radi', async () => {

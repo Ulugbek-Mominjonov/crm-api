@@ -1,7 +1,7 @@
 import { Controller, Get, Query } from '@nestjs/common'
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger'
 import { RequirePermission } from '@/modules/auth/decorators/require-permission.decorator'
-import { AnalyticsDto, DashboardDto, DashboardQueryDto, PeriodQueryDto, PnlDto } from './dto/report.dto'
+import { AnalyticsDto, DashboardDto, DashboardQueryDto, PeriodQueryDto, PnlDto, PnlQueryDto } from './dto/report.dto'
 import { ReportsService } from './reports.service'
 
 /**
@@ -29,13 +29,16 @@ export class ReportsController {
     description: 'Oldingi davr bilan solishtirish, trend, to‘lov turlari, top mahsulot/sotuvchi, sotilmayotgan tovar',
   })
   @ApiOkResponse({ type: PnlDto })
-  pnl(@Query() query: PeriodQueryDto): Promise<PnlDto> {
+  pnl(@Query() query: PnlQueryDto): Promise<PnlDto> {
     return this.reports.pnl(query)
   }
 
   @Get('analytics')
   @RequirePermission('finance', 'view')
-  @ApiOperation({ summary: 'Analitika', description: 'ABC (80/95 %), kategoriya va to‘lov taqsimoti, kunlik trend' })
+  @ApiOperation({
+    summary: 'Analitika',
+    description: 'ABC (80/95 %) — sotilgan BARCHA mahsulot (sahifalash mijozda), kategoriya va to‘lov taqsimoti, kunlik trend',
+  })
   @ApiOkResponse({ type: AnalyticsDto })
   analytics(@Query() query: PeriodQueryDto): Promise<AnalyticsDto> {
     return this.reports.analytics(query)
