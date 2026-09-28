@@ -154,10 +154,14 @@ export default defineConfig({
 })
 ```
 
-**Production:** frontend va API **bitta serverda, bitta domenda** (`https://crm.domen.uz`). Server
-(Caddy) `/api/*`, `/socket.io/*`, `/health/*` ni API’ga, qolganini frontend build’iga beradi — dev’dagi
-Vite proksi bilan aynan bir xil yo‘llar:
+**Production — `https://crm.workspaces.uz`** (ishlayapti): frontend va API **bitta serverda, bitta
+domenda**. API — `https://crm.workspaces.uz/api/v1`, Swagger — `https://crm.workspaces.uz/api/docs`,
+sog‘liq — `https://crm.workspaces.uz/health/ready`. Server (Caddy) `/api/*`, `/socket.io/*`, `/health/*` ni
+API’ga, qolganini frontend build’iga beradi — dev’dagi Vite proksi bilan aynan bir xil yo‘llar:
 
+- Production bazasi **bo‘sh** (demo ma’lumot yo‘q): sinov uchun o‘z do‘koningizni ro‘yxatdan o‘tkazing
+  (ro‘yxatdan o‘tish sahifasi yoki `POST /api/v1/tenants/register`, bir IP’dan soatiga 5 tagacha). Demo
+  loginlar (`admin@crm.uz` …) — faqat lokal seed’da.
 - `VITE_API_URL` **bo‘sh** (yoki berilmaydi): so‘rovlar nisbiy (`/api/v1/...`), socket — `io('/events')`.
   CORS va preflight yo‘q, refresh cookie (`SameSite=Strict`) muammosiz yuboriladi.
 - Service worker (`vite-plugin-pwa`) API yo‘llarini ushlamasin — aks holda yangi oynada ochilgan
@@ -166,9 +170,17 @@ Vite proksi bilan aynan bir xil yo‘llar:
 - Keshni server boshqaradi: `index.html`, `sw.js`, manifest — keshsiz (yangi versiya darhol),
   `/assets/*` — 1 yil (nomida hash). Noma’lum yo‘l — `index.html` (SPA), yo‘q `/assets/*` fayli — 404.
 - Build serverga IKKI bosqichda yuklanadi — avval yangi hash’li fayllar, keyin `index.html` va
-  qolgani (yuklash paytida ochgan foydalanuvchi yarim versiyaga tushmasin). SSH kalit, server manzili
-  va `known_hosts` qatori — server egasidan; kalit FAQAT frontend papkasiga yoza oladi, shuning uchun
-  yo‘llar nisbiy (`assets/`; bo‘sh — papkaning o‘zi). Frontend repo’si uchun GitHub Actions namunasi:
+  qolgani (yuklash paytida ochgan foydalanuvchi yarim versiyaga tushmasin).
+- Kalit juftligini **o‘zingiz** yarating: `ssh-keygen -t ed25519 -f crm-web-deploy -N ''` va **faqat**
+  `crm-web-deploy.pub` ni server egasiga yuboring. U kalitni serverga faqat frontend papkasiga
+  (`/opt/www/crm`) yoza oladigan qilib qo‘shadi (shell yo‘q) — shuning uchun yo‘llar nisbiy (`assets/`;
+  bo‘sh — papkaning o‘zi). Maxfiy qismi (`crm-web-deploy`) hech kimga yuborilmaydi — faqat frontend
+  repo’sining GitHub secret’ida. Secret’lar (Settings → Secrets and variables → Actions):
+  - `SSH_HOST` = `13.140.177.86`
+  - `WEB_DEPLOY_KEY` = `crm-web-deploy` faylining butun matni (`-----BEGIN` … `END-----` qatorlari bilan)
+  - `SSH_KNOWN_HOSTS` = `13.140.177.86 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZHWsX1lDC/9WhPFBQhOKeX05L0d0Rf8H5hobP1CTkE`
+
+  Frontend repo’si uchun GitHub Actions namunasi:
 
   ```yaml
   # .github/workflows/deploy.yml — secrets: SSH_HOST, WEB_DEPLOY_KEY, SSH_KNOWN_HOSTS
@@ -1669,6 +1681,8 @@ tanlangan ombor, til, mavzu, offline navbat.
 | Avval | Endi | Frontendda |
 |-------|------|-----------|
 | Frontend — Cloudflare Pages, API — alohida domen (`api.domen.uz`), `VITE_API_URL` shart edi | Frontend va API bitta serverda, bitta domenda (`crm.domen.uz`): `/api`, `/socket.io`, `/health` — API, qolgani — SPA ([3.1](#connect)) | `VITE_API_URL` bo‘sh, socket — `io('/events')`; `navigateFallbackDenylist`; build — ikki bosqichli `rsync` ([3.1](#connect)) |
+| Production manzili noma’lum edi (`crm.domen.uz` — namuna) | `https://crm.workspaces.uz` ishlayapti: API `/api/v1`, Swagger `/api/docs` ([3.1](#connect)) | Sinov uchun o‘z do‘koningizni ro‘yxatdan o‘tkazing — production bazasi bo‘sh |
+| Deploy kaliti «server egasidan» | Kalitni o‘zingiz yaratasiz, faqat `.pub` yuboriladi; `SSH_HOST` va `SSH_KNOWN_HOSTS` qiymatlari tayyor ([3.1](#connect)) | Frontend repo’siga 3 ta secret va `deploy.yml` namunasi |
 
 **2026-09-27** — frontendga ta’sir qiladi:
 

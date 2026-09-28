@@ -48,8 +48,9 @@ qolsa — `postgres.conf` ni kattalashtirib `docker compose -f docker-compose.pr
   `S3_SMOKE_ENDPOINT=… S3_SMOKE_ACCESS_KEY=… S3_SMOKE_SECRET_KEY=… S3_SMOKE_ORIGIN=https://crm.<domen> npm run test:e2e -w @crm/api -- s3-prod-smoke`
 - **Deploy kaliti:** `ssh-keygen -t ed25519 -f crm-deploy -N ''` — ochiq qismi serverga (1-bo'lim),
   maxfiy qismi backend repo'sining GitHub'iga. Serverda to'liq huquq (docker, sudo) — boshqa repoga bermang.
-- **Frontend yuklash kaliti (T-119):** `ssh-keygen -t ed25519 -f crm-web-deploy -N ''` — frontend
-  repo'si CI'si uchun; serverda FAQAT `/opt/www/crm` ga `rsync` qila oladi (1-bo'lim).
+- **Frontend yuklash kaliti (T-119):** frontend dasturchi o'zi yaratadi
+  (`ssh-keygen -t ed25519 -f crm-web-deploy -N ''`) va faqat `crm-web-deploy.pub` ni yuboradi — maxfiy
+  qismi uning GitHub secret'ida qoladi; serverda FAQAT `/opt/www/crm` ga `rsync` qila oladi (1-bo'lim).
 - **GitHub (T-120)** → Settings → Environments → `production`: secrets `SSH_HOST` (server IP),
   `SSH_KEY` (`crm-deploy` fayli), ixtiyoriy `SSH_USER` (sukut `deploy`) va `SSH_FINGERPRINT` (tavsiya,
   1-bo'lim). Server ARM bo'lsa — variables `DEPLOY_PLATFORM=linux/arm64` (sukut `linux/amd64`).
