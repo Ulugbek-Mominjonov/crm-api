@@ -35,11 +35,13 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm }
 
-      # MinIO: services ichida buyruq berib bo'lmaydi — alohida konteyner
+      # MinIO: services ichida buyruq berib bo'lmaydi — alohida konteyner. `minio/minio` Docker Hub'da
+      # endi yo'q (MinIO bepul versiya obrazlarini to'xtatgan) — Chainguard uni manbadan yig'adi
+      # (bepul faqat `latest`). Obraz root'siz (uid 65532): `/data` — tmpfs
       - name: MinIO
         run: |
           docker run -d --name minio -p 9000:9000 -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
-            minio/minio:latest server /data
+            --tmpfs /data:uid=65532,gid=65532 cgr.dev/chainguard/minio:latest server /data
           for i in $(seq 1 30); do curl -fsS http://localhost:9000/minio/health/live && break; sleep 1; done
           export AWS_ACCESS_KEY_ID=minioadmin AWS_SECRET_ACCESS_KEY=minioadmin AWS_DEFAULT_REGION=us-east-1
           aws --endpoint-url http://localhost:9000 s3 mb s3://crm-media-test

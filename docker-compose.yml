@@ -24,29 +24,26 @@ services:
       interval: 5s
       retries: 10
 
+  # `minio/minio` Docker Hub'da endi yo'q — Chainguard uni manbadan yig'adi (bepul faqat `latest`).
+  # Obrazda qobiq va `mc` yo'q — sog'liq tekshiruvi o'rniga minio-init qayta urinadi. Root —
+  # avvalgi `minio/minio` (root) yozgan hajm bilan ham ishlasin (obraz sukut bo'yicha uid 65532)
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
+    user: '0:0'
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     ports: ['9000:9000', '9001:9001']
     volumes: ['miniodata:/data']
-    healthcheck:
-      test: ['CMD', 'mc', 'ready', 'local']
-      interval: 5s
-      retries: 10
 
-  # Bucket'larni bir marta yaratadi va chiqadi
+  # Bucket'larni bir marta yaratadi va chiqadi (MinIO hali tayyor bo'lmasa — qayta urinadi)
   minio-init:
-    image: minio/mc:latest
-    depends_on:
-      minio: { condition: service_healthy }
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 minioadmin minioadmin &&
-      mc mb --ignore-existing local/crm-media-dev &&
-      mc mb --ignore-existing local/crm-backup-dev &&
-      echo 'bucketlar tayyor'"
+    image: cgr.dev/chainguard/minio-client:latest
+    depends_on: [minio]
+    restart: on-failure
+    environment:
+      MC_HOST_local: http://minioadmin:minioadmin@minio:9000
+    command: ['mb', '--ignore-existing', 'local/crm-media-dev', 'local/crm-backup-dev']
 
 volumes: { pgdata: , miniodata: }

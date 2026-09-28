@@ -22,21 +22,21 @@ up() {
     --health-cmd 'redis-cli ping' --health-interval 5s --health-retries 10 \
     redis:7-alpine redis-server --save '' --appendonly no
 
-  run_if_absent "$MN" docker run -d --name "$MN" --network "$NET" \
+  # `minio/minio` Docker Hub'da endi yo'q — Chainguard uni manbadan yig'adi (bepul faqat `latest`).
+  # Obrazda qobiq va `mc` yo'q: tayyorlik — xostdan HTTP. Root — avvalgi `minio/minio` (root)
+  # yozgan hajm bilan ham ishlasin (obraz sukut bo'yicha uid 65532)
+  run_if_absent "$MN" docker run -d --name "$MN" --network "$NET" --user 0:0 \
     -e MINIO_ROOT_USER=minioadmin -e MINIO_ROOT_PASSWORD=minioadmin \
     -p 9000:9000 -p 9001:9001 -v crm-dev-miniodata:/data \
-    --health-cmd 'mc ready local' --health-interval 5s --health-retries 10 \
-    minio/minio:latest server /data --console-address ':9001'
+    cgr.dev/chainguard/minio:latest server /data --console-address ':9001'
 
-  wait_healthy "$PG"; wait_healthy "$RD"; wait_healthy "$MN"
+  wait_healthy "$PG"; wait_healthy "$RD"; wait_http "$MN" http://localhost:9000/minio/health/live
 
-  # `minio/mc` obrazida ENTRYPOINT — `mc`, shuning uchun qobiq ochiq beriladi
-  docker run --rm --network "$NET" --entrypoint /bin/sh minio/mc:latest -c "
-    mc alias set local http://$MN:9000 minioadmin minioadmin >/dev/null &&
-    for b in crm-media-dev crm-backup-dev crm-media-test crm-backup-test; do
-      mc mb --ignore-existing local/\$b >/dev/null
-    done &&
-    echo 'bucketlar tayyor: crm-media-dev, crm-backup-dev, crm-media-test, crm-backup-test'"
+  # `mc` — alohida obraz, qobiqsiz: ulanish `MC_HOST_local` orqali
+  docker run --rm --network "$NET" -e MC_HOST_local="http://minioadmin:minioadmin@$MN:9000" \
+    cgr.dev/chainguard/minio-client:latest mb --ignore-existing \
+    local/crm-media-dev local/crm-backup-dev local/crm-media-test local/crm-backup-test >/dev/null
+  echo 'bucketlar tayyor: crm-media-dev, crm-backup-dev, crm-media-test, crm-backup-test'
 
   status
 }
@@ -61,11 +61,23 @@ wait_healthy() {
   return 1
 }
 
+# Ichida tekshiruv vositasi yo'q obrazlar uchun — xostdan
+wait_http() {
+  local name="$1" url="$2"
+  for _ in $(seq 1 60); do
+    curl -fsS "$url" >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  echo "XATO: $name javob bermadi ($url)" >&2
+  docker logs --tail 20 "$name" >&2
+  return 1
+}
+
 status() {
   printf '%-16s %-10s %s\n' SERVIS HOLAT PORT
   for c in "$PG:5433" "$RD:6380" "$MN:9000"; do
     n="${c%%:*}"; p="${c##*:}"
-    h=$(docker inspect -f '{{.State.Health.Status}}' "$n" 2>/dev/null || echo "yo'q")
+    h=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$n" 2>/dev/null || echo "yo'q")
     printf '%-16s %-10s %s\n' "$n" "$h" "$p"
   done
 }
