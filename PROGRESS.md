@@ -201,7 +201,7 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 
 ### Keyingi sessiyada
 
-1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-119 — frontend build va CI (frontend dasturchi, `crm-web-deploy` kaliti hali yaratilmagan); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
+1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-119 — frontend build va CI (frontend dasturchi, `crm-web-deploy` — frontend dasturchi yaratib, `.pub` ni yuboradi; qadamlar `docs/api/README.md` §3.1); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
 2. **Ochiq savollar (qaror kerak)** — batafsil `docs/api/README.md` §14.1:
    - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq.
    - 2026-09-27 da hal qilindi: sotuvchidan xarid summalari (Q100), PDF chek (C13, Q104), `returnedQty`
