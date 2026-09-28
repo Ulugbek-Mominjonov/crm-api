@@ -1,8 +1,9 @@
 # ═══════════════════════════════════════════════════════════════════
 # CRM production (T-116, 11 §11.5): /opt/crm/docker-compose.prod.yml
 #   docker compose -f docker-compose.prod.yml up -d
-# Hech bir servis port CHIQARMAYDI: baza va Redis — faqat loyihaning ichki
-# tarmog'ida; API — umumiy `edge` tarmog'ida `crm-api` nomi bilan, unga
+# Tashqariga hech bir servis port CHIQARMAYDI: Redis — faqat loyihaning ichki
+# tarmog'ida, baza — qo'shimcha serverning o'zida (127.0.0.1, SSH tunnel orqali
+# DBeaver uchun); API — umumiy `edge` tarmog'ida `crm-api` nomi bilan, unga
 # umumiy Caddy (/opt/edge, 80/443, TLS) yo'naltiradi.
 # ═══════════════════════════════════════════════════════════════════
 
@@ -28,7 +29,8 @@ services:
       test: ['CMD-SHELL', 'pg_isready -U crm -d crm']
       interval: 10s
       retries: 10
-    expose: ['5432']
+    # Faqat 127.0.0.1 — internetdan ko'rinmaydi; DBeaver/psql SSH tunnel orqali (infra/README.md)
+    ports: ['127.0.0.1:5432:5432']
     logging: *logging
 
   redis:

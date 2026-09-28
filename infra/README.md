@@ -198,10 +198,38 @@ Birinchi sinov natijasi PROGRESS.md ga yoziladi (T-121 qabul mezoni).
 5. Baza: loyihaning o'z Postgres konteyneri (sodda, mustaqil) — `shared_buffers` ni kichik qo'ying
    (masalan 256MB) va jadvaldagi xotira byudjetini yangilang.
 
+## 8. Bazaga ulanish (DBeaver)
+
+Baza internetga ochilmaydi — faqat serverning o'zida (`127.0.0.1:5432`), ulanish SSH tunnel orqali.
+Ko'rish uchun alohida **faqat o'qiydigan** rol `crm_readonly`: barcha do'konlarni ko'radi
+(`BYPASSRLS`), lekin yoza olmaydi va `purge_tenant` kabi funksiyalarni chaqira olmaydi. Bir marta,
+serverda (`/opt/crm`):
+
+```bash
+( umask 077; openssl rand -hex 24 > secrets/db_readonly_password.txt )
+docker compose -f docker-compose.prod.yml exec -T db psql -U crm -d crm <<SQL
+CREATE ROLE crm_readonly LOGIN BYPASSRLS PASSWORD '$(cat secrets/db_readonly_password.txt)';
+ALTER ROLE crm_readonly SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE crm TO crm_readonly;
+GRANT USAGE ON SCHEMA public TO crm_readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO crm_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE crm IN SCHEMA public GRANT SELECT ON TABLES TO crm_readonly;
+SQL
+```
+
+DBeaver → New Database Connection → PostgreSQL:
+- **Main:** Host `127.0.0.1`, Port `5432`, Database `crm`, Username `crm_readonly`, Password —
+  `ssh deploy@IP cat /opt/crm/secrets/db_readonly_password.txt`
+- **SSH:** *Use SSH Tunnel*, Host `IP`, Port `22`, User `deploy`, Authentication — *Public Key*
+  (`~/.ssh/id_ed25519`)
+
+Yozish kerak bo'lsa (favqulodda) — `crm` (jadval egasi, parol `secrets/db_password.txt`): u RLS'ni
+chetlab o'tadi va BARCHA do'konlarga ta'sir qiladi.
+
 ## Xavfsizlik eslatmalari
 
-- Docker e'lon qilgan portlar ufw'ni chetlab o'tadi: `ports:` FAQAT umumiy Caddy'da (80/443) —
-  loyihalarning baza, Redis va ilovalari `expose`/ichki tarmoq bilan.
+- Docker e'lon qilgan portlar ufw'ni chetlab o'tadi: tashqi `ports:` FAQAT umumiy Caddy'da (80/443);
+  CRM bazasi — faqat `127.0.0.1:5432` (8-bo'lim), Redis va ilovalar — `expose`/ichki tarmoq bilan.
 - `.env`, `backup.env` — `chmod 600`; `secrets/` — papka `700`, ichidagi kalitlar `644` (1-bo'lim);
   repoda yo'q. `crm-backup.key` serverda turmaydi.
 - `crm-deploy` — serverda to'liq huquq: faqat backend repo'si secret'ida. Boshqa repo va
