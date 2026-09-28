@@ -48,6 +48,8 @@ jobs:
           aws --endpoint-url http://localhost:9000 s3 mb s3://crm-backup-test
 
       - run: npm ci
+      # Prisma klienti — `npm ci` yaratmaydi (sxema apps/api da); busiz typecheck va testlar yiqiladi
+      - run: npm run db:generate -w @crm/api
       - run: npm run build -w @crm/shared
       - run: npm run lint
       - run: npm run typecheck
