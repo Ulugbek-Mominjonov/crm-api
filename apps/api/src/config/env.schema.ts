@@ -74,6 +74,14 @@ export const envSchema = z
      * manzili va barcha foydalanuvchilar bitta rate limit hisobini bo'lishadi.
      */
     TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    /**
+     * Swagger UI (`/api/docs`). Berilmasa — production'dan boshqa muhitda ochiq.
+     * Production'da ochish — egasi qarori (Q115): API tuzilmasi repoda baribir ochiq.
+     */
+    SWAGGER_ENABLED: z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v === 'true')),
 
     // ── Obyekt saqlagich (09-storage) ──
     S3_ENDPOINT: z.url(),

@@ -3,7 +3,7 @@ import { Logger, type INestApplication } from '@nestjs/common'
 import { DocumentBuilder, SwaggerModule, type OpenAPIObject } from '@nestjs/swagger'
 
 export interface SwaggerOptions {
-  /** UI ochilsinmi (production'da — yo'q) */
+  /** UI ochilsinmi (`SWAGGER_ENABLED`; berilmasa — production'dan boshqa muhitda) */
   serveUi: boolean
   /** Spec faylga yozilsinmi (CI va mijoz generatsiyasi uchun) */
   emitPath?: string
@@ -70,7 +70,8 @@ export function setupSwagger(app: INestApplication, opts: SwaggerOptions): void 
     new Logger('Swagger').log(`OpenAPI spec yozildi: ${opts.emitPath}`)
   }
 
-  // Production'da UI yopiq: endpointlar ro'yxati hujum yuzasini kengaytiradi
+  // Sukut bo'yicha production'da UI yopiq (endpointlar ro'yxati hujum yuzasini kengaytiradi);
+  // `SWAGGER_ENABLED=true` bilan ochiladi
   if (opts.serveUi) {
     SwaggerModule.setup('api/docs', app, document, {
       swaggerOptions: { persistAuthorization: true },

@@ -16,7 +16,7 @@ R2 (Cloudflare): fayllar va shifrlangan zaxira — server tashqarisida
 |------|----------|--------|
 | `vm-setup.sh` | — | VPS: `deploy` foydalanuvchisi, docker, ufw, fail2ban, swap, SSH faqat kalit, `edge` tarmog'i (T-115) |
 | `edge/docker-compose.yml`, `edge/Caddyfile`, `edge/.env.example` | `/opt/edge/` | Umumiy kirish: bitta Caddy, TLS avtomatik |
-| `edge/sites/crm.caddy` | `/opt/edge/sites/` | CRM sayti: frontend + `/api`, `/socket.io`, `/health` → API; Swagger 404 (T-116, T-119) |
+| `edge/sites/crm.caddy` | `/opt/edge/sites/` | CRM sayti: frontend + `/api`, `/socket.io`, `/health` → API; Swagger — `/api/docs` (`SWAGGER_ENABLED`) (T-116, T-119) |
 | `docker-compose.prod.yml`, `postgres.conf` | `/opt/crm/` | postgres + redis + api; port chiqarmaydi (T-116, T-117) |
 | `.env.prod.example`, `backup.env.example` | `/opt/crm/` | `.env`, `backup.env` namunalari — qiymatsiz |
 | `backup.sh`, `verify-backup.sh` | `/opt/crm/` | shifrlangan kunlik zaxira va tiklash sinovi (T-121) |

@@ -850,7 +850,7 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
 - [x] **T-116 · Production compose va Caddy**
   - Bog'liq: T-114, T-115
   - Manba: [11 §11.5](../../backend-tz/core/11-deploy-free.md#115-docker-composeprodyml)
-  - Qabul: CRM stack'i (postgres + redis + api) va serverning umumiy Caddy'si (`/opt/edge`, barcha loyihalar uchun, C36) ishga tushdi; TLS avtomatik olindi; baza, Redis va API tashqariga port chiqarmaydi; Swagger production'da 404
+  - Qabul: CRM stack'i (postgres + redis + api) va serverning umumiy Caddy'si (`/opt/edge`, barcha loyihalar uchun, C36) ishga tushdi; TLS avtomatik olindi; baza, Redis va API tashqariga port chiqarmaydi; Swagger — egasi qarori bilan ochiq (`SWAGGER_ENABLED`, Q115)
   - Tekshirish: `curl -fsS https://crm.domen.uz/health/ready`
 
 - [x] **T-117 · Postgres sozlamalari**

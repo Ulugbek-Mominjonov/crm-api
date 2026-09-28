@@ -14,6 +14,7 @@ savol qolmasligi.
 qilingan (`npm run docs:api`, generator — `scripts/api-docs/`); `openapi.json` esa kodning o‘zidan
 yasaladi va CI undagi farqni (drift) tekshiradi.
 Jonli, sinab ko‘rish mumkin bo‘lgan versiya — Swagger UI: `http://localhost:3000/api/docs`
+(production — `https://crm.workspaces.uz/api/docs`)
 (production’da o‘chiq).
 
 > Tavsiflarda uchraydigan `(I8)`, `(D1)`, `(04 §4.3)` kabi belgilar — backend texnik topshirig‘idagi
