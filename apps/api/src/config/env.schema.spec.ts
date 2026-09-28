@@ -46,6 +46,13 @@ describe('parseEnv', () => {
     ).toBe('redis')
   })
 
+  it('SWAGGER_ENABLED: berilmasa — aniqlanmagan (muhitga qarab), aks holda aniq true/false', () => {
+    expect(parseEnv(base).SWAGGER_ENABLED).toBeUndefined()
+    expect(parseEnv({ ...base, SWAGGER_ENABLED: 'true' }).SWAGGER_ENABLED).toBe(true)
+    expect(parseEnv({ ...base, SWAGGER_ENABLED: 'false' }).SWAGGER_ENABLED).toBe(false)
+    expect(() => parseEnv({ ...base, SWAGGER_ENABLED: 'yes' })).toThrow(/SWAGGER_ENABLED/)
+  })
+
   it('OFD yoqilsa endpoint va token talab qiladi', () => {
     expect(() => parseEnv({ ...base, OFD_ENABLED: 'true' })).toThrow(/OFD_/)
   })

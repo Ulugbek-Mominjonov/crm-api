@@ -7,10 +7,10 @@
 {$CRM_DOMAIN} {
 	encode zstd gzip
 
-	# API, realtime (WebSocket) va sog'liq. Swagger — production'da yopiq (12 §12.6; API ham bermaydi)
+	# API (Swagger — /api/docs, ochiq/yopiqligini API o'zi hal qiladi: SWAGGER_ENABLED), realtime
+	# (WebSocket) va sog'liq
 	@backend {
 		path /api/* /socket.io/* /health/*
-		not path /api/docs*
 	}
 	handle @backend {
 		# Deploy'da API qayta yaratiladi (~3 s): so'rov xato olmaydi — yangi konteyner ko'tarilguncha
@@ -20,9 +20,6 @@
 			lb_try_duration 15s
 			lb_try_interval 250ms
 		}
-	}
-	handle /api/docs* {
-		respond 404
 	}
 
 	# Vite build'ning hash'li fayllari — o'zgarmaydi: uzoq kesh (faqat MAVJUD faylga — deploy paytidagi

@@ -58,8 +58,9 @@ async function bootstrap(): Promise<void> {
   const nodeEnv = config.get('NODE_ENV', { infer: true })
   const emitOnly = process.argv.includes('--emit-only')
 
+  const serveUi = config.get('SWAGGER_ENABLED', { infer: true }) ?? nodeEnv !== 'production'
   setupSwagger(app, {
-    serveUi: nodeEnv !== 'production',
+    serveUi,
     emitPath: process.env.OPENAPI_EMIT === 'true' ? 'openapi.json' : undefined,
     version: API_VERSION,
   })
@@ -78,7 +79,7 @@ async function bootstrap(): Promise<void> {
   server.headersTimeout = 66_000
   const log = new Logger('Bootstrap')
   log.log(`API tayyor: http://localhost:${port}`)
-  if (nodeEnv !== 'production') log.log(`Swagger: http://localhost:${port}/api/docs`)
+  if (serveUi) log.log(`Swagger: http://localhost:${port}/api/docs`)
 }
 
 bootstrap().catch((err: unknown) => {

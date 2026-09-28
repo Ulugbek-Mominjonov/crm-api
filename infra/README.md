@@ -16,7 +16,7 @@ R2 (Cloudflare): fayllar va shifrlangan zaxira — server tashqarisida
 |------|----------|--------|
 | `vm-setup.sh` | — | VPS: `deploy` foydalanuvchisi, docker, ufw, fail2ban, swap, SSH faqat kalit, `edge` tarmog'i (T-115) |
 | `edge/docker-compose.yml`, `edge/Caddyfile`, `edge/.env.example` | `/opt/edge/` | Umumiy kirish: bitta Caddy, TLS avtomatik |
-| `edge/sites/crm.caddy` | `/opt/edge/sites/` | CRM sayti: frontend + `/api`, `/socket.io`, `/health` → API; Swagger 404 (T-116, T-119) |
+| `edge/sites/crm.caddy` | `/opt/edge/sites/` | CRM sayti: frontend + `/api`, `/socket.io`, `/health` → API; Swagger — `/api/docs` (`SWAGGER_ENABLED`) (T-116, T-119) |
 | `docker-compose.prod.yml`, `postgres.conf` | `/opt/crm/` | postgres + redis + api; port chiqarmaydi (T-116, T-117) |
 | `.env.prod.example`, `backup.env.example` | `/opt/crm/` | `.env`, `backup.env` namunalari — qiymatsiz |
 | `backup.sh`, `verify-backup.sh` | `/opt/crm/` | shifrlangan kunlik zaxira va tiklash sinovi (T-121) |
@@ -164,8 +164,9 @@ u serverdagi hamma loyihani to'xtatadi.
 ## 5. Zaxira (T-121)
 
 ```cron
-# crontab -e (deploy foydalanuvchisi)
-0 3 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
+# crontab -e (deploy foydalanuvchisi). Vaqt — SERVER soati bo'yicha (Contabo: Europe/Berlin):
+# 00:00 = Toshkentda 03:00–04:00
+0 0 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
 ```
 
 Kunlik — `daily/` (30 kun saqlanadi), yakshanba — `weekly/` (90), oyning 1-kuni — `monthly/` (365).
@@ -198,10 +199,42 @@ Birinchi sinov natijasi PROGRESS.md ga yoziladi (T-121 qabul mezoni).
 5. Baza: loyihaning o'z Postgres konteyneri (sodda, mustaqil) — `shared_buffers` ni kichik qo'ying
    (masalan 256MB) va jadvaldagi xotira byudjetini yangilang.
 
+## 8. Bazaga ulanish (DBeaver)
+
+Baza internetga ochilmaydi — faqat serverning o'zida (`127.0.0.1:5432`), ulanish SSH tunnel orqali.
+Ko'rish uchun alohida **faqat o'qiydigan** rol `crm_readonly`: barcha do'konlarni ko'radi
+(`BYPASSRLS`), lekin yoza olmaydi va `purge_tenant` kabi funksiyalarni chaqira olmaydi. Bir marta,
+serverda (`/opt/crm`):
+
+```bash
+( umask 077; openssl rand -hex 24 > secrets/db_readonly_password.txt )
+docker compose -f docker-compose.prod.yml exec -T db psql -U crm -d crm <<SQL
+CREATE ROLE crm_readonly LOGIN BYPASSRLS PASSWORD '$(cat secrets/db_readonly_password.txt)';
+ALTER ROLE crm_readonly SET default_transaction_read_only = on;
+GRANT CONNECT ON DATABASE crm TO crm_readonly;
+GRANT USAGE ON SCHEMA public TO crm_readonly;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO crm_readonly;
+ALTER DEFAULT PRIVILEGES FOR ROLE crm IN SCHEMA public GRANT SELECT ON TABLES TO crm_readonly;
+SQL
+```
+
+DBeaver → New Database Connection → PostgreSQL:
+- **Main:** Host `127.0.0.1`, Port `5432`, Database `crm`, Username `crm_readonly`, Password —
+  `ssh deploy@IP cat /opt/crm/secrets/db_readonly_password.txt`
+- **SSH:** *Use SSH Tunnel*, Host `IP`, Port `22`, User `deploy`, Authentication — *Public Key*
+  (`~/.ssh/id_ed25519`)
+
+To'liq huquq (o'qish, qo'shish, o'zgartirish, o'chirish — barcha do'konlar) — `crm_admin`: DBeaver'da
+Username `crm_admin`, parol `secrets/db_admin_password.txt`. Superuser emas, `TRUNCATE` va jadval
+tuzilmasini o'zgartirish yo'q (tuzilma — faqat migratsiyalar); `audit_log` va `stock_movements` baribir
+o'zgarmaydi (trigger). O'zgarishlar audit jurnaliga tushmaydi va ilova qoidalarini (qoldiq, kassa, qarz)
+chetlab o'tadi — farqni tungi invariant tekshiruvi ko'rsatadi. `crm` (jadval egasi, superuser, parol
+`secrets/db_password.txt`) — faqat favqulodda.
+
 ## Xavfsizlik eslatmalari
 
-- Docker e'lon qilgan portlar ufw'ni chetlab o'tadi: `ports:` FAQAT umumiy Caddy'da (80/443) —
-  loyihalarning baza, Redis va ilovalari `expose`/ichki tarmoq bilan.
+- Docker e'lon qilgan portlar ufw'ni chetlab o'tadi: tashqi `ports:` FAQAT umumiy Caddy'da (80/443);
+  CRM bazasi — faqat `127.0.0.1:5432` (8-bo'lim), Redis va ilovalar — `expose`/ichki tarmoq bilan.
 - `.env`, `backup.env` — `chmod 600`; `secrets/` — papka `700`, ichidagi kalitlar `644` (1-bo'lim);
   repoda yo'q. `crm-backup.key` serverda turmaydi.
 - `crm-deploy` — serverda to'liq huquq: faqat backend repo'si secret'ida. Boshqa repo va
