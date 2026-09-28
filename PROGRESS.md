@@ -19,8 +19,9 @@ hisobi avtomatik yangilanadi.
 Frontend (`/home/ulugbek/personal/front/crm-qurilish`) — **alohida frontend dasturchi** bajaradi
 (E13, T-112, T-113, T-119); bu repodan frontendga o'zgartirish kiritilmaydi. Unga qo'llanma —
 [`docs/api/`](./docs/api/README.md): README qo'lda yozilgan, `endpoints.md`/`schemas.md` —
-`apps/api/openapi.json` dan generatsiya. Backend DTO o'zgarsa: `npm run build -w @crm/api &&
-npm run openapi -w @crm/api` va `docs/api` ni yangilash.
+`apps/api/openapi.json` dan generatsiya (`scripts/api-docs/`). Backend DTO o'zgarsa: `npm run build -w @crm/api &&
+npm run openapi -w @crm/api`, keyin `npm run docs:api` (generatsiya + havola/jadval tekshiruvi); endpoint
+xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README ham.
 
 ## Muhit (bu mashinada)
 
@@ -49,7 +50,7 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 | C10 | T-052: mijoz yuborgan `total` farq qilsa — **422** `TOTAL_MISMATCH` | TZ ziddiyatli: core 04 §4.5 "xato emas, faqat log", PLAN T-052 va 12-standards "422". Kassada ekrandagidan boshqa summa olinmasligi uchun 422 tanlandi; farq baribir loglanadi. `total` ixtiyoriy — yuborilmasa solishtirilmaydi |
 | C11 | I22 #3 ("audit yiqilsa ham sotuv o'tadi") bajarilmaydi | Audit so'rov tranzaksiyasida (Q25): Postgres'da tranzaksiya ichidagi xatoni yutib bo'lmaydi — COMMIT jimgina ROLLBACK bo'lardi. TZ matni ham: "moliyaviy amal ichidagi audit … yiqilsa hammasi qaytariladi" |
 | C12 | T-053: yetmagan qoldiq — **422** `STOCK_INSUFFICIENT` (rejada 409 `INSUFFICIENT_STOCK`) | Xato katalogi (C8 bilan bir xil); PLAN nusxasi tuzatildi |
-| C13 | T-056: `GET /sales/:id/receipt?format=pdf` → **501** `FEATURE_DISABLED` | PDF — `puppeteer-core` + Chromium (09 §9.13); bepul instansiyada `PDF_ENABLED=false`. JSON chek to'liq |
+| C13 | T-056: PDF chek (`?format=pdf`) — **`pdfkit`**, 09 §9.13 dagi `puppeteer-core` + Chromium emas (2026-09-27; avval 501 `FEATURE_DISABLED`) | TZ Chromium'ni "brauzerdagi HTML shablon bilan bir xil, ikkinchi shablon yo'q" deb tanlagan, lekin shablon (`Receipt.tsx`) boshqa repoda — serverda baribir alohida shablon kerak; Chromium bepul instansiyada ishlamaydi (TZ ham `PDF_ENABLED=false` degan). `pdfkit`: ~MB xotira, chek — millisekund, hamma serverda. `PDF_ENABLED` va `FEATURE_DISABLED` olib tashlandi (Q104) |
 | C14 | T-060: smena yopiq — **423** `SHIFT_REQUIRED` (rejada 409); T-066: limit — **422** `CREDIT_LIMIT_EXCEEDED` (rejada 409) | Xato katalogi va 04-api §5 (C8 kabi); PLAN nusxasi tuzatildi |
 | C15 | `GET /cash/shifts/current` → `{ shift, cashBalance }` (TZ: "smena yoki null") | Bo'sh (`null`) javob tanasi mijozda noqulay; POS kassa balansini ham ko'rsatadi |
 | C16 | T-063: tungi cron naqd shablon xarajatini smena YOPIQ bo'lsa kassaga ta'sirsiz yozadi | I9 (balans faqat ochiq smenada) va frontend qoidasi; qo'lda naqd xarajat esa smenasiz 423 |
@@ -181,19 +182,17 @@ npm run openapi -w @crm/api` va `docs/api` ni yangilash.
 Frontend integratsiyasi (E13, T-112, T-113) — frontend dasturchida (C32); backend unga tayyor va
 hujjatlangan: [`docs/api/`](./docs/api/README.md). Qolgani — haqiqiy server talab qiladigan E15 vazifalari.
 
-Oxirgi to'liq tekshiruv (2026-09-24): `npm run verify` (121 unit) va e2e — 79 fayl, **533 test** (3 tasi o'tkazildi: `s3-prod-smoke`, R2 kaliti kerak).
+Oxirgi to'liq tekshiruv (2026-09-28): `npm run verify` (lint, typecheck; unit — shared 106, api 130) va e2e — 80 fayl, **538 test o'tdi** (3 tasi o'tkazildi: `s3-prod-smoke`, R2 kaliti kerak).
 
 ### Keyingi sessiyada
 
 1. **E15** — haqiqiy serverda: T-114 (ARM64 yig'ish), T-115, T-116, T-118…T-122. Production `.env` da
    `TRUST_PROXY=1` (Q97) — `infra/.env.prod.example` da bor
 2. **Ochiq savollar (qaror kerak)** — batafsil `docs/api/README.md` §14.1:
-   - sotuvchi `suppliers:view` orqali kirim buyurtmalarini ko'radi — bitta qatorli buyurtmada `total` dan
-     tannarx tiklanadi (PO ro'yxatini sotuvchidan yopish yoki summalarni yashirin maydonlarga qo'shish);
-   - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq;
-     sotuvchi `wholesalePrice` ni ko'rmaydi, lekin ulgurji narxda sota oladi;
-   - joriy omborni API orqali tanlab bo'lmaydi; PDF chek amalga oshirilmagan (`PDF_ENABLED=true` da ham JSON);
-   - `SaleItemDto.returnedQty` yo'q; o'chirilgan foydalanuvchini ro'yxatdan topib tiklab bo'lmaydi
+   - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq.
+   - 2026-09-27 da hal qilindi: sotuvchidan xarid summalari (Q100), PDF chek (C13, Q104), `returnedQty`
+     (Q101), o'chirilgan hisoblarni tiklash (Q102), sotuvchiga ulgurji rejim (Q103), analitika `limit` (Q105),
+     taklifni aylantirishda ombor tanlash (Q106)
 3. **Frontend** (E13, T-112, T-113, T-119) — frontend dasturchi; vazifalar va qabul mezonlari —
    `docs/api/README.md` §13. Oldingi implementatsiyam: `/home/ulugbek/personal/front/crm-qurilish-e13-integration.patch`
 
@@ -261,7 +260,6 @@ natija berardi. Yechim (Q24–Q27):
 | `RETURN_EXCEEDS_SOLD` | 422 | Qaytarish sotilgandan ko'p (oldingi qaytarishlar bilan) |
 | `SALE_NOT_RETURNABLE` | 422 | Qaytarish hujjatidan qaytarib bo'lmaydi |
 | `SALE_NOT_CANCELLABLE` | 409 | Chekda qaytarish yoki qarz to'lovi bor (`meta.reason`) |
-| `FEATURE_DISABLED` | 501 | Serverda o'chirilgan imkoniyat (PDF chek) |
 | `PO_CANCELLED` | 409 | Bekor qilingan kirim buyurtmasini qabul/tahrir qilib bo'lmaydi |
 | `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati faqat oldinga (`meta.from/to`) |
 | `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit/used/requested`) |
@@ -375,6 +373,13 @@ natija berardi. Yechim (Q24–Q27):
 | Q97 | `TRUST_PROXY` — ishonchli proksi hop'lari soni (sukut 0, production 1); `true` ishlatilmaydi | Rate limit kaliti `req.ip`: proksi ortida hamma bitta IP edi (butun tizimga 10 login/daq). `true` X-Forwarded-For dagi mijoz yozgan manzilni olardi — soxtalashtirib chegarani aylanib o'tish mumkin bo'lardi |
 | Q98 | `ExportJobDto.url` + `expiresAt` — tayyor fon eksportining imzolangan havolasi | `…/download` (302) ga `fetch` API alohida domenda bo'lsa CORS'da yiqiladi (yo'naltirishda `Origin: null`); JSON havola `window.location` bilan ochiladi. 302 yo'li qoldi |
 | Q99 | Seed: sement `altFactor` `0.02` (asosiy `qop`, qo'shimcha `kg`) | `altFactor` = 1 qo'shimcha birlik necha asosiy birlik (`@crm/shared` units); `50` «1 kg = 50 qop» degani edi |
+| Q100 | Sotuvchiga xarid summalari berilmaydi: kirim buyurtmasi (`total`, `receivedValue`, `paid`, `outstanding`), xulosa summalari, ta'minotchi `debt`/`totalPurchased`, kartadagi buyurtma summalari va to'lov `amount`, dashboard `payables`, `PAYMENT_EXCEEDS_DEBT` dagi `meta.outstanding`. Qoida — `canSeePurchaseAmounts(role)` = `canSeeField(role, 'cost')`; javobni servis rolga qarab yasaydi (`currentRole()`) | Bitta qatorli buyurtmada summa ÷ miqdor = tannarx (03 §3.6). Kalitlar (`total`, `paid`, `outstanding`, `debt`) chek va mijoz qarzida ham bor — global `HIDDEN_BY_ROLE` ularni sotuvdan ham o'chirardi; yagona noyob kalit `payables` — global ro'yxatda. Sotuvchi buyurtmalarni ko'radi (qachon, nima keladi), faqat pulsiz |
+| Q101 | `SaleItemDto.returnedQty` — o'qishda hisoblanadi: sotuv chekida bitta `groupBy` (qaytarishlar `sales (tenant_id, related_sale_id)`, qatorlari `sale_items (tenant_id, sale_id)` indeksi); yangi chek va qaytarish hujjatida 0. `GET /sales?relatedSaleId=` | Qaytarish kam uchraydi — denormalizatsiya (ustun + trigger + invariant) ortiqcha; `soldLines` (qaytarish tekshiruvi) bilan bir xil qoida: bekor qilingan qaytarish hisobga olinmaydi |
+| Q102 | O'chirilgan hisoblar: `GET /users?deleted=true` (+ `UserDto.deletedAt`); tiklash — mavjud `POST /users/:id/restore`, xodimi o'chirilgan bo'lsa 422 `REFERENCE_NOT_FOUND` (`employeeId`); `POST /users` dagi 409 `EMPLOYEE_HAS_USER` — `meta: { userId, deleted }` (xodim so'rovining o'zida, qo'shimcha so'rovsiz) | `users.employee_id` noyob indeksi o'chirilganlarni ham hisoblaydi — o'chirilgan xodimga yangi hisob ochilmaydi, yagona yo'l — tiklash; D1: hisob doim tirik xodimga tegishli |
+| Q103 | `settings.sellerWholesaleEnabled` (sukut `false`, migratsiya `20260927000000_seller_wholesale`) — do'kon darajasida. Qoida bitta: ulgurji narxni ko'radigan rol unda sota oladi (`resolvePriceTier` → `canSeeField(role, 'wholesalePrice', visibilityPolicy(settings))`). Ataylab so'ralgan `wholesale` — 403, mijoz guruhidan avtomatik — chakana; `wholesaleEnabled=false` da taklif ham chakana (sotuv bilan bir xil). Ko'rinish: `FieldVisibilityInterceptor` sotuvchi uchun sozlamani `SettingsService.forTenant` dan oladi (60 s kesh; interceptor so'rov tranzaksiyasidan TASHQARIDA — kesh bo'sh bo'lsa o'z qisqa tranzaksiyasi), eksport ustunlari ham | Oldin sotuvchi ulgurji narxni ko'rmay, unda sota olardi (jamini hisoblab bo'lmasdi). Foydalanuvchi qarori: administrator sotuvchiga ulgurji rejimni yoqadi. Do'kon sozlamasi (har sotuvchiga alohida emas) — `wholesaleEnabled`/`maxDiscountPct` bilan bir joyda, token/`users` sxemasiga tegmaydi. Zaxira va migratsiya importi maydonni ko'chiradi |
+| Q104 | PDF chek: 80 mm lenta, balandlik mazmunga teng (avval uzun sahifada o'lchanadi, keyin aniq balandlikda chiziladi); shrift — DejaVu Sans Mono (`src/assets/fonts`, litsenziyasi bilan; `nest build` `dist/assets` ga ko'chiradi); fiskal QR — `qrcode-generator` (vektor, 4 modul bo'sh joy); `Content-Disposition: inline; filename="<raqam>.pdf"`; bekor qilingan chekda belgi. Yo'l `@ManualTransaction`: ma'lumot servisning qisqa tranzaksiyasida o'qiladi, chizish (~0,1 s) undan keyin | Termal printer ortiqcha qog'oz chiqarmasin; chizish paytida so'rov tranzaksiyasi (ulanish) band turmasin; o'zbek (o‘, g‘) va kirill (ў, қ, ғ, ҳ) harflari standart PDF shriftlarida yo'q; QR — bog'liqliksiz kichik paket (`qrcode` CLI uchun `yargs` tortadi) |
+| Q105 | `/analytics` — `limit` parametri olib tashlandi (yuborilsa 400); P&L `limit` sotuvchilar ro'yxatiga ham qo'llanadi | ABC — sotilgan BARCHA mahsulot (frontend jadvali o'zi sahifalaydi) — `limit` bu yerda ma'nosiz edi, qabul qilinib e'tiborsiz qolardi |
+| Q106 | `POST /quotes/:id/convert` — ixtiyoriy `warehouseId` (qoldiq AYNAN shu omborda, arxiv — 422). Do'konning "joriy ombori"ni (`tenant_state.active_warehouse_id`) o'zgartiradigan endpoint ATAYLAB qo'shilmadi — u faqat `warehouseId` berilmaganda zaxira qiymat (amalda sukut ombor) | TZ (05-client §2, 04 `/auth/me`) joriy omborni foydalanuvchi tanlovi deb biladi, bazada esa u do'kon uchun bitta: endpoint bir kassir tanlovini boshqa kassirlarga ham o'tkazardi. Tanlov qurilmada saqlanadi va har amalga yuboriladi — aylantirish yagona istisno edi. Foydalanuvchi qarori (2026-09-28) |
 
 ## Muhim eslatmalar
 

@@ -493,7 +493,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 
 > Barcha rollar o‘qiydi — kassa QQS va chegirma chegarasini shu yerdan oladi.
 
-**Qachon / qanday:** Ilova ochilganda bir marta (hamma rol) va `PATCH` dan keyin. POS: `taxEnabled`/`taxRate`, `maxDiscountPct`, `wholesaleEnabled` (ulgurji narx tugmasi), `loyaltyEnabled`/`loyaltyRate` (bonus). Chek: `storeName`, `receiptPhone`, `receiptAddress`, `receiptFooter`, `currency`.
+**Qachon / qanday:** Ilova ochilganda bir marta (hamma rol) va `PATCH` dan keyin. POS: `taxEnabled`/`taxRate`, `maxDiscountPct`, `wholesaleEnabled` (ulgurji narx tugmasi), `sellerWholesaleEnabled` (sotuvchiga ham ulgurji — o‘chiq bo‘lsa sotuvchida tugmani yashiring: narx unga kelmaydi, so‘rasa 403), `loyaltyEnabled`/`loyaltyRate` (bonus). Chek: `storeName`, `receiptPhone`, `receiptAddress`, `receiptFooter`, `currency`.
 
 | | |
 |---|---|
@@ -511,7 +511,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 
 > Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida.
 
-**Qachon / qanday:** Sozlamalar sahifasi va dastlabki sozlash sehrgari. Faqat o‘zgargan maydonlarni yuboring. Foizlar butun son 0–100. Server keshi darhol yangilanadi.
+**Qachon / qanday:** Sozlamalar sahifasi va dastlabki sozlash sehrgari. Faqat o‘zgargan maydonlarni yuboring. Foizlar butun son 0–100. Server keshi darhol yangilanadi. `sellerWholesaleEnabled` o‘zgarsa — sotuvchilar katalogni qayta so‘rasin (`wholesalePrice` paydo bo‘ladi/yo‘qoladi).
 
 | | |
 |---|---|
@@ -529,6 +529,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 | `taxEnabled` | `boolean` |  |  |
 | `taxRate` | `number` |  | min `0`, max `100` |
 | `wholesaleEnabled` | `boolean` |  |  |
+| `sellerWholesaleEnabled` | `boolean` |  | Sotuvchiga ulgurji narxda sotishni ochish |
 | `loyaltyEnabled` | `boolean` |  |  |
 | `loyaltyRate` | `number` |  | min `0`, max `100` |
 | `maxDiscountPct` | `number` |  | min `0`, max `100` |
@@ -1866,7 +1867,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 ## Ta’minotchilar
 
-Ta’minotchilar ro‘yxati va kartasi (buyurtmalar, qarzimiz, to‘lovlar). Kreditorlik faqat KELGAN tovar bo‘yicha.
+Ta’minotchilar ro‘yxati va kartasi (buyurtmalar, qarzimiz, to‘lovlar). Kreditorlik faqat KELGAN tovar bo‘yicha. Sotuvchi rolida pul maydonlari (`debt`, `totalPurchased`, buyurtma summalari, to‘lov `amount`) javobda YO‘Q — [README → Yashirin maydonlar](README.md#hidden).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
@@ -1884,7 +1885,7 @@ Ta’minotchilar ro‘yxati va kartasi (buyurtmalar, qarzimiz, to‘lovlar). Kre
 
 > `q` — nom, aloqa shaxsi, telefon va STIR bo‘yicha.
 
-**Qachon / qanday:** Ta’minotchilar sahifasi; `withDebt=true` — qarzimiz bor ta’minotchilar. Qatorda qarz va mahsulotlar soni.
+**Qachon / qanday:** Ta’minotchilar sahifasi; `withDebt=true` — qarzimiz bor ta’minotchilar. Qatorda qarz (sotuvchida yo‘q) va mahsulotlar soni.
 
 | | |
 |---|---|
@@ -1954,7 +1955,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 > Barcha ta’minotchilarga jami qarz va qarzimiz bor ta’minotchilar soni.
 
-**Qachon / qanday:** Sahifa kartalari: jami qarzimiz va qarzdor bo‘lgan ta’minotchilar soni.
+**Qachon / qanday:** Sahifa kartalari: jami qarzimiz (sotuvchida yo‘q) va qarzdor bo‘lgan ta’minotchilar soni.
 
 | | |
 |---|---|
@@ -1976,7 +1977,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 > Buyurtmalar tarixi, jami qarz (faqat kelgan tovar, I18), oxirgi to‘lovlar — bitta so‘rovda.
 
-**Qachon / qanday:** Ta’minotchi kartasi: buyurtmalar tarixi, qarzimiz (faqat kelgan tovar), oxirgi to‘lovlar — bitta so‘rovda.
+**Qachon / qanday:** Ta’minotchi kartasi: buyurtmalar tarixi, qarzimiz (faqat kelgan tovar), oxirgi to‘lovlar — bitta so‘rovda. Sotuvchida summalar yo‘q (buyurtma raqami/holati/sanasi va to‘lov usuli qoladi).
 
 | | |
 |---|---|
@@ -2337,15 +2338,15 @@ Faqat administrator (`users:*`). Email + parol + rol, mavjud xodimga bog‘lanad
 | `GET` | [`/users/:id`](#get-users-id) | Bitta foydalanuvchi | `users:view` |
 | `PATCH` | [`/users/:id`](#patch-users-id) 🔒 💳 | Foydalanuvchini tahrirlash | `users:edit` |
 | `DELETE` | [`/users/:id`](#delete-users-id) | Foydalanuvchini o‘chirish (yumshoq) | `users:delete` |
-| `POST` | [`/users/:id/restore`](#post-users-id-restore) 💳 | O‘chirilgan foydalanuvchini tiklash (undo) | `users:delete` |
+| `POST` | [`/users/:id/restore`](#post-users-id-restore) 💳 | O‘chirilgan foydalanuvchini tiklash | `users:delete` |
 
 <a id="get-users"></a>
 
 ### `GET /users` — Foydalanuvchilar ro‘yxati
 
-> Ism va lavozim xodim yozuvidan (D1).
+> Ism va lavozim xodim yozuvidan (D1). `deleted=true` — o‘chirilganlar (tiklash uchun).
 
-**Qachon / qanday:** Foydalanuvchilar sahifasi (admin). Ism va lavozim xodim yozuvidan. `lastLoginAt` bor.
+**Qachon / qanday:** Foydalanuvchilar sahifasi (admin). Ism va lavozim xodim yozuvidan. `lastLoginAt` bor. `deleted=true` — «O‘chirilganlar» (faqat o‘chirilgan hisoblar, `deletedAt` bilan) → «Tiklash» tugmasi.
 
 | | |
 |---|---|
@@ -2363,6 +2364,7 @@ Faqat administrator (`users:*`). Email + parol + rol, mavjud xodimga bog‘lanad
 | `sort` | query | `id` \| `-id` \| `name` \| `-name` \| `email` \| `-email` \| `createdAt` \| `-createdAt` \| `lastLoginAt` \| `-lastLoginAt` |  | sukut `"name"` |
 | `role` | query | `admin` \| `manager` \| `sotuvchi` \| `omborchi` |  |  |
 | `isActive` | query | `boolean` |  |  |
+| `deleted` | query | `boolean` |  | `true` — faqat o‘chirilgan hisoblar (tiklash uchun) |
 
 **Xatolar**
 
@@ -2378,7 +2380,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1).
 
-**Qachon / qanday:** Kirish hisobi: mavjud `employeeId` (hisobi yo‘q xodim), email, parol, rol. Xodimda allaqachon hisob bor — 409 `EMPLOYEE_HAS_USER` (hisobi O‘CHIRILGAN xodimda ham — unda eski hisobni `POST /users/:id/restore` bilan tiklang); email band — 409 `ALREADY_EXISTS`; tarif to‘lgan — 402.
+**Qachon / qanday:** Kirish hisobi: mavjud `employeeId` (hisobi yo‘q xodim), email, parol, rol. Xodimda allaqachon hisob bor — 409 `EMPLOYEE_HAS_USER` — `errors[0].meta: { userId, deleted }`; `deleted: true` bo‘lsa yangisi o‘rniga «Tiklash» taklif qiling (`POST /users/{userId}/restore`); email band — 409 `ALREADY_EXISTS`; tarif to‘lgan — 402.
 
 | | |
 |---|---|
@@ -2402,7 +2404,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `400` | `VALIDATION_FAILED` — masalan kuchsiz parol |
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
-| `409` | `EMPLOYEE_HAS_USER` \| `ALREADY_EXISTS` (email) |
+| `409` | `EMPLOYEE_HAS_USER` (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) \| `ALREADY_EXISTS` (email) |
 | `422` | `REFERENCE_NOT_FOUND` — xodim yo‘q |
 
 Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
@@ -2520,9 +2522,11 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 <a id="post-users-id-restore"></a>
 
-### `POST /users/:id/restore` — O‘chirilgan foydalanuvchini tiklash (undo)
+### `POST /users/:id/restore` — O‘chirilgan foydalanuvchini tiklash
 
-**Qachon / qanday:** O‘chirilgan hisobni qaytarish; tarif chegarasiga kiradi (402).
+> O‘chirilganlar — `GET /users?deleted=true`. Parol va rol o‘zgarmaydi; eski sessiyalar qaytmaydi.
+
+**Qachon / qanday:** O‘chirilgan hisobni qaytarish (ro‘yxat — `GET /users?deleted=true`, yoki toast’dagi undo). Parol, rol va email o‘zgarmaydi; faol hisob tarif chegarasiga kiradi (402). Xodimi o‘chirilgan — 422 `REFERENCE_NOT_FOUND` (avval `POST /employees/:id/restore`).
 
 | | |
 |---|---|
@@ -2543,6 +2547,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 |---|---|
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
 | `404` | `NOT_FOUND` |
+| `422` | `REFERENCE_NOT_FOUND` — xodim o‘chirilgan (avval uni tiklang) |
 
 Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
@@ -2571,7 +2576,7 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 
 > Bitta tranzaksiya: qoldiq (qulf bilan), chek, ombor harakatlari, kassa, bonus, yetkazish, audit. Ochiq smena shart (I8). Idempotent.
 
-**Qachon / qanday:** POS «To‘lash» (F9). Savat brauzerda turadi, chek BITTA so‘rov bilan yoziladi. `total` — ekranda ko‘rsatilgan jami: yuboring, farq bo‘lsa 422 `TOTAL_MISMATCH` (`meta.client/server`) — chek yozilmaydi, pul noto‘g‘ri olinmaydi. `paid.cash` — mijoz BERGAN naqd (qaytim server hisoblaydi → `change`). To‘lanmagan qismi — nasiya (`customerId` shart). Smena yopiq — 423 `SHIFT_REQUIRED` → smena ochish oynasi. Muvaffaqiyatda chek: `GET /sales/:id/receipt`. Offline navbatga tushsa — XUDDI SHU `Idempotency-Key` bilan qayta yuboriladi.
+**Qachon / qanday:** POS «To‘lash» (F9). Savat brauzerda turadi, chek BITTA so‘rov bilan yoziladi. `total` — ekranda ko‘rsatilgan jami: yuboring, farq bo‘lsa 422 `TOTAL_MISMATCH` (`meta.client/server`) — chek yozilmaydi, pul noto‘g‘ri olinmaydi. `paid.cash` — mijoz BERGAN naqd (qaytim server hisoblaydi → `change`). To‘lanmagan qismi — nasiya (`customerId` shart). Smena yopiq — 423 `SHIFT_REQUIRED` → smena ochish oynasi. Muvaffaqiyatda chek: `GET /sales/:id/receipt`. Offline navbatga tushsa — XUDDI SHU `Idempotency-Key` bilan qayta yuboriladi. `priceTier: "wholesale"` — sotuvchiga faqat `sellerWholesaleEnabled` bilan (aks holda 403 `PERMISSION_DENIED`).
 
 | | |
 |---|---|
@@ -2589,7 +2594,7 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 | `customerId` | `string` (uuid) |  | Nasiyada MAJBURIY (I15) |
 | `sellerId` | `string` (uuid) |  | Berilmasa — joriy foydalanuvchining xodimi |
 | `warehouseId` | `string` (uuid) |  | Berilmasa — joriy ombor |
-| `priceTier` | `retail` \| `wholesale` |  | sukut `"retail"` |
+| `priceTier` | `retail` \| `wholesale` |  | `wholesale` — `wholesaleEnabled` bo‘lsa (aks holda chakana). Sotuvchiga — `sellerWholesaleEnabled` bilan, aks holda 403 — sukut `"retail"` |
 | `items` | [`SaleItemInputDto`](schemas.md#saleiteminputdto)[] | ✔ | ko‘pi bilan `200` |
 | `discount` | `number` |  | Umumiy chegirma, so‘m (`maxDiscountPct` gacha) — misol `20000` |
 | `bonusUsed` | `number` |  | Ishlatiladigan bonus ball (mavjudigacha) — misol `5000` |
@@ -2603,10 +2608,11 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 
 | Status | Kod — qachon |
 |---|---|
+| `403` | `PERMISSION_DENIED` — sotuvchi `priceTier: "wholesale"` yubordi, `sellerWholesaleEnabled` o‘chiq |
 | `422` | `STOCK_INSUFFICIENT` \| `DISCOUNT_LIMIT` \| `TOTAL_MISMATCH` \| `PAYMENT_EXCEEDS_TOTAL` \| `CREDIT_REQUIRES_CUSTOMER` \| `CREDIT_LIMIT_EXCEEDED` \| `CREDIT_OVERDUE` \| `PRODUCT_ARCHIVED` \| `WAREHOUSE_ARCHIVED` \| `REFERENCE_NOT_FOUND` |
 | `423` | `SHIFT_REQUIRED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -2618,7 +2624,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 > Kursorli sahifalash (`nextCursor`). Har chekda qolgan qarz — bazada hisoblangan (I13).
 
-**Qachon / qanday:** Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — chek raqami yoki mijoz nomi. Qatorlarsiz — tafsilot `GET /sales/:id` da.
+**Qachon / qanday:** Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — chek raqami yoki mijoz nomi; `relatedSaleId` — shu chek bo‘yicha qaytarish hujjatlari (chek kartasidagi «Qaytarishlar»). Qatorlarsiz — tafsilot `GET /sales/:id` da.
 
 | | |
 |---|---|
@@ -2636,6 +2642,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 | `type` | query | `sale` \| `return` |  |  |
 | `sellerId` | query | `string` (uuid) |  |  |
 | `customerId` | query | `string` (uuid) |  |  |
+| `relatedSaleId` | query | `string` (uuid) |  | Shu chek bo‘yicha qaytarish hujjatlari (`QAYT-…`) |
 | `payment` | query | `cash` \| `card` \| `transfer` \| `debt` |  | `debt` — qolgan qarzi bor cheklar |
 | `q` | query | `string` |  | Chek raqami yoki mijoz nomi |
 | `cursor` | query | `string` |  | Oldingi javobdagi `nextCursor` |
@@ -2653,7 +2660,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 ### `GET /sales/:id` — Chek (qatorlari bilan)
 
-**Qachon / qanday:** Chek tafsiloti: qatorlar (`items[].id` — qaytarishda `saleItemId`), to‘lov, qarz, yetkazish holati.
+**Qachon / qanday:** Chek tafsiloti: qatorlar (`items[].id` — qaytarishda `saleItemId`; `items[].returnedQty` — shu qatordan qaytarilgani, yana qaytarish mumkin: `qty − returnedQty`), to‘lov, qarz, yetkazish holati.
 
 | | |
 |---|---|
@@ -2683,15 +2690,15 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 ### `GET /sales/:id/receipt` — Chop etish uchun chek
 
-> Do‘kon rekvizitlari bilan. `pdf` — faqat `PDF_ENABLED=true` serverda (09 §9.13).
+> Do‘kon rekvizitlari bilan. `format=pdf` — 80 mm termal chek (brauzerdagi chek ko‘rinishida, fiskal QR bilan), `Content-Disposition: inline; filename="<raqam>.pdf"` (09 §9.13).
 
-**Qachon / qanday:** Chop etish uchun: do‘kon rekvizitlari + chek + mijoz/sotuvchi nomi + fiskal ma’lumot. `fiscal: null` — OFD o‘chiq; `fiscal.status: pending|sent` — hali fiskal raqam yo‘q (`sale.fiscalized` hodisasidan keyin QR bilan qayta chop etish mumkin). PDF hozircha amalga oshirilmagan: `format=pdf` — `PDF_ENABLED=false` da 501, `true` da ham JSON qaytadi → brauzerda JSON’dan chop eting.
+**Qachon / qanday:** Chop etish uchun: do‘kon rekvizitlari + chek + mijoz/sotuvchi nomi + fiskal ma’lumot. `fiscal: null` — OFD o‘chiq; `fiscal.status: pending|sent` — hali fiskal raqam yo‘q (`sale.fiscalized` hodisasidan keyin QR bilan qayta chop etish mumkin). `format=pdf` — tayyor 80 mm termal chek (PDF, fiskal QR bilan): token bilan `fetch` → `blob` → `URL.createObjectURL` → yangi oynada ochish/chop etish yoki yuklab olish (`Content-Disposition: inline; filename="CHEK-….pdf"`). `<a href>` token yubora olmaydi — to‘g‘ridan-to‘g‘ri havola ishlamaydi.
 
 | | |
 |---|---|
 | Huquq | `sales:view` — admin, manager, sotuvchi, omborchi |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
-| Javob | `200` → [`ReceiptDto`](schemas.md#receiptdto) |
+| Javob | `200` → [`ReceiptDto`](schemas.md#receiptdto) yoki `application/pdf` — `format=json` (sukut) — chek ma’lumoti; `format=pdf` — PDF fayl |
 
 **Parametrlar**
 
@@ -2704,9 +2711,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | Status | Kod — qachon |
 |---|---|
-| `501` | `FEATURE_DISABLED` — PDF o‘chirilgan |
+| `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`.
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -2718,7 +2725,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`.
 
 > QQS asl chek foizi bo‘yicha (I6); ombor qoldig‘i bilan cheklanmaydi (I7). Nasiya chekda avval qarz yopiladi, qolgani naqd qaytariladi. Idempotent.
 
-**Qachon / qanday:** Qaytarish oynasi: asl chek qatorlari (`saleItemId`) va miqdor (asl qator birligida) + sabab. Qaytariladigan summani brauzerda HISOBLAMANG: javobdagi hujjat — `total` (jami), `paid.cash` (kassadan qaytariladigan naqd), `debtPaid` (nasiya chekda qarzdan yopilgan qism). Ochiq smena shart.
+**Qachon / qanday:** Qaytarish oynasi: asl chek qatorlari (`saleItemId`) va miqdor (asl qator birligida, ko‘pi bilan `qty − returnedQty` — `GET /sales/:id`) + sabab. Qaytariladigan summani brauzerda HISOBLAMANG: javobdagi hujjat — `total` (jami), `paid.cash` (kassadan qaytariladigan naqd), `debtPaid` (nasiya chekda qarzdan yopilgan qism). Ochiq smena shart.
 
 | | |
 |---|---|
@@ -3211,7 +3218,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|:-:|---|
 | `customerId` | `string` (uuid) |  |  |
 | `sellerId` | `string` (uuid) |  | Berilmasa — joriy foydalanuvchining xodimi |
-| `priceTier` | `retail` \| `wholesale` |  | Berilmasa — mijoz guruhidan |
+| `priceTier` | `retail` \| `wholesale` |  | Berilmasa — mijoz guruhidan. `wholesale` — `wholesaleEnabled` bo‘lsa; sotuvchiga — `sellerWholesaleEnabled` bilan (aks holda so‘ralgani 403, mijoz guruhidan kelgani — chakana) |
 | `items` | [`SaleItemInputDto`](schemas.md#saleiteminputdto)[] | ✔ | ko‘pi bilan `200` |
 | `discount` | `number` |  | misol `50000` |
 | `validUntil` | `string` |  | Amal muddati — misol `2026-10-01` |
@@ -3221,9 +3228,10 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | Status | Kod — qachon |
 |---|---|
+| `403` | `PERMISSION_DENIED` — sotuvchiga ulgurji narx yopiq |
 | `422` | `DISCOUNT_LIMIT` \| `PRODUCT_ARCHIVED` \| `REFERENCE_NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3308,7 +3316,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|:-:|---|
 | `customerId` | `string` (uuid) \| `null` |  |  |
 | `sellerId` | `string` (uuid) |  |  |
-| `priceTier` | `retail` \| `wholesale` |  |  |
+| `priceTier` | `retail` \| `wholesale` |  | Yaratishdagi qoida bilan |
 | `items` | [`SaleItemInputDto`](schemas.md#saleiteminputdto)[] |  | Berilsa — qatorlar TO‘LIQ almashtiriladi |
 | `discount` | `number` |  |  |
 | `validUntil` | `string` |  | misol `2026-10-01` |
@@ -3319,9 +3327,10 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | Status | Kod — qachon |
 |---|---|
+| `403` | `PERMISSION_DENIED` — sotuvchiga ulgurji narx yopiq |
 | `409` | `QUOTE_ALREADY_CONVERTED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3393,9 +3402,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 ### `POST /quotes/:id/convert` — Taklifni sotuvga aylantirish
 
-> Qoldiq tekshiriladi, bir marta (I20); to‘lov usuli chaqiruvchidan; nasiyada mijoz shart. Idempotent.
+> Qoldiq tanlangan omborda (`warehouseId`, berilmasa — joriy) tekshiriladi, bir marta (I20); to‘lov usuli chaqiruvchidan; nasiyada mijoz shart. Idempotent.
 
-**Qachon / qanday:** Qabul qilingan taklifni sotuvga aylantirish: `method` — `cash|card|transfer` (to‘liq to‘lov) yoki `debt` (nasiya, mijoz shart). Ochiq smena shart; qoldiq yetmasa — 422 `QUOTE_STOCK_SHORT` (`errors[]` — qaysi tovar). Ombor — joriy (tanlab bo‘lmaydi). Server holatni tekshirmaydi — aylantirilmagan HAR QANDAY taklif (`draft`, `rejected`, muddati o‘tgan ham) aylantiriladi; tugmani faqat `accepted` da ko‘rsatish — frontend qoidasi. Javob — yaratilgan chek.
+**Qachon / qanday:** Qabul qilingan taklifni sotuvga aylantirish: `method` — `cash|card|transfer` (to‘liq to‘lov) yoki `debt` (nasiya, mijoz shart). Ochiq smena shart; qoldiq yetmasa — 422 `QUOTE_STOCK_SHORT` (`errors[]` — qaysi tovar). Ombor — `warehouseId` (kassada tanlangani; berilmasa — joriy, amalda sukut ombor), arxiv — 422 `WAREHOUSE_ARCHIVED`. Server holatni tekshirmaydi — aylantirilmagan HAR QANDAY taklif (`draft`, `rejected`, muddati o‘tgan ham) aylantiriladi; tugmani faqat `accepted` da ko‘rsatish — frontend qoidasi. Javob — yaratilgan chek.
 
 | | |
 |---|---|
@@ -3416,13 +3425,14 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `method` | `cash` \| `card` \| `transfer` \| `debt` | ✔ | To‘lov usuli chaqiruvchidan (I20) — `debt`: nasiya |
+| `warehouseId` | `string` (uuid) |  | Chiqim ombori (kassada tanlangani); berilmasa — joriy ombor |
 
 **Xatolar**
 
 | Status | Kod — qachon |
 |---|---|
 | `409` | `QUOTE_ALREADY_CONVERTED` |
-| `422` | `QUOTE_STOCK_SHORT` \| `CREDIT_REQUIRES_CUSTOMER` \| `CREDIT_*` |
+| `422` | `QUOTE_STOCK_SHORT` \| `CREDIT_REQUIRES_CUSTOMER` \| `CREDIT_*` \| `WAREHOUSE_ARCHIVED` \| `REFERENCE_NOT_FOUND` (ombor) |
 
 Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
@@ -3434,7 +3444,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `
 
 ## Kirim buyurtmalari (ta’minotchidan xarid)
 
-Buyurtma → qabul (to‘liq/qisman, kirim harakatlari va o‘rtacha tannarx) → ta’minotchiga to‘lov. Holatlar: `ordered` → `partial` → `received`; `cancelled` faqat hech narsa kelmagan buyurtmada.
+Buyurtma → qabul (to‘liq/qisman, kirim harakatlari va o‘rtacha tannarx) → ta’minotchiga to‘lov. Holatlar: `ordered` → `partial` → `received`; `cancelled` faqat hech narsa kelmagan buyurtmada. Sotuvchi rolida summalar (`total`, `receivedValue`, `paid`, `outstanding`, qator `cost`) javobda YO‘Q — bitta qatorli buyurtmada summa ÷ miqdor = tannarx.
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
@@ -3455,7 +3465,7 @@ Buyurtma → qabul (to‘liq/qisman, kirim harakatlari va o‘rtacha tannarx) �
 
 > Har buyurtmada qarz — faqat kelgan tovar uchun (I18)
 
-**Qachon / qanday:** Xaridlar sahifasi. Har buyurtmada `outstanding` — faqat KELGAN tovar uchun qarzimiz.
+**Qachon / qanday:** Xaridlar sahifasi. Har buyurtmada `outstanding` — faqat KELGAN tovar uchun qarzimiz. Sotuvchida summalar yo‘q (ustunlarni yashiring).
 
 | | |
 |---|---|
@@ -3527,7 +3537,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 > Kreditorlik, kutilayotgan buyurtmalar, oy va qabul qilingan summa — bitta so‘rov.
 
-**Qachon / qanday:** Xaridlar kartalari: kreditorlik, kutilayotgan buyurtmalar, oy xaridi, qabul qilingan summa.
+**Qachon / qanday:** Xaridlar kartalari: kreditorlik, kutilayotgan buyurtmalar, oy xaridi, qabul qilingan summa. Sotuvchida faqat `openOrders`.
 
 | | |
 |---|---|
@@ -3755,7 +3765,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `
 
 > Kelgan tovar qarzidan oshmaydi (I18); naqd — kassadan (smena hisobotida). Idempotent.
 
-**Qachon / qanday:** Ta’minotchiga to‘lov (`finance:create` — omborchida yo‘q). Kelgan tovar qarzidan oshmaydi (422 `PAYMENT_EXCEEDS_DEBT`) — oldindan to‘lov yo‘q. `cash` — kassadan (ochiq smena shart).
+**Qachon / qanday:** Ta’minotchiga to‘lov (`finance:create` — omborchida yo‘q). Kelgan tovar qarzidan oshmaydi (422 `PAYMENT_EXCEEDS_DEBT`) — oldindan to‘lov yo‘q. `cash` — kassadan (ochiq smena shart). Sotuvchi rolida xatoda qarz miqdori aytilmaydi (`meta: { requested }`).
 
 | | |
 |---|---|
@@ -4648,7 +4658,7 @@ Bosh sahifa (dashboard), foyda/zarar (P&L), analitika. Barcha raqamlar SERVERDA 
 
 > Bugun/kecha, balanslar, trend, toplar — bitta so‘rovda
 
-**Qachon / qanday:** Bosh sahifa (moliya huquqi): bugun/kecha, debitor/kreditor, kam qolganlar, trend (`days` = 7 | 30 | 90), top mahsulot/qarzdor, oxirgi cheklar.
+**Qachon / qanday:** Bosh sahifa (moliya huquqi): bugun/kecha, debitor/kreditor, kam qolganlar, trend (`days` = 7 | 30 | 90), top mahsulot/qarzdor, oxirgi cheklar. Sotuvchida `profit` va `payables` (ta’minotchilarga qarz) yo‘q.
 
 | | |
 |---|---|
@@ -4676,7 +4686,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Oldingi davr bilan solishtirish, trend, to‘lov turlari, top mahsulot/sotuvchi, sotilmayotgan tovar
 
-**Qachon / qanday:** Hisobotlar sahifasi: `from`/`to` (YYYY-MM-DD, ≤ 3 yil) — oldingi teng davr bilan solishtirish, trend (kun/oy), to‘lov turlari, xarajat kategoriyalari, top mahsulot va sotilmayotgan tovar (`limit` — shu ikkisining soni), sotuvchilar. Jami (`current/previous`) qaytarishlar ayirilgan; `trend` va top ro‘yxatlar — yalpi sotuv (qaytarishsiz), `trend` faqat sotuv bo‘lgan kunlar.
+**Qachon / qanday:** Hisobotlar sahifasi: `from`/`to` (YYYY-MM-DD, ≤ 3 yil) — oldingi teng davr bilan solishtirish, trend (kun/oy), to‘lov turlari, xarajat kategoriyalari, top mahsulot, sotuvchilar va sotilmayotgan tovar (`limit` — shu uchala ro‘yxat uzunligi, sukut 20). Jami (`current/previous`) qaytarishlar ayirilgan; `trend` va top ro‘yxatlar — yalpi sotuv (qaytarishsiz), `trend` faqat sotuv bo‘lgan kunlar.
 
 | | |
 |---|---|
@@ -4690,7 +4700,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|---|:-:|---|
 | `from` | query | `string` | ✔ | misol `2026-09-01` |
 | `to` | query | `string` | ✔ | misol `2026-09-30` |
-| `limit` | query | `number` |  | min `1`, max `100`, sukut `20` |
+| `limit` | query | `number` |  | `topProducts`, `sellers` va `deadStock.items` ro‘yxatlari chegarasi — min `1`, max `100`, sukut `20` |
 
 **Xatolar**
 
@@ -4704,9 +4714,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 ### `GET /analytics` — Analitika
 
-> ABC (80/95 %), kategoriya va to‘lov taqsimoti, kunlik trend
+> ABC (80/95 %) — sotilgan BARCHA mahsulot (sahifalash mijozda), kategoriya va to‘lov taqsimoti, kunlik trend
 
-**Qachon / qanday:** Analitika sahifasi: ABC tahlil (80/95 %), kategoriya va to‘lov taqsimoti, kunlik trend — yalpi sotuv (qaytarishsiz). `limit` bu yerda ishlatilmaydi.
+**Qachon / qanday:** Analitika sahifasi: ABC tahlil (80/95 %) — sotilgan BARCHA mahsulot (jadvalni brauzerda sahifalang), kategoriya va to‘lov taqsimoti, kunlik trend — yalpi sotuv (qaytarishsiz). Faqat `from`/`to` — `limit` yuborilsa 400.
 
 | | |
 |---|---|
@@ -4720,7 +4730,6 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|---|:-:|---|
 | `from` | query | `string` | ✔ | misol `2026-09-01` |
 | `to` | query | `string` | ✔ | misol `2026-09-30` |
-| `limit` | query | `number` |  | min `1`, max `100`, sukut `20` |
 
 **Xatolar**
 

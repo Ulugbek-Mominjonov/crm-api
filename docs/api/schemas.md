@@ -83,7 +83,7 @@ Ishlatiladi: [`GET /analytics`](endpoints.md#get-analytics) (javob 200)
 
 ### ApiErrorDto
 
-Ishlatiladi: [`POST /auth/login`](endpoints.md#post-auth-login) (javob 401), [`POST /auth/login`](endpoints.md#post-auth-login) (javob 409), [`POST /auth/refresh`](endpoints.md#post-auth-refresh) (javob 401), [`POST /auth/change-password`](endpoints.md#post-auth-change-password) (javob 401), [`POST /tenants/register`](endpoints.md#post-tenants-register) (javob 400), [`PATCH /settings`](endpoints.md#patch-settings) (javob 400), [`PATCH /settings`](endpoints.md#patch-settings) (javob 403), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 402), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 409), [`GET /warehouses/:id`](endpoints.md#get-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 409), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 404), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 422), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 402), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 404), [`POST /categories`](endpoints.md#post-categories) (javob 409), [`GET /categories/:id`](endpoints.md#get-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 409), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 404), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 409), [`POST /categories/:id/restore`](endpoints.md#post-categories-id-restore) (javob 404), [`POST /products`](endpoints.md#post-products) (javob 409), [`POST /products`](endpoints.md#post-products) (javob 422), [`GET /products/:id/stats`](endpoints.md#get-products-id-stats) (javob 404), [`GET /products/:id`](endpoints.md#get-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 409), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 422), [`DELETE /products/:id`](endpoints.md#delete-products-id) (javob 404), [`POST /products/import`](endpoints.md#post-products-import) (javob 400), [`POST /products/bulk-price`](endpoints.md#post-products-bulk-price) (javob 400), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 404), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 409), [`GET /clients/:id/stats`](endpoints.md#get-clients-id-stats) (javob 404), [`GET /clients/:id`](endpoints.md#get-clients-id) (javob 404), [`PATCH /clients/:id`](endpoints.md#patch-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 409), [`POST /clients/:id/restore`](endpoints.md#post-clients-id-restore) (javob 404), [`POST /suppliers`](endpoints.md#post-suppliers) (javob 400), [`GET /suppliers/:id`](endpoints.md#get-suppliers-id) (javob 404), [`PATCH /suppliers/:id`](endpoints.md#patch-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 409), [`POST /suppliers/:id/restore`](endpoints.md#post-suppliers-id-restore) (javob 404), [`GET /employees/:id`](endpoints.md#get-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 422), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 404), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 409), [`POST /employees/:id/restore`](endpoints.md#post-employees-id-restore) (javob 404), [`POST /users`](endpoints.md#post-users) (javob 400), [`POST /users`](endpoints.md#post-users) (javob 402), [`POST /users`](endpoints.md#post-users) (javob 409), [`POST /users`](endpoints.md#post-users) (javob 422), [`GET /users/:id`](endpoints.md#get-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 402), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 409), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 422), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 404), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 422), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 402), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 404), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 409), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 422), [`POST /stock/writeoff`](endpoints.md#post-stock-writeoff) (javob 422), [`POST /stock/adjust`](endpoints.md#post-stock-adjust) (javob 400), [`POST /stock/transfer`](endpoints.md#post-stock-transfer) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 423), [`GET /sales/:id`](endpoints.md#get-sales-id) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 501), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 409), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 422), [`POST /sales/:id/cancel`](endpoints.md#post-sales-id-cancel) (javob 409), [`POST /cash/shifts/open`](endpoints.md#post-cash-shifts-open) (javob 409), [`POST /cash/shifts/close`](endpoints.md#post-cash-shifts-close) (javob 409), [`GET /cash/shifts/:id/report`](endpoints.md#get-cash-shifts-id-report) (javob 404), [`POST /cash/movements`](endpoints.md#post-cash-movements) (javob 423), [`POST /quotes`](endpoints.md#post-quotes) (javob 422), [`GET /quotes/:id`](endpoints.md#get-quotes-id) (javob 404), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 409), [`DELETE /quotes/:id`](endpoints.md#delete-quotes-id) (javob 409), [`POST /quotes/:id/restore`](endpoints.md#post-quotes-id-restore) (javob 404), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 409), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 422), [`POST /expenses`](endpoints.md#post-expenses) (javob 423), [`GET /expenses/:id`](endpoints.md#get-expenses-id) (javob 404), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 422), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 423), [`POST /purchase-orders`](endpoints.md#post-purchase-orders) (javob 422), [`GET /purchase-orders/:id`](endpoints.md#get-purchase-orders-id) (javob 404), [`PATCH /purchase-orders/:id`](endpoints.md#patch-purchase-orders-id) (javob 409), [`POST /purchase-orders/:id/cancel`](endpoints.md#post-purchase-orders-id-cancel) (javob 409), [`POST /purchase-orders/:id/restore`](endpoints.md#post-purchase-orders-id-restore) (javob 404), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 409), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 423), [`GET /deliveries/:id`](endpoints.md#get-deliveries-id) (javob 404), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 403), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 422), [`POST /deliveries/:id/restore`](endpoints.md#post-deliveries-id-restore) (javob 404), [`POST /messages`](endpoints.md#post-messages) (javob 429), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 413), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 422), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 404), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 409), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 413), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 422), [`GET /files/:id`](endpoints.md#get-files-id) (javob 404), [`DELETE /files/:id`](endpoints.md#delete-files-id) (javob 404), [`GET /files/:id/raw`](endpoints.md#get-files-id-raw) (javob 404), [`GET /exports/jobs/:id`](endpoints.md#get-exports-jobs-id) (javob 404), [`GET /exports/jobs/:id/download`](endpoints.md#get-exports-jobs-id-download) (javob 404), [`POST /migration/validate`](endpoints.md#post-migration-validate) (javob 403), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 402), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 403), [`POST /tenants/current/delete`](endpoints.md#post-tenants-current-delete) (javob 401), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 403), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 413)
+Ishlatiladi: [`POST /auth/login`](endpoints.md#post-auth-login) (javob 401), [`POST /auth/login`](endpoints.md#post-auth-login) (javob 409), [`POST /auth/refresh`](endpoints.md#post-auth-refresh) (javob 401), [`POST /auth/change-password`](endpoints.md#post-auth-change-password) (javob 401), [`POST /tenants/register`](endpoints.md#post-tenants-register) (javob 400), [`PATCH /settings`](endpoints.md#patch-settings) (javob 400), [`PATCH /settings`](endpoints.md#patch-settings) (javob 403), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 402), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 409), [`GET /warehouses/:id`](endpoints.md#get-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 409), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 404), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 422), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 402), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 404), [`POST /categories`](endpoints.md#post-categories) (javob 409), [`GET /categories/:id`](endpoints.md#get-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 409), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 404), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 409), [`POST /categories/:id/restore`](endpoints.md#post-categories-id-restore) (javob 404), [`POST /products`](endpoints.md#post-products) (javob 409), [`POST /products`](endpoints.md#post-products) (javob 422), [`GET /products/:id/stats`](endpoints.md#get-products-id-stats) (javob 404), [`GET /products/:id`](endpoints.md#get-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 409), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 422), [`DELETE /products/:id`](endpoints.md#delete-products-id) (javob 404), [`POST /products/import`](endpoints.md#post-products-import) (javob 400), [`POST /products/bulk-price`](endpoints.md#post-products-bulk-price) (javob 400), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 404), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 409), [`GET /clients/:id/stats`](endpoints.md#get-clients-id-stats) (javob 404), [`GET /clients/:id`](endpoints.md#get-clients-id) (javob 404), [`PATCH /clients/:id`](endpoints.md#patch-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 409), [`POST /clients/:id/restore`](endpoints.md#post-clients-id-restore) (javob 404), [`POST /suppliers`](endpoints.md#post-suppliers) (javob 400), [`GET /suppliers/:id`](endpoints.md#get-suppliers-id) (javob 404), [`PATCH /suppliers/:id`](endpoints.md#patch-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 409), [`POST /suppliers/:id/restore`](endpoints.md#post-suppliers-id-restore) (javob 404), [`GET /employees/:id`](endpoints.md#get-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 422), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 404), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 409), [`POST /employees/:id/restore`](endpoints.md#post-employees-id-restore) (javob 404), [`POST /users`](endpoints.md#post-users) (javob 400), [`POST /users`](endpoints.md#post-users) (javob 402), [`POST /users`](endpoints.md#post-users) (javob 409), [`POST /users`](endpoints.md#post-users) (javob 422), [`GET /users/:id`](endpoints.md#get-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 402), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 409), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 422), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 404), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 422), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 402), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 404), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 422), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 409), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 422), [`POST /stock/writeoff`](endpoints.md#post-stock-writeoff) (javob 422), [`POST /stock/adjust`](endpoints.md#post-stock-adjust) (javob 400), [`POST /stock/transfer`](endpoints.md#post-stock-transfer) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 403), [`POST /sales`](endpoints.md#post-sales) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 423), [`GET /sales/:id`](endpoints.md#get-sales-id) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 404), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 409), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 422), [`POST /sales/:id/cancel`](endpoints.md#post-sales-id-cancel) (javob 409), [`POST /cash/shifts/open`](endpoints.md#post-cash-shifts-open) (javob 409), [`POST /cash/shifts/close`](endpoints.md#post-cash-shifts-close) (javob 409), [`GET /cash/shifts/:id/report`](endpoints.md#get-cash-shifts-id-report) (javob 404), [`POST /cash/movements`](endpoints.md#post-cash-movements) (javob 423), [`POST /quotes`](endpoints.md#post-quotes) (javob 403), [`POST /quotes`](endpoints.md#post-quotes) (javob 422), [`GET /quotes/:id`](endpoints.md#get-quotes-id) (javob 404), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 403), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 409), [`DELETE /quotes/:id`](endpoints.md#delete-quotes-id) (javob 409), [`POST /quotes/:id/restore`](endpoints.md#post-quotes-id-restore) (javob 404), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 409), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 422), [`POST /expenses`](endpoints.md#post-expenses) (javob 423), [`GET /expenses/:id`](endpoints.md#get-expenses-id) (javob 404), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 422), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 423), [`POST /purchase-orders`](endpoints.md#post-purchase-orders) (javob 422), [`GET /purchase-orders/:id`](endpoints.md#get-purchase-orders-id) (javob 404), [`PATCH /purchase-orders/:id`](endpoints.md#patch-purchase-orders-id) (javob 409), [`POST /purchase-orders/:id/cancel`](endpoints.md#post-purchase-orders-id-cancel) (javob 409), [`POST /purchase-orders/:id/restore`](endpoints.md#post-purchase-orders-id-restore) (javob 404), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 409), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 423), [`GET /deliveries/:id`](endpoints.md#get-deliveries-id) (javob 404), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 403), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 422), [`POST /deliveries/:id/restore`](endpoints.md#post-deliveries-id-restore) (javob 404), [`POST /messages`](endpoints.md#post-messages) (javob 429), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 413), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 422), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 404), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 409), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 413), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 422), [`GET /files/:id`](endpoints.md#get-files-id) (javob 404), [`DELETE /files/:id`](endpoints.md#delete-files-id) (javob 404), [`GET /files/:id/raw`](endpoints.md#get-files-id-raw) (javob 404), [`GET /exports/jobs/:id`](endpoints.md#get-exports-jobs-id) (javob 404), [`GET /exports/jobs/:id/download`](endpoints.md#get-exports-jobs-id-download) (javob 404), [`POST /migration/validate`](endpoints.md#post-migration-validate) (javob 403), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 402), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 403), [`POST /tenants/current/delete`](endpoints.md#post-tenants-current-delete) (javob 401), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 403), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 413)
 
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
@@ -400,6 +400,7 @@ Ishlatiladi: [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `method` | `cash` \| `card` \| `transfer` \| `debt` | ✔ | To‘lov usuli chaqiruvchidan (I20) — `debt`: nasiya |
+| `warehouseId` | `string` (uuid) |  | Chiqim ombori (kassada tanlangani); berilmasa — joriy ombor |
 
 [↑ Mundarija](#mundarija)
 
@@ -556,7 +557,7 @@ Ishlatiladi: [`POST /quotes`](endpoints.md#post-quotes) (so‘rov)
 |---|---|:-:|---|
 | `customerId` | `string` (uuid) |  |  |
 | `sellerId` | `string` (uuid) |  | Berilmasa — joriy foydalanuvchining xodimi |
-| `priceTier` | `retail` \| `wholesale` |  | Berilmasa — mijoz guruhidan |
+| `priceTier` | `retail` \| `wholesale` |  | Berilmasa — mijoz guruhidan. `wholesale` — `wholesaleEnabled` bo‘lsa; sotuvchiga — `sellerWholesaleEnabled` bilan (aks holda so‘ralgani 403, mijoz guruhidan kelgani — chakana) |
 | `items` | [`SaleItemInputDto`](#saleiteminputdto)[] | ✔ | ko‘pi bilan `200` |
 | `discount` | `number` |  | misol `50000` |
 | `validUntil` | `string` |  | Amal muddati — misol `2026-10-01` |
@@ -574,7 +575,7 @@ Ishlatiladi: [`POST /sales`](endpoints.md#post-sales) (so‘rov)
 | `customerId` | `string` (uuid) |  | Nasiyada MAJBURIY (I15) |
 | `sellerId` | `string` (uuid) |  | Berilmasa — joriy foydalanuvchining xodimi |
 | `warehouseId` | `string` (uuid) |  | Berilmasa — joriy ombor |
-| `priceTier` | `retail` \| `wholesale` |  | sukut `"retail"` |
+| `priceTier` | `retail` \| `wholesale` |  | `wholesale` — `wholesaleEnabled` bo‘lsa (aks holda chakana). Sotuvchiga — `sellerWholesaleEnabled` bilan, aks holda 403 — sukut `"retail"` |
 | `items` | [`SaleItemInputDto`](#saleiteminputdto)[] | ✔ | ko‘pi bilan `200` |
 | `discount` | `number` |  | Umumiy chegirma, so‘m (`maxDiscountPct` gacha) — misol `20000` |
 | `bonusUsed` | `number` |  | Ishlatiladigan bonus ball (mavjudigacha) — misol `5000` |
@@ -662,7 +663,7 @@ Ishlatiladi: [`GET /dashboard`](endpoints.md#get-dashboard) (javob 200)
 | `yesterday` | [`DayTotalsDto`](#daytotalsdto) | ✔ |  |
 | `receivables` | `number` | ✔ | Mijozlar qarzi (debitorlik) |
 | `debtors` | `number` | ✔ |  |
-| `payables` | `number` | ✔ | Ta’minotchilarga qarz (kreditorlik, I18) |
+| `payables` | `number` |  | Ta’minotchilarga qarz (kreditorlik, I18). Sotuvchi rolida yo‘q |
 | `payableOrders` | `number` | ✔ |  |
 | `lowStockCount` | `number` | ✔ |  |
 | `lowStock` | [`LowStockItemDto`](#lowstockitemdto)[] | ✔ |  |
@@ -1669,10 +1670,10 @@ Ishlatiladi: [`POST /purchase-orders`](endpoints.md#post-purchase-orders) (javob
 | `supplier` | [`PoSupplierRefDto`](#posupplierrefdto) | ✔ |  |
 | `warehouseId` | `string` \| `null` | ✔ |  |
 | `status` | `ordered` \| `partial` \| `received` \| `cancelled` | ✔ |  |
-| `total` | `number` | ✔ |  |
-| `receivedValue` | `number` | ✔ | Kelgan tovar qiymati |
-| `paid` | `number` | ✔ |  |
-| `outstanding` | `number` | ✔ | Ta’minotchiga qarz — faqat kelgan tovar uchun (I18) |
+| `total` | `number` |  | Buyurtma summasi. Sotuvchi rolida yo‘q (summadan tannarx tiklanadi) |
+| `receivedValue` | `number` |  | Kelgan tovar qiymati. Sotuvchi rolida yo‘q |
+| `paid` | `number` |  | To‘langan. Sotuvchi rolida yo‘q |
+| `outstanding` | `number` |  | Ta’minotchiga qarz — faqat kelgan tovar uchun (I18). Sotuvchi rolida yo‘q |
 | `date` | `string` | ✔ |  |
 | `receivedDate` | `string` \| `null` | ✔ |  |
 | `dueDate` | `string` \| `null` | ✔ |  |
@@ -1702,10 +1703,10 @@ Ishlatiladi: [`GET /purchase-orders/summary`](endpoints.md#get-purchase-orders-s
 
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
-| `outstanding` | `number` | ✔ | Ta’minotchilarga jami qarz (kelgan tovar uchun, I18) — misol `1200000` |
+| `outstanding` | `number` |  | Ta’minotchilarga jami qarz (kelgan tovar uchun, I18). Sotuvchi rolida yo‘q — misol `1200000` |
 | `openOrders` | `number` | ✔ | Kutilayotgan (`ordered`) buyurtmalar — misol `3` |
-| `monthTotal` | `number` | ✔ | Joriy oy buyurtmalari (bekor qilinganlarsiz) — misol `5400000` |
-| `receivedTotal` | `number` | ✔ | To‘liq qabul qilingan buyurtmalar summasi — misol `9800000` |
+| `monthTotal` | `number` |  | Joriy oy buyurtmalari (bekor qilinganlarsiz). Sotuvchi rolida yo‘q — misol `5400000` |
+| `receivedTotal` | `number` |  | To‘liq qabul qilingan buyurtmalar summasi. Sotuvchi rolida yo‘q — misol `9800000` |
 
 [↑ Mundarija](#mundarija)
 
@@ -2026,6 +2027,7 @@ Ishlatiladi: [`POST /sales`](endpoints.md#post-sales) (javob 201), [`GET /sales/
 | `cost` | `number` |  | Tannarx snapshot. Sotuvchi rolida yo‘q — misol `45000` |
 | `discount` | `number` | ✔ | misol `0` |
 | `returnOfId` | `string` \| `null` | ✔ | Qaytarishda — asl chek qatori |
+| `returnedQty` | `number` | ✔ | Shu qatordan qaytarilgani (bekor qilinmagan qaytarishlar), `unit` da. Yana qaytarish mumkin: `qty − returnedQty`. Qaytarish hujjati qatorida va yangi chekda — 0 — misol `1` |
 
 [↑ Mundarija](#mundarija)
 
@@ -2127,6 +2129,7 @@ Ishlatiladi: [`GET /settings`](endpoints.md#get-settings) (javob 200), [`PATCH /
 | `taxEnabled` | `boolean` | ✔ |  |
 | `taxRate` | `number` | ✔ | QQS foizi, butun son (12 = 12%) — misol `12` |
 | `wholesaleEnabled` | `boolean` | ✔ |  |
+| `sellerWholesaleEnabled` | `boolean` | ✔ | Sotuvchi ham ulgurji narxda sota oladi va `wholesalePrice` ni ko‘radi (`wholesaleEnabled` bilan birga). `false` — sotuvchiga ulgurji narx yashirin, `priceTier: "wholesale"` → 403 |
 | `loyaltyEnabled` | `boolean` | ✔ |  |
 | `loyaltyRate` | `number` | ✔ | Xariddan bonus foizi — misol `1` |
 | `maxDiscountPct` | `number` | ✔ | Kassada ruxsat etilgan maksimal chegirma, % — misol `100` |
@@ -2253,8 +2256,8 @@ Ishlatiladi: [`GET /suppliers/:id`](endpoints.md#get-suppliers-id) (javob 200)
 | `createdAt` | `string` (date-time) | ✔ |  |
 | `updatedAt` | `string` (date-time) | ✔ | Versiya — tahrirda `If-Match` ga qo‘yiladi |
 | `productCount` | `number` | ✔ | Shu ta’minotchi mahsulotlari (o‘chirilmagan) — misol `14` |
-| `debt` | `number` | ✔ | Jami qarz — kelgan, to‘lanmagan tovar (I18) |
-| `totalPurchased` | `number` | ✔ | Jami xarid — kelgan tovar qiymati (qisman qabul ham) |
+| `debt` | `number` |  | Jami qarz — kelgan, to‘lanmagan tovar (I18). Sotuvchi rolida yo‘q |
+| `totalPurchased` | `number` |  | Jami xarid — kelgan tovar qiymati (qisman qabul ham). Sotuvchi rolida yo‘q |
 | `openOrders` | `number` | ✔ | Ochiq buyurtmalar (kutilayotgan yoki qisman) |
 | `orders` | [`SupplierOrderSummaryDto`](#supplierordersummarydto)[] | ✔ | Oxirgi buyurtmalar |
 | `payments` | [`SupplierPaymentSummaryDto`](#supplierpaymentsummarydto)[] | ✔ | Oxirgi to‘lovlar |
@@ -2298,7 +2301,7 @@ Ishlatiladi: [`POST /suppliers`](endpoints.md#post-suppliers) (javob 201), [`PAT
 | `createdAt` | `string` (date-time) | ✔ |  |
 | `updatedAt` | `string` (date-time) | ✔ | Versiya — tahrirda `If-Match` ga qo‘yiladi |
 | `productCount` | `number` | ✔ | Shu ta’minotchi mahsulotlari (o‘chirilmagan) — misol `14` |
-| `debt` | `number` | ✔ | Kreditorlik: kelgan tovar uchun to‘lanmagan (I18) — misol `2500000` |
+| `debt` | `number` |  | Kreditorlik: kelgan tovar uchun to‘lanmagan (I18). Sotuvchi rolida yo‘q — misol `2500000` |
 
 [↑ Mundarija](#mundarija)
 
@@ -2309,9 +2312,9 @@ Ishlatiladi: [`POST /suppliers`](endpoints.md#post-suppliers) (javob 201), [`PAT
 | `id` | `string` | ✔ |  |
 | `number` | `string` | ✔ | misol `BUY-1001` |
 | `status` | `ordered` \| `partial` \| `received` \| `cancelled` | ✔ |  |
-| `total` | `number` | ✔ |  |
-| `paid` | `number` | ✔ |  |
-| `outstanding` | `number` | ✔ | Faqat kelgan tovar uchun |
+| `total` | `number` |  | Sotuvchi rolida yo‘q |
+| `paid` | `number` |  | Sotuvchi rolida yo‘q |
+| `outstanding` | `number` |  | Faqat kelgan tovar uchun. Sotuvchi rolida yo‘q |
 | `date` | `string` | ✔ |  |
 | `dueDate` | `string` \| `null` | ✔ |  |
 
@@ -2337,7 +2340,7 @@ Ishlatiladi: [`POST /suppliers`](endpoints.md#post-suppliers) (javob 201), [`PAT
 |---|---|:-:|---|
 | `id` | `string` | ✔ |  |
 | `poId` | `string` | ✔ |  |
-| `amount` | `number` | ✔ |  |
+| `amount` | `number` |  | Sotuvchi rolida yo‘q |
 | `method` | `cash` \| `bank` | ✔ |  |
 | `date` | `string` | ✔ |  |
 
@@ -2358,7 +2361,7 @@ Ishlatiladi: [`GET /suppliers/summary`](endpoints.md#get-suppliers-summary) (jav
 
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
-| `debt` | `number` | ✔ | Barcha ta’minotchilarga jami qarz — misol `7800000` |
+| `debt` | `number` |  | Barcha ta’minotchilarga jami qarz. Sotuvchi rolida yo‘q — misol `7800000` |
 | `suppliersWithDebt` | `number` | ✔ | Qarzimiz bor ta’minotchilar soni — misol `3` |
 
 [↑ Mundarija](#mundarija)
@@ -2573,7 +2576,7 @@ Ishlatiladi: [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (so‘rov)
 |---|---|:-:|---|
 | `customerId` | `string` (uuid) \| `null` |  |  |
 | `sellerId` | `string` (uuid) |  |  |
-| `priceTier` | `retail` \| `wholesale` |  |  |
+| `priceTier` | `retail` \| `wholesale` |  | Yaratishdagi qoida bilan |
 | `items` | [`SaleItemInputDto`](#saleiteminputdto)[] |  | Berilsa — qatorlar TO‘LIQ almashtiriladi |
 | `discount` | `number` |  |  |
 | `validUntil` | `string` |  | misol `2026-10-01` |
@@ -2593,6 +2596,7 @@ Ishlatiladi: [`PATCH /settings`](endpoints.md#patch-settings) (so‘rov)
 | `taxEnabled` | `boolean` |  |  |
 | `taxRate` | `number` |  | min `0`, max `100` |
 | `wholesaleEnabled` | `boolean` |  |  |
+| `sellerWholesaleEnabled` | `boolean` |  | Sotuvchiga ulgurji narxda sotishni ochish |
 | `loyaltyEnabled` | `boolean` |  |  |
 | `loyaltyRate` | `number` |  | min `0`, max `100` |
 | `maxDiscountPct` | `number` |  | min `0`, max `100` |
@@ -2683,6 +2687,7 @@ Ishlatiladi: [`POST /users`](endpoints.md#post-users) (javob 201), [`GET /users/
 | `name` | `string` | ✔ | Xodimdan — misol `Bobur Toshmatov` |
 | `position` | `string` | ✔ | Xodimdan — misol `Kassir` |
 | `updatedAt` | `string` (date-time) | ✔ | Versiya — tahrirda `If-Match` ga qo‘yiladi |
+| `deletedAt` | `string` (date-time) \| `null` | ✔ | O‘chirilgan payt — faqat `?deleted=true` ro‘yxatida to‘la; tiklash — `POST /users/{id}/restore` |
 
 [↑ Mundarija](#mundarija)
 
