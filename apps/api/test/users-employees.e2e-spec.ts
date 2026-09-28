@@ -190,10 +190,16 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
       // holatda ikkalasini ham o'tkazib, do'konni adminsiz qoldirardi.
       let release!: () => void
       const held = new Promise<void>((resolve) => { release = resolve })
+      let markLocked!: () => void
+      const locked = new Promise<void>((resolve) => { markLocked = resolve })
       const blocker = testDb.$transaction(async (tx) => {
         await tx.$queryRaw`SELECT id FROM users WHERE id IN (${a.userId}::uuid, ${b.id}::uuid) FOR UPDATE`
+        markLocked()
         await held
       }, { timeout: 20_000 })
+      // So'rovlar qulf olingandan KEYIN: aks holda sekin mashinada (CI) ular qulfdan oldin
+      // o'tib ketib, kutish hech qachon yuz bermasdi (test poygasi)
+      await locked
 
       const requests = Promise.all([
         http().patch(`/api/v1/users/${b.id}`).set('Authorization', auth).send({ role: 'manager' }),

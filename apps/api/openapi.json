@@ -8577,12 +8577,7 @@
       "description": "Amallar jurnali (faqat o‘qish)"
     }
   ],
-  "servers": [
-    {
-      "url": "http://localhost:3000/api/v1",
-      "description": "Lokal"
-    }
-  ],
+  "servers": [],
   "components": {
     "securitySchemes": {
       "bearer": {
