@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
 # ═══════════════════════════════════════════════════════════════════
 # Kunlik zaxira (T-121, 11 §11.8): pg_dump → age (shifrlash) → R2.
-# cron (deploy foydalanuvchisi): 0 3 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
+# cron (deploy foydalanuvchisi): 0 0 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
+# (server soati Europe/Berlin — 00:00 = Toshkentda 03:00–04:00)
 # Kerak: yonida backup.env (namuna — backup.env.example). Shifr KALITI serverda saqlanmaydi.
 # ═══════════════════════════════════════════════════════════════════
 set -euo pipefail
+# cron PATH qisqa (/usr/bin:/bin) — aws-cli snap orqali o'rnatilgan (/snap/bin)
+export PATH="$PATH:/snap/bin"
 cd "$(dirname "$(readlink -f "$0")")"
 # `set -a` — o'zgaruvchilar eksport qilinadi: `aws` AWS_* kalitlarini muhitdan o'qiydi
 set -a

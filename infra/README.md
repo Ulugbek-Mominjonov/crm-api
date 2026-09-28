@@ -164,8 +164,9 @@ u serverdagi hamma loyihani to'xtatadi.
 ## 5. Zaxira (T-121)
 
 ```cron
-# crontab -e (deploy foydalanuvchisi)
-0 3 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
+# crontab -e (deploy foydalanuvchisi). Vaqt — SERVER soati bo'yicha (Contabo: Europe/Berlin):
+# 00:00 = Toshkentda 03:00–04:00
+0 0 * * *  /opt/crm/backup.sh >> /opt/crm/backup.log 2>&1
 ```
 
 Kunlik — `daily/` (30 kun saqlanadi), yakshanba — `weekly/` (90), oyning 1-kuni — `monthly/` (365).
@@ -223,8 +224,12 @@ DBeaver → New Database Connection → PostgreSQL:
 - **SSH:** *Use SSH Tunnel*, Host `IP`, Port `22`, User `deploy`, Authentication — *Public Key*
   (`~/.ssh/id_ed25519`)
 
-Yozish kerak bo'lsa (favqulodda) — `crm` (jadval egasi, parol `secrets/db_password.txt`): u RLS'ni
-chetlab o'tadi va BARCHA do'konlarga ta'sir qiladi.
+To'liq huquq (o'qish, qo'shish, o'zgartirish, o'chirish — barcha do'konlar) — `crm_admin`: DBeaver'da
+Username `crm_admin`, parol `secrets/db_admin_password.txt`. Superuser emas, `TRUNCATE` va jadval
+tuzilmasini o'zgartirish yo'q (tuzilma — faqat migratsiyalar); `audit_log` va `stock_movements` baribir
+o'zgarmaydi (trigger). O'zgarishlar audit jurnaliga tushmaydi va ilova qoidalarini (qoldiq, kassa, qarz)
+chetlab o'tadi — farqni tungi invariant tekshiruvi ko'rsatadi. `crm` (jadval egasi, superuser, parol
+`secrets/db_password.txt`) — faqat favqulodda.
 
 ## Xavfsizlik eslatmalari
 

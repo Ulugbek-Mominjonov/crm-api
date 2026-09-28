@@ -57,9 +57,9 @@ Umumiy «tayyor» ta'rifi —
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
-| E15 | Deploy va ekspluatatsiya | 10 | 3/10 | B4 |
+| E15 | Deploy va ekspluatatsiya | 10 | 7/10 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| | **Jami** | **129** | **111/129** | |
+| | **Jami** | **129** | **115/129** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -841,13 +841,13 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Qabul: ko'p bosqichli, `node:22-alpine`, root'siz, healthcheck bilan; server arxitekturasi uchun yig'iladi (Contabo — amd64, C35)
   - Tekshirish: `docker build -f apps/api/Dockerfile .`
 
-- [ ] **T-115 · Serverni tayyorlash**
+- [x] **T-115 · Serverni tayyorlash**
   - Bog'liq: —
   - Manba: [11 §11.4](../../backend-tz/core/11-deploy-free.md#114-vm-ni-tayyorlash)
   - Qabul: Contabo VPS (Ubuntu 24.04, C35): `deploy` foydalanuvchisi, `ufw` (22/80/443), fail2ban, swap, SSH faqat kalit bilan (root kira olmaydi); umumiy `edge` tarmog'i (C36)
   - Tekshirish: `ssh deploy@server 'sudo ufw status | head -3'`
 
-- [ ] **T-116 · Production compose va Caddy**
+- [x] **T-116 · Production compose va Caddy**
   - Bog'liq: T-114, T-115
   - Manba: [11 §11.5](../../backend-tz/core/11-deploy-free.md#115-docker-composeprodyml)
   - Qabul: CRM stack'i (postgres + redis + api) va serverning umumiy Caddy'si (`/opt/edge`, barcha loyihalar uchun, C36) ishga tushdi; TLS avtomatik olindi; baza, Redis va API tashqariga port chiqarmaydi; Swagger production'da 404
@@ -871,13 +871,13 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Qabul: build `/opt/www/crm` da, API bilan bitta domenda (`VITE_API_URL` bo'sh); SPA yo'llari ishlaydi; `sw.js` keshlanmaydi, `/assets` — 1 yil; PWA o'rnatiladi
   - Tekshirish: `curl -fsS https://crm.domen.uz/products -o /dev/null`
 
-- [ ] **T-120 · CI/CD**
+- [x] **T-120 · CI/CD**
   - Bog'liq: T-114, T-116
   - Manba: [11 §11.9](../../backend-tz/core/11-deploy-free.md#119-cicd--github-actions)
   - Qabul: `master` ga push → server arxitekturasi obrazi (sukut amd64) → migratsiya **alohida qadam** → yangi versiya; migratsiya yiqilsa deploy to'xtaydi
   - Tekshirish: GitHub Actions oxirgi ishi yashil
 
-- [ ] **T-121 · Zaxira va tiklashni sinash**
+- [x] **T-121 · Zaxira va tiklashni sinash**
   - Bog'liq: T-116, T-118
   - Manba: [11 §11.8](../../backend-tz/core/11-deploy-free.md#118-zaxira--r2-ga-avtomatik), [08 §8.5](../../backend-tz/core/08-operations.md#tiklashni-sinash--majburiy)
   - Qabul: kunlik/haftalik/oylik zaxira R2'da; shifrlangan; **tiklash bir marta amalda sinaldi** va natija hujjatga yozildi

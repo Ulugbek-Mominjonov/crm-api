@@ -171,6 +171,10 @@ xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README h
 | T-111 | `test:e2e -- migration-images` | ✅ 2 test; data-URL rasm — sehrli bayt tekshiruvi → S3 (`putDirect`) → mahsulotga; yaroqsizi o'tkaziladi, import davom etadi; bir xil rasm — bitta fayl, qayta import — yangi fayl yo'q |
 | T-114 | `docker build -f apps/api/Dockerfile .` + konteynerni production rejimida ishga tushirish (2026-09-28) | ✅ amd64 (Contabo, C35), 196 MB; `app` foydalanuvchisi (root emas); `/health/live` va `/health/ready` — 200 (Postgres, Redis, S3), Swagger — 404; `npx prisma migrate deploy` konteyner ichida (25 migratsiya); argon2 bilan login; PDF chek alpine'da (DejaVu shriftlari `dist/assets` da) |
 | T-117 | `SHOW shared_buffers; SELECT count(*) FROM pg_stat_statements` (PG 16 konteyner + `infra/postgres.conf`) | ✅ 12 GB ARM VM uchun (`shared_buffers=3GB`, `work_mem=16MB`, `max_connections=40`); `pg_stat_statements` + `auto_explain` (200 ms) yuklangan. 2026-09-28: 8 GB VPS, boshqa loyihalar bilan umumiy (C36, Q108) — `shared_buffers=1GB`, `effective_cache_size=3GB`, `work_mem=8MB`, `maintenance_work_mem=256MB`; PG 16 da shu fayl bilan qayta tekshirildi (`SHOW shared_buffers` — 1GB, `pg_stat_statements` yuklangan) |
+| T-115 | `ssh deploy@13.140.177.86 'sudo ufw status'`, `sshd -T` (2026-09-28) | ✅ Ubuntu 24.04.5, 4 CPU / 7,8 GB / 96 GB: `deploy` (docker, sudo), `permitrootlogin no`, `passwordauthentication no`, ufw 22/80/443 (+443/udp), fail2ban, swap 4 GB, unattended-upgrades; qayta yuklangandan keyin ham saqlandi |
+| T-116 | `curl -fsS https://crm.workspaces.uz/health/ready` (2026-09-28) | ✅ 200 (baza 6 ms, R2 54 ms), HTTP/2 + HTTP/3; Let's Encrypt; HTTP → HTTPS 308, Swagger 404, HSTS, nosniff, X-Frame-Options, `Server` yo'q; tashqaridan 5432 yopiq; API 95 MiB, server ~0,8 GB / 7,8 GB |
+| T-120 | GitHub Actions: PR #1 `ci`, `master` `deploy` (2026-09-28) | ✅ `ci` — lint, typecheck, unit 106 + 136, e2e 539, OpenAPI drift (6 daq 55 s); `deploy` — obraz → GHCR, SSH (ECDSA izi) → migratsiya → `api` → tashqi sog'liq tekshiruvi. Birinchi urinish `SSH_HOST` yo'qligidan yiqilgan, secret'lardan keyin — yashil |
+| T-121 | `backup.sh` (cron muhitida: `env -i PATH=/usr/bin:/bin`) + `verify-backup.sh` (2026-09-28) | ✅ shifrlangan dump 232 KB → R2 `daily/`; vaqtinchalik PG 16 ga tiklandi: 0 tenant, 0 chek, 25 migratsiya (production hali bo'sh); age maxfiy kaliti serverda yo'q |
 | T-123 | `test:e2e -- invariants` + `npm run job:invariants -w apps/api` | ✅ 3 test; 7 denormalizatsiya (qoldiq, `balance_after`, qarz to'lovi, ta'minotchiga to'lov, kassa, band hajm, hisoblagich) noldan qayta hisoblanadi; farq — `critical` (Sentry), tuzatilmaydi; CLI chiqish kodi 1/0 |
 | T-124 | `test:e2e -- signup` | ✅ 3 test; `POST /auth/register` — do'kon + admin + sozlama + ombor bitta tranzaksiyada, sessiya darhol (token + refresh cookie); validatsiya 400 (hech narsa yaratilmaydi); bir IP dan 5/soat — 429 |
 | T-125 | `test:e2e -- plan-limits` + `test -w packages/shared -- plans` | ✅ 6 + 4 test; tariflar `@crm/shared` da (`free/basic/pro`); foydalanuvchi, ombor (arxivdan qaytarish ham), kunlik SMS (tarif va provayder chegarasidan kichigi), hajm — 402 `PLAN_LIMIT_EXCEEDED` (`meta.limit/used`); oxirgi joyga parallel ikki so'rov — bittasi; qayta faollashtirish va tiklash ham tekshiriladi; migratsiya importi chegaradan oshirsa — 402, hech narsa yozilmaydi (takroriy import o'tadi) |
@@ -181,7 +185,9 @@ xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README h
 
 ## Keyingi qadamlar
 
-**Bajarildi (backend): E0–E12, E14 ning backend qismi (T-108…T-111), E16; E15 dan T-114, T-117, T-123.**
+**Bajarildi (backend): E0–E12, E14 ning backend qismi (T-108…T-111), E16; E15 dan T-114…T-117, T-120, T-121, T-123.**
+
+**Production ishlayapti (2026-09-28):** https://crm.workspaces.uz — Contabo VPS `13.140.177.86` (Ubuntu 24.04, `deploy` foydalanuvchisi), umumiy Caddy (`/opt/edge`) + CRM (`/opt/crm`), R2, kunlik shifrlangan zaxira. `master` ga merge → GitHub Actions `deploy` avtomatik. Server bilan ishlash — `infra/README.md`.
 Frontend integratsiyasi (E13, T-112, T-113) — frontend dasturchida (C32); backend unga tayyor va
 hujjatlangan: [`docs/api/`](./docs/api/README.md). Qolgani — haqiqiy server talab qiladigan E15 vazifalari.
 
@@ -195,10 +201,7 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 
 ### Keyingi sessiyada
 
-1. **E15** — haqiqiy serverda (Contabo VPS, C35; frontend, API va baza — shu serverda, umumiy Caddy, C36):
-   T-115, T-116, T-118…T-122 — qadamlar `infra/README.md` da
-   (0-bo'lim: domen/DNS, R2, GitHub secret'lari, deploy va zaxira kalitlari). Production `.env` da
-   `TRUST_PROXY=1` (Q97), `crm.<domen>` — Cloudflare'da "DNS only"
+1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-119 — frontend build va CI (frontend dasturchi, `crm-web-deploy` kaliti hali yaratilmagan); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
 2. **Ochiq savollar (qaror kerak)** — batafsil `docs/api/README.md` §14.1:
    - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq.
    - 2026-09-27 da hal qilindi: sotuvchidan xarid summalari (Q100), PDF chek (C13, Q104), `returnedQty`
@@ -226,18 +229,19 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 | Swagger: union maydonlarga `type`, yashirin maydonlar ixtiyoriy, `DebtPageDto.items` — `oneOf` | `openapi-typescript` to'g'ri tiplar bersin |
 | CORS `exposedHeaders: Content-Disposition` | Eksport fayl nomi brauzerda |
 
-### E15 — tayyor artefaktlar va nimasi hali sinalmagan
+### E15 — production holati (2026-09-28)
 
-| Vazifa | Bu mashinada tekshirildi | Serverda qoladi |
-|--------|--------------------------|-----------------|
-| T-114 Dockerfile | ✅ bajarildi (2026-09-28): amd64 obraz joriy kod bilan yig'ildi va production rejimida sinaldi (yuqoridagi dalil) | — (server ARM bo'lsa — `DEPLOY_PLATFORM=linux/arm64`) |
-| T-115 VPS | `infra/vm-setup.sh` (Contabo: `deploy` foydalanuvchisi, ufw, fail2ban, swap, SSH faqat kalit — kalit bo'lsa; `edge` tarmog'i, `/opt/{edge,www,crm}` — C36) yozildi | Serverda ishga tushirish |
-| T-116 compose + Caddy | `infra/docker-compose.prod.yml` (port chiqarmaydi; API — `edge` da `crm-api`), umumiy Caddy — `infra/edge/` (C36): marshrutlar, SPA, kesh sarlavhalari, WebSocket (101), HTTPS'ga yo'naltirish mahalliy sinaldi; production'ga o'xshash to'liq sinov (yuqorida) — 150/150 operatsiya, deploy paytida 0 xato (Q111); birinchi ishga tushirish tartibi `infra/README.md` da (rol migratsiyadan oldin) | Domen (`crm.<domen>` — "DNS only"), serverda ishga tushirish |
-| T-118 R2 | `infra/r2-cors.json`, `r2-lifecycle.json`; `test:e2e -- s3-prod-smoke` (3 test, `S3_SMOKE_*` bo'lmasa o'tkaziladi) | R2 kalitlari yo'q |
-| T-119 frontend | `infra/edge/sites/crm.caddy` (SPA; `index.html`/`sw.js` — keshsiz, `/assets` — 1 yil, yo'q asset — 404) mahalliy sinaldi; ikki bosqichli yuklash — `infra/README.md` 3-bo'lim (C36) | Frontend build (`VITE_API_URL` bo'sh, `navigateFallbackDenylist`, CI — `docs/api/README.md` §3.1) — frontend dasturchi; `crm-web-deploy` kaliti (Q109), serverga yuklash |
-| T-120 CI/CD | `ci.yml` (Postgres, Redis, MinIO, kalitlar, `crm_app`, OpenAPI drift), `deploy.yml` (`master` → obraz → GHCR token bilan tortish → migratsiya alohida qadam → yangi versiya → tashqi sog'liq tekshiruvi; Q107); ikkala YAML tekshirildi | GitHub secret'lari (`SSH_HOST`, `SSH_KEY`, `SSH_FINGERPRINT` — ECDSA, Q109), birinchi ishga tushirish |
-| T-121 zaxira | `infra/backup.sh` (`age` shifr, R2), `verify-backup.sh` (qo'lda, istalgan mashinada), `backup.env.example`; dump → tiklash mahalliy sinaldi | R2, cron, `age` kaliti; birinchi haqiqiy tiklash sinovi natijasini shu yerga yozish |
-| T-122 kuzatuv | Sentry (`SENTRY_DSN` bo'lsa), `alertCritical`, log rotatsiyasi compose'da (Caddy access log ham) | UptimeRobot (`https://crm.<domen>/health/ready`), Sentry DSN |
+| Vazifa | Holat | Qoldi |
+|--------|-------|-------|
+| T-114 Dockerfile | ✅ amd64 obraz; GitHub Actions'da yig'ilib GHCR'ga yuklanadi (ochiq paket) | — |
+| T-115 VPS | ✅ Contabo `13.140.177.86`: `vm-setup.sh` — `deploy`, ufw 22/80/443, fail2ban, swap 4 GB, SSH faqat kalit (root yopiq); yangi yadro bilan qayta yuklandi | — |
+| T-116 compose + Caddy | ✅ `https://crm.workspaces.uz` — Let's Encrypt (birinchi urinishda), `/health/ready` 200 (baza, R2); baza faqat `127.0.0.1` (Q113) | — |
+| T-117 Postgres | ✅ `shared_buffers=1GB` serverda | — |
+| T-118 R2 | ✅ bucketlar, token faqat shu ikkisiga (Object Read & Write); `s3-prod-smoke`: kirish ✅ | CORS va lifecycle — Cloudflare panelida |
+| T-119 frontend | Caddy sayti tayyor (`/opt/www/crm`, bosh sahifa hozircha 404) | frontend build va CI — frontend dasturchi |
+| T-120 CI/CD | ✅ `ci` (PR #1, 6 daq 55 s) va `deploy` yashil (SSH ECDSA izi, GHCR, migratsiya, tashqi sog'liq tekshiruvi) | — |
+| T-121 zaxira | ✅ cron `0 0 * * *` (Toshkent 03:00–04:00), R2 `daily/`; tiklash sinovi OK (Q114) | lifecycle (T-118) |
+| T-122 kuzatuv | log rotatsiyasi, Sentry integratsiyasi kodda | UptimeRobot, `SENTRY_DSN` |
 
 ### Production'da RLS — HAL QILINDI (E5 dan oldin)
 
@@ -398,7 +402,8 @@ natija berardi. Yechim (Q24–Q27):
 | Q110 | `AppLogger` ikkala chaqiruv shaklini qabul qiladi: pino — `warn({ fileId, err }, 'xabar')` (kodda 25 joyda) va Nest — `log('xabar', meta)`, `error('xabar', stack)`; kontekst (klass nomi) — `new Logger(Klass)` ning oxirgi argumenti; `redact()` `Error` ni o'zgartirmaydi (logda pino `err` serializatori yozadi) | Production'ga o'xshash sinovda topildi: pino shaklidagi har yozuv `"msg":"[object Object]"` bo'lib, xabar ham maydonlar ham yo'qolardi — jumladan fon ishlari, S3, SMS, fiskal navbat va invariantlar XATOLARI (`err`); `redact()` `Error` ni `{}` ga aylantirardi (`message`, `stack` sanalmaydi); hech bir yozuvda `context` yo'q edi. Yangi unit testlar eski kodda yiqiladi |
 | Q111 | Umumiy Caddy → API: `lb_try_duration 15s`, `lb_try_interval 250ms`; faol sog'liq tekshiruvi (`health_uri`) olib tashlandi | Yagona upstream'da faol tekshiruv uni "nosog'lom" deb belgilab, API tiklangach ham keyingi tekshiruvgacha (30 s) 503 berardi — birinchi deploy'da aynan shunday bo'ldi (Caddy API'dan oldin ko'tariladi). O'lchov (API qayta yaratilganda, har 200 ms so'rov): avval ~3 s 502 (tekshiruv shu oynaga tushsa — 30 s gacha 503), keyin 0 xato — bitta so'rov 3,5 s kutib javob oldi |
 | Q112 | S3 sinov/dev serveri — `cgr.dev/chainguard/minio:latest` (MinIO'ning o'zi, Chainguard manbadan yig'adi; bepul faqat `latest`), `mc` — `cgr.dev/chainguard/minio-client:latest`: `ci.yml` (`/data` — tmpfs, uid 65532), `scripts/dev-services.sh` va `docker-compose.yml` (`--user 0:0` — avvalgi `minio/minio` root yozgan hajm bilan ham ishlasin; obrazda qobiq, `mc`, `curl` yo'q — tayyorlik xostdan HTTP, bucketlar `MC_HOST_local` bilan) | GitHub'dagi birinchi CI (PR #1) MinIO qadamida yiqildi: `minio/minio` Docker Hub'da ham, `quay.io` da ham yo'q (MinIO bepul versiya obrazlarini to'xtatgan) — yangi mashinada `npm run services:up` ham ishlamasdi. Tekshirildi: S3'ga tegadigan e2e (19 fayl, 97 test) Chainguard MinIO'ga qarshi; dev skripti eski root hajm bilan (eski obyekt o'qildi, yangisi yozildi); dev compose (`minio-init` — 2 bucket) |
-| Q113 | Production bazasiga qo'lda kirish (DBeaver): Postgres — faqat `127.0.0.1:5432` (`ports`), ulanish SSH tunnel orqali; `crm_readonly` roli — `SELECT` + `BYPASSRLS`, `default_transaction_read_only = on`, kelajakdagi jadvallarga ham (`ALTER DEFAULT PRIVILEGES`); parol — serverda `secrets/db_readonly_password.txt` (`infra/README.md` 8-bo'lim) | Baza Docker ichki tarmog'ida edi — serverdan ham doimiy manzil yo'q (konteyner IP o'zgaradi). Loopback internetdan ko'rinmaydi (tashqaridan 5432 yopiq — tekshirildi). Qo'lda ko'rishda superuser `crm` ishlatilsa, bitta xato so'rov barcha do'konlarni buzardi; `crm_readonly` bilan INSERT/UPDATE rad etiladi, SECURITY DEFINER funksiyalar (`purge_tenant` …) `PUBLIC` dan olingan — chaqirib bo'lmaydi (serverda sinaldi) |
+| Q113 | Production bazasiga qo'lda kirish (DBeaver): Postgres — faqat `127.0.0.1:5432` (`ports`), ulanish SSH tunnel orqali; `crm_readonly` roli — `SELECT` + `BYPASSRLS`, `default_transaction_read_only = on`, kelajakdagi jadvallarga ham (`ALTER DEFAULT PRIVILEGES`); parol — serverda `secrets/db_readonly_password.txt`; to'liq huquqli `crm_admin` (SELECT/INSERT/UPDATE/DELETE, BYPASSRLS, superuser emas, TRUNCATE'siz) — egasi o'zi yaratdi (foydalanuvchi qarori), parol `secrets/db_admin_password.txt` (`infra/README.md` 8-bo'lim) | Baza Docker ichki tarmog'ida edi — serverdan ham doimiy manzil yo'q (konteyner IP o'zgaradi). Loopback internetdan ko'rinmaydi (tashqaridan 5432 yopiq — tekshirildi). Qo'lda ko'rishda superuser `crm` ishlatilsa, bitta xato so'rov barcha do'konlarni buzardi; `crm_readonly` bilan INSERT/UPDATE rad etiladi, SECURITY DEFINER funksiyalar (`purge_tenant` …) `PUBLIC` dan olingan — chaqirib bo'lmaydi (serverda sinaldi) |
+| Q114 | Zaxira: skriptlarda `PATH` ga `/snap/bin` (aws-cli — snap, cron `PATH` — `/usr/bin:/bin`); cron vaqti — SERVER soati bo'yicha (Contabo — Europe/Berlin: `0 0 * * *` = Toshkent 03:00–04:00); `verify-backup.sh` tiklashdan oldin dump'dagi GRANT/REVOKE rollarini (`crm_app`, `crm_readonly`, `crm_admin` …) yaratadi | Serverda topildi: cron'da `aws` topilmay, har tungi zaxira yuklash bosqichida jimgina yiqilardi (lokal sinovda aws-cli boshqa yo'l bilan o'rnatilgan edi); rollar — klaster obyekti, dump'da yo'q: `--exit-on-error` bilan tiklash birinchi GRANT'da to'xtardi — haqiqiy avariyada ham |
 
 ## Muhim eslatmalar
 
