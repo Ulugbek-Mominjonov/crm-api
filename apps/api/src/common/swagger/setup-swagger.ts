@@ -26,7 +26,8 @@ export function buildDocument(app: INestApplication, version: string): OpenAPIOb
     )
     .setVersion(version)
     .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT' })
-    .addServer('http://localhost:3000/api/v1', 'Lokal')
+    // `servers` ATAYLAB yo'q: yo'llarda `/api/v1` bor, Swagger UI so'rovni o'zi ochilgan manzilga
+    // yuboradi (lokal ham, production ham). Mutlaq manzil production'da localhost'ga yuborardi
     .addTag('health', 'Sog‘liq va tayyorlik')
     .addTag('auth', 'Autentifikatsiya')
     .addTag('settings', 'Do‘kon sozlamalari')
