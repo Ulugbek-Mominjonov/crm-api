@@ -212,6 +212,8 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 3. **Frontend** (E13, T-112, T-113, T-119; T-119 ning server qismi — Caddy sayti, `/opt/www/crm` — tayyor, C36) —
    frontend dasturchi; vazifalar va qabul mezonlari —
    `docs/api/README.md` §13. Oldingi implementatsiyam: `/home/ulugbek/personal/front/crm-qurilish-e13-integration.patch`
+4. **Env boshqaruvi (rejada, egasi qarori bilan keyinga):** T-130 — ilova qiymatlari GitHub Environments'da,
+   deploy `.env` ni yig'adi; T-131 — staging. Reja — [`infra/env-plan.md`](./infra/env-plan.md)
 
 ### E13 uchun backendga qo'shilganlar
 

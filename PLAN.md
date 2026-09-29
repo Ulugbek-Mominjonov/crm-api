@@ -57,9 +57,9 @@ Umumiy «tayyor» ta'rifi —
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
-| E15 | Deploy va ekspluatatsiya | 10 | 7/10 | B4 |
+| E15 | Deploy va ekspluatatsiya | 12 | 7/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| | **Jami** | **129** | **115/129** | |
+| | **Jami** | **131** | **115/131** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -894,6 +894,28 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Manba: [10 §10.2](../../backend-tz/core/10-performance.md#102-denormalizatsiya-shartnomasi), [08 §8.6](../../backend-tz/core/08-operations.md#kunlik-invariant-tekshiruvi)
   - Qabul: barcha denormalizatsiyalar solishtiriladi; farq topilsa `critical` ogohlantirish; natija jurnalga yoziladi
   - Tekshirish: `npm run job:invariants -w apps/api`
+
+- [ ] **T-130 · Env'ni GitHub Environments orqali boshqarish**
+  - Bog'liq: T-120
+  - Manba: [infra/env-plan.md](./infra/env-plan.md), [11 §11.9](../../backend-tz/core/11-deploy-free.md#119-cicd--github-actions), [03 §3.12](../../backend-tz/core/03-security.md#312-sirlarni-boshqarish)
+  - Fayllar: `.github/workflows/deploy.yml`, `infra/.env.prod.example`, `infra/README.md`
+  - Qabul:
+    - Ilova qiymatlari — GitHub `production` environment'ida (`APP_*`: sozlama — Variables, sir — Secrets); deploy `/opt/crm/.env` ni shulardan yig'adi, serverda qo'lda tahrir kerak emas
+    - Yangi `.env` konteyner almashishidan OLDIN `env.schema.ts` bilan tekshiriladi — xato bo'lsa deploy to'xtaydi, ishlab turgan versiya tegilmaydi
+    - Sog'liq tekshiruvi yiqilsa — oldingi `.env` va `TAG` ga avtomatik qaytadi
+    - `config_only` — obraz yig'ilmasdan faqat konfiguratsiya qo'llanadi; `RELEASE` = `TAG` (Sentry)
+    - Birinchi o'tish `dry_run` bilan: kalit nomlari va qiymat xeshlari solishtiriladi, qiymatlar logga chiqmaydi
+  - Tekshirish: Actions → deploy (`dry_run`) — farq yo'q; keyin oddiy deploy yashil va `curl -fsS https://crm.workspaces.uz/health/ready`
+
+- [ ] **T-131 · Staging muhiti**
+  - Bog'liq: T-130
+  - Manba: [infra/env-plan.md](./infra/env-plan.md#staging)
+  - Fayllar: `.github/workflows/deploy.yml`, `infra/`, `apps/api/src/modules/auth/auth-cookies.ts`
+  - Qabul:
+    - `staging` environment o'z `APP_*` qiymatlari bilan; alohida baza, R2 bucket'lari, domen va compose loyiha
+    - `develop` → staging, `master` → production
+    - Refresh cookie staging'da ham `Secure` (hozir faqat `NODE_ENV=production` da)
+  - Tekshirish: `curl -fsS https://<staging-domen>/health/ready`
 
 ---
 
