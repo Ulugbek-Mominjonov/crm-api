@@ -189,49 +189,8 @@ API’ga, qolganini frontend build’iga beradi — dev’dagi Vite proksi bilan
 - Service worker (`vite-plugin-pwa`) API yo‘llarini ushlamasin — aks holda yangi oynada ochilgan
   `/api/...` havolasiga `navigateFallback` `index.html` qaytaradi:
   `workbox: { navigateFallbackDenylist: [/^\/api\//, /^\/socket\.io\//, /^\/health\//] }`.
-- Keshni server boshqaradi: `index.html`, `sw.js`, manifest — keshsiz (yangi versiya darhol),
-  `/assets/*` — 1 yil (nomida hash). Noma’lum yo‘l — `index.html` (SPA), yo‘q `/assets/*` fayli — 404.
-- Build serverga IKKI bosqichda yuklanadi — avval yangi hash’li fayllar, keyin `index.html` va
-  qolgani (yuklash paytida ochgan foydalanuvchi yarim versiyaga tushmasin).
-- Kalit juftligini **o‘zingiz** yarating: `ssh-keygen -t ed25519 -f crm-web-deploy -N ''` va **faqat**
-  `crm-web-deploy.pub` ni server egasiga yuboring. U kalitni serverga faqat frontend papkasiga
-  (`/opt/www/crm`) yoza oladigan qilib qo‘shadi (shell yo‘q) — shuning uchun yo‘llar nisbiy (`assets/`;
-  bo‘sh — papkaning o‘zi). Maxfiy qismi (`crm-web-deploy`) hech kimga yuborilmaydi — faqat frontend
-  repo’sining GitHub secret’ida. Secret’lar (Settings → Secrets and variables → Actions):
-  - `SSH_HOST` = `13.140.177.86`
-  - `WEB_DEPLOY_KEY` = `crm-web-deploy` faylining butun matni (`-----BEGIN` … `END-----` qatorlari bilan)
-  - `SSH_KNOWN_HOSTS` = `13.140.177.86 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAZHWsX1lDC/9WhPFBQhOKeX05L0d0Rf8H5hobP1CTkE`
-
-  Frontend repo’si uchun GitHub Actions namunasi:
-
-  ```yaml
-  # .github/workflows/deploy.yml — secrets: SSH_HOST, WEB_DEPLOY_KEY, SSH_KNOWN_HOSTS
-  name: deploy
-  on:
-    push: { branches: [main] }
-    workflow_dispatch:
-  concurrency: { group: deploy-web, cancel-in-progress: false }
-  jobs:
-    deploy:
-      runs-on: ubuntu-latest
-      steps:
-        - uses: actions/checkout@v4
-        - uses: actions/setup-node@v4
-          with: { node-version: 22, cache: npm }
-        - run: npm ci && npm run build
-        - name: Serverga yuklash (avval assets, keyin index.html)
-          env:
-            SSH_HOST: ${{ secrets.SSH_HOST }}
-            WEB_DEPLOY_KEY: ${{ secrets.WEB_DEPLOY_KEY }}
-            SSH_KNOWN_HOSTS: ${{ secrets.SSH_KNOWN_HOSTS }}
-          run: |
-            install -d -m 700 ~/.ssh
-            printf '%s\n' "$WEB_DEPLOY_KEY" > ~/.ssh/web && chmod 600 ~/.ssh/web
-            printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
-            export RSYNC_RSH="ssh -i $HOME/.ssh/web"
-            rsync -a dist/assets/ "deploy@$SSH_HOST:assets/"
-            rsync -a --delete dist/ "deploy@$SSH_HOST:"
-  ```
+- Deploy (build → server, kesh, kalit, GitHub secret va variable’lar) — frontend repo’sidagi
+  [DEPLOY.md](https://github.com/gayipovdostonbek/crm-qurilish/blob/main/DEPLOY.md); uni server egasi bajaradi.
 
 API boshqa domenda bo‘lsa (hozir rejada yo‘q): `VITE_API_URL=https://api.domen.uz`, ikkalasi bitta
 ro‘yxatdan o‘tgan domen ostida bo‘lishi shart (`crm.domen.uz` + `api.domen.uz` — ishlaydi;
@@ -1673,7 +1632,6 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 | T-107 | Realtime va uzilishga chidamlilik | Boshqa kassir sotgan tovar qoldig‘i darhol yangilanadi; internet uzilganda ogohlantirish va navbat; tiklanganda avtomatik yuborish — [9](#realtime), [12.4](#flow-offline) |
 | T-112 | Migratsiya sehrgari (UI) | 4 qadam (hisob → tekshirish → yuborish → natija); jarayon ko‘rsatkichi; xato bo‘lsa localStorage **o‘chirilmaydi** — [10.19](#migration) |
 | T-113 | Orqaga qaytish yo‘li | Migratsiyadan keyin ham localStorage nusxasi 30 kun saqlanadi; JSON zaxira yuklab olinadi — [10.19](#migration) |
-| T-119 | Frontend deploy (API bilan bitta serverda va domenda) | SPA yo‘llari ishlaydi; `sw.js` keshlanmaydi; `VITE_API_URL` bo‘sh (nisbiy yo‘llar), service worker `/api` ni ushlamaydi; PWA o‘rnatiladi; build ikki bosqichda yuklanadi — [3.1](#connect) |
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
 sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
@@ -1708,9 +1666,8 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 | Avval | Endi | Frontendda |
 |-------|------|-----------|
-| Frontend — Cloudflare Pages, API — alohida domen (`api.domen.uz`), `VITE_API_URL` shart edi | Frontend va API bitta serverda, bitta domenda (`crm.domen.uz`): `/api`, `/socket.io`, `/health` — API, qolgani — SPA ([3.1](#connect)) | `VITE_API_URL` bo‘sh, socket — `io('/events')`; `navigateFallbackDenylist`; build — ikki bosqichli `rsync` ([3.1](#connect)) |
+| Frontend — Cloudflare Pages, API — alohida domen (`api.domen.uz`), `VITE_API_URL` shart edi | Frontend va API bitta serverda, bitta domenda (`crm.domen.uz`): `/api`, `/socket.io`, `/health` — API, qolgani — SPA ([3.1](#connect)) | `VITE_API_URL` bo‘sh, socket — `io('/events')`; `navigateFallbackDenylist` ([3.1](#connect)) |
 | Production manzili noma’lum edi (`crm.domen.uz` — namuna) | `https://crm.workspaces.uz` ishlayapti: API `/api/v1`, Swagger `/api/docs` ([3.1](#connect)) | Sinov uchun o‘z do‘koningizni ro‘yxatdan o‘tkazing — production bazasi bo‘sh |
-| Deploy kaliti «server egasidan» | Kalitni o‘zingiz yaratasiz, faqat `.pub` yuboriladi; `SSH_HOST` va `SSH_KNOWN_HOSTS` qiymatlari tayyor ([3.1](#connect)) | Frontend repo’siga 3 ta secret va `deploy.yml` namunasi |
 
 **2026-09-27** — frontendga ta’sir qiladi:
 

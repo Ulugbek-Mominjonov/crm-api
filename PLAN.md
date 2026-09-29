@@ -57,9 +57,9 @@ Umumiy «tayyor» ta'rifi —
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
-| E15 | Deploy va ekspluatatsiya | 12 | 7/12 | B4 |
+| E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| | **Jami** | **131** | **115/131** | |
+| | **Jami** | **131** | **116/131** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -865,11 +865,8 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Qabul: `crm-media-prod`, `crm-backup-prod`; token faqat shu ikkisiga; CORS faqat frontend domeni uchun; lifecycle qoidalari o'rnatilgan
   - Tekshirish: `npm run test:e2e -- s3-prod-smoke`
 
-- [ ] **T-119 · Frontend deploy (shu serverda, C36)**
-  - Bog'liq: T-099
-  - Manba: [11 §11.7](../../backend-tz/core/11-deploy-free.md#117-frontend--cloudflare-pages)
-  - Qabul: build `/opt/www/crm` da, API bilan bitta domenda (`VITE_API_URL` bo'sh); SPA yo'llari ishlaydi; `sw.js` keshlanmaydi, `/assets` — 1 yil; PWA o'rnatiladi
-  - Tekshirish: `curl -fsS https://crm.domen.uz/products -o /dev/null`
+- [x] **T-119 · Frontend deploy (shu serverda, C36)**
+  - Deploy rejasi, sozlamalari va tekshiruvi — frontend repo'sidagi [DEPLOY.md](https://github.com/gayipovdostonbek/crm-qurilish/blob/main/DEPLOY.md)
 
 - [x] **T-120 · CI/CD**
   - Bog'liq: T-114, T-116

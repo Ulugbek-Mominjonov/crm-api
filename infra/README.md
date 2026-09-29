@@ -48,9 +48,6 @@ qolsa — `postgres.conf` ni kattalashtirib `docker compose -f docker-compose.pr
   `S3_SMOKE_ENDPOINT=… S3_SMOKE_ACCESS_KEY=… S3_SMOKE_SECRET_KEY=… S3_SMOKE_ORIGIN=https://crm.<domen> npm run test:e2e -w @crm/api -- s3-prod-smoke`
 - **Deploy kaliti:** `ssh-keygen -t ed25519 -f crm-deploy -N ''` — ochiq qismi serverga (1-bo'lim),
   maxfiy qismi backend repo'sining GitHub'iga. Serverda to'liq huquq (docker, sudo) — boshqa repoga bermang.
-- **Frontend yuklash kaliti (T-119):** frontend dasturchi o'zi yaratadi
-  (`ssh-keygen -t ed25519 -f crm-web-deploy -N ''`) va faqat `crm-web-deploy.pub` ni yuboradi — maxfiy
-  qismi uning GitHub secret'ida qoladi; serverda FAQAT `/opt/www/crm` ga `rsync` qila oladi (1-bo'lim).
 - **GitHub (T-120)** → Settings → Environments → `production`: secrets `SSH_HOST` (server IP),
   `SSH_KEY` (`crm-deploy` fayli), ixtiyoriy `SSH_USER` (sukut `deploy`) va `SSH_FINGERPRINT` (tavsiya,
   1-bo'lim). Server ARM bo'lsa — variables `DEPLOY_PLATFORM=linux/arm64` (sukut `linux/amd64`).
@@ -67,12 +64,9 @@ ssh-copy-id root@IP                                          # panelda qo'shilma
 scp infra/vm-setup.sh root@IP:
 ssh root@IP "SSH_PUBKEY='$(cat crm-deploy.pub)' bash vm-setup.sh"
 # Endi faqat: ssh deploy@IP
-# Frontend kaliti — FAQAT /opt/www/crm ga rsync (shell, port yo'naltirish yo'q; `..` rad etiladi)
-ssh deploy@IP "echo 'restrict,command=\"/usr/bin/rrsync /opt/www/crm\" $(cat crm-web-deploy.pub)' >> ~/.ssh/authorized_keys"
-# GitHub secret'lari: SSH_FINGERPRINT (backend) va SSH_KNOWN_HOSTS (frontend). ECDSA — ed25519 EMAS:
+# GitHub secret'i SSH_FINGERPRINT — ECDSA izi, ed25519 EMAS:
 # ssh-action klienti ECDSA kalitini tanlaydi, boshqa iz bilan deploy "fingerprint mismatch" bo'ladi
 ssh deploy@IP ssh-keygen -lf /etc/ssh/ssh_host_ecdsa_key.pub | cut -d' ' -f2
-ssh-keyscan -t ed25519 IP
 scp infra/edge/{docker-compose.yml,Caddyfile,.env.example} deploy@IP:/opt/edge/
 scp infra/edge/sites/crm.caddy deploy@IP:/opt/edge/sites/
 scp infra/{docker-compose.prod.yml,postgres.conf,backup.sh,verify-backup.sh,.env.prod.example,backup.env.example} deploy@IP:/opt/crm/
@@ -121,23 +115,8 @@ keyin `docker compose -f docker-compose.prod.yml run --rm api npx prisma migrate
 
 ## 3. Frontend (T-119)
 
-Frontend (`crm-qurilish`) — shu domenning o'zida: `VITE_API_URL` **bo'sh** (nisbiy `/api/v1`),
-socket — `io('/events')`, CORS yo'q; dev'dagi Vite proksi bilan bir xil. Build `/opt/www/crm` ga
-IKKI bosqichda yuklanadi — avval yangi hash'li fayllar, keyin `index.html` va qolgani (yuklash
-paytida ochgan foydalanuvchi yarim versiyaga tushmasin). `crm-web-deploy` kaliti bilan yo'llar
-`/opt/www/crm` ga NISBATAN:
-
-```bash
-npm ci && npm run build
-export RSYNC_RSH='ssh -i crm-web-deploy'
-rsync -a dist/assets/ deploy@IP:assets/
-rsync -a --delete dist/ deploy@IP:
-```
-
-Frontend repo'si uchun GitHub Actions namunasi — `docs/api/README.md` §3.1 (secrets: `SSH_HOST`,
-`WEB_DEPLOY_KEY` — `crm-web-deploy` fayli, `SSH_KNOWN_HOSTS` — 1-bo'limdagi `ssh-keyscan` natijasi).
-Caddy: `index.html`, `sw.js` — keshsiz (yangi versiya darhol), `/assets/*` — 1 yil; noma'lum yo'l —
-`index.html` (SPA), yo'q asset — 404.
+Frontend deploy'i (build → `/opt/www/crm`, kalit, GitHub secret va variable'lari) — frontend
+repo'sidagi [DEPLOY.md](https://github.com/gayipovdostonbek/crm-qurilish/blob/main/DEPLOY.md).
 
 ## 4. Yangilash (T-120)
 
@@ -196,7 +175,7 @@ Birinchi sinov natijasi PROGRESS.md ga yoziladi (T-121 qabul mezoni).
    `networks: { default: {}, edge: { aliases: [shop-api] } }` va `networks: { edge: { external: true } }`.
 3. `/opt/edge/sites/<loyiha>.caddy` (`crm.caddy` namunasi) → `caddy reload` (4-bo'lim).
 4. Statik frontend bo'lsa — `/opt/www/<loyiha>/` (Caddy'da `/srv/<loyiha>`); yuklash kaliti —
-   o'zining, `rrsync /opt/www/<loyiha>` bilan cheklangan (1-bo'lim).
+   o'zining, `authorized_keys` da `restrict,command="/usr/bin/rrsync /opt/www/<loyiha>"` bilan cheklangan.
 5. Baza: loyihaning o'z Postgres konteyneri (sodda, mustaqil) — `shared_buffers` ni kichik qo'ying
    (masalan 256MB) va jadvaldagi xotira byudjetini yangilang.
 
