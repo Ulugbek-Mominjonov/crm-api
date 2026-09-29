@@ -17,6 +17,10 @@ export const CLIENT_SORT = {
 
 /** Nasiya to'lov muddati — ko'pi bilan bir yil */
 const MAX_TERM_DAYS = 365
+/** Telegram bot bilan bog'lanish (Q116): ulanmagan / ulangan / mijoz botni bloklagan */
+export const TELEGRAM_STATUSES = ['none', 'linked', 'blocked'] as const
+export type TelegramStatus = (typeof TELEGRAM_STATUSES)[number]
+
 /** Bo'sh satr ham ruxsat (frontend `isEmail` bilan bir xil) */
 const OPTIONAL_EMAIL = /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -38,6 +42,12 @@ export class ClientDto {
   @ApiProperty({ nullable: true, type: String }) company!: string | null
   @ApiProperty({ nullable: true, type: String }) notes!: string | null
   @ApiProperty({ example: 12, description: 'Sotuv cheklari soni (qaytarishsiz)' }) salesCount!: number
+  @ApiProperty({
+    enum: TELEGRAM_STATUSES,
+    example: 'linked',
+    description: 'Telegram bot: `linked` — xabar va chek Telegram’da; `none` — ulanmagan; `blocked` — mijoz botni bloklagan',
+  })
+  telegramStatus!: TelegramStatus
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date
   @ApiProperty({ type: String, format: 'date-time', description: 'Versiya — tahrirda `If-Match` ga qo‘yiladi' })
   updatedAt!: Date
@@ -141,6 +151,11 @@ export class ClientListQueryDto extends ListQueryDto {
   @IsOptional()
   @IsPhone()
   phone?: string
+
+  @ApiPropertyOptional({ enum: TELEGRAM_STATUSES, description: 'Masalan `none` — botga ulanmaganlar (ularga shaxsiy QR berish uchun)' })
+  @IsOptional()
+  @IsIn(TELEGRAM_STATUSES)
+  telegramStatus?: TelegramStatus
 }
 
 export class ClientStatsDto {

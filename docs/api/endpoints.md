@@ -2,7 +2,7 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **150** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **154** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
@@ -16,18 +16,18 @@ Jami **150** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Mahsulot kategoriyalari](#categories) — 6 ta
 - [Mahsulotlar](#products) — 10 ta
 - [Ombor amallari](#stock) — 6 ta
-- [Mijozlar](#clients) — 7 ta
+- [Mijozlar](#clients) — 8 ta
 - [Ta’minotchilar](#suppliers) — 7 ta
 - [Xodimlar](#employees) — 6 ta
 - [Foydalanuvchilar (kirish hisoblari)](#users) — 6 ta
-- [Sotuvlar (chek, qaytarish, bekor qilish)](#sales) — 6 ta
+- [Sotuvlar (chek, qaytarish, bekor qilish)](#sales) — 7 ta
 - [Kassa: smena va naqd harakatlar](#cash) — 7 ta
 - [Qarzlar (nasiya)](#debts) — 3 ta
 - [Takliflar (smeta)](#quotes) — 8 ta
 - [Kirim buyurtmalari (ta’minotchidan xarid)](#purchase-orders) — 10 ta
 - [Yetkazib berish](#deliveries) — 10 ta
 - [Xarajatlar va takrorlanuvchi shablonlar](#expenses) — 12 ta
-- [Xabarlar (SMS)](#messages) — 3 ta
+- [Xabarlar (Telegram va SMS)](#messages) — 5 ta
 - [Hisobotlar](#reports) — 3 ta
 - [Audit jurnali](#audit) — 1 ta
 - [Fayllar (rasm, hujjat)](#files) — 7 ta
@@ -1616,6 +1616,7 @@ Mijozlar sahifasi, mijoz kartasi, POS’da mijoz tanlash (bonus, nasiya). Telefo
 | `PATCH` | [`/clients/:id`](#patch-clients-id) 🔒 | Mijozni tahrirlash | `customers:edit` |
 | `DELETE` | [`/clients/:id`](#delete-clients-id) | Mijozni o‘chirish (yumshoq) | `customers:delete` |
 | `POST` | [`/clients/:id/restore`](#post-clients-id-restore) | O‘chirilgan mijozni tiklash (undo) | `customers:delete` |
+| `POST` | [`/clients/:id/telegram-link`](#post-clients-id-telegram-link) | Telegram’ga ulash — shaxsiy havola (QR uchun) | `customers:edit` |
 
 <a id="get-clients"></a>
 
@@ -1623,7 +1624,7 @@ Mijozlar sahifasi, mijoz kartasi, POS’da mijoz tanlash (bonus, nasiya). Telefo
 
 > `q` — nom, kompaniya va telefon raqamlari bo‘yicha; `phone` — aniq moslik.
 
-**Qachon / qanday:** Mijozlar sahifasi va POS’da mijoz tanlash (`q` — nom, kompaniya, telefon). `phone` — aniq moslik (skaner/telefon bilan tez topish). Qatorda `bonusPoints`, `salesCount`.
+**Qachon / qanday:** Mijozlar sahifasi va POS’da mijoz tanlash (`q` — nom, kompaniya, telefon). `phone` — aniq moslik (skaner/telefon bilan tez topish). Qatorda `bonusPoints`, `salesCount`, `telegramStatus` (`telegramStatus=none` — botga ulanmaganlar).
 
 | | |
 |---|---|
@@ -1643,6 +1644,7 @@ Mijozlar sahifasi, mijoz kartasi, POS’da mijoz tanlash (bonus, nasiya). Telefo
 | `group` | query | `retail` \| `wholesale` \| `vip` |  |  |
 | `type` | query | `individual` \| `company` |  |  |
 | `phone` | query | `string` |  | ANIQ moslik (kassada mijozni topish) — `(tenant_id, phone)` indeksi ishlatiladi — misol `+998901234567` |
+| `telegramStatus` | query | `none` \| `linked` \| `blocked` |  | Masalan `none` — botga ulanmaganlar (ularga shaxsiy QR berish uchun) |
 
 **Xatolar**
 
@@ -1856,6 +1858,40 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | Status | Kod — qachon |
 |---|---|
 | `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#clients)
+
+---
+
+<a id="post-clients-id-telegram-link"></a>
+
+### `POST /clients/:id/telegram-link` — Telegram’ga ulash — shaxsiy havola (QR uchun)
+
+> Mijoz havolani (QR) ochib Start bosadi — bot shu mijozga ulanadi, raqam yuborish shart emas. Bir martalik, 7 kun amal qiladi; har chaqiruv yangisini beradi (eskisi bekor).
+
+**Qachon / qanday:** «Telegram’ga ulash» (mijoz kartasi): shaxsiy havola → QR (ekranda). Mijoz skanerlab Start bosadi — ulanadi (`telegramStatus: linked`). Bir martalik, 7 kun; har chaqiruv yangisini beradi — QR oynasi ochilganda so‘rang.
+
+| | |
+|---|---|
+| Huquq | `customers:edit` — admin, manager, sotuvchi |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`TelegramLinkDto`](schemas.md#telegramlinkdto) |
+| Audit jurnali | ha — `client.telegramLinkIssued` |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `404` | `NOT_FOUND` |
+| `422` | `RECIPIENT_UNREACHABLE` (`meta.reason: no_channel`) — bot sozlanmagan |
 
 Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
@@ -2567,6 +2603,7 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 | `GET` | [`/sales`](#get-sales) | Cheklar ro‘yxati | `sales:view` |
 | `GET` | [`/sales/:id`](#get-sales-id) | Chek (qatorlari bilan) | `sales:view` |
 | `GET` | [`/sales/:id/receipt`](#get-sales-id-receipt) | Chop etish uchun chek | `sales:view` |
+| `POST` | [`/sales/:id/receipt/telegram`](#post-sales-id-receipt-telegram) | Chekni mijozga Telegram’da yuborish | `sales:view` |
 | `POST` | [`/sales/:id/return`](#post-sales-id-return) 🔁 📡 | Qaytarish | `sales:create` |
 | `POST` | [`/sales/:id/cancel`](#post-sales-id-cancel) 🔁 📡 | Bekor qilish | `sales:delete` |
 
@@ -2714,6 +2751,41 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `404` | `NOT_FOUND` |
 
 Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#sales)
+
+---
+
+<a id="post-sales-id-receipt-telegram"></a>
+
+### `POST /sales/:id/receipt/telegram` — Chekni mijozga Telegram’da yuborish
+
+> Chekdagi mijoz botga ulangan bo‘lsa — PDF chek (chop etiladigan bilan bir xil) va izoh (raqam, jami, qarz, bonus) bitta xabarda. Darhol yuboriladi. Yetkazib bo‘lmasa — 422 `RECIPIENT_UNREACHABLE`, `meta.reason`: `no_customer` (chekda mijoz yo‘q), `not_linked` (botga ulanmagan), `blocked` (botni bloklagan), `no_channel` (bot sozlanmagan).
+
+**Qachon / qanday:** «Telegram’ga yuborish» (chek oynasi, POS): chekdagi mijozga PDF chek + izoh (raqam, jami, qarz, bonus) — 204. Yetkazib bo‘lmasa 422 `RECIPIENT_UNREACHABLE` (`meta.reason`: `no_customer`, `not_linked`, `blocked`, `no_channel`) — `not_linked` da «Telegram’ga ulash» (QR) taklif qiling; 503 — Telegram javob bermadi (qayta urinish).
+
+| | |
+|---|---|
+| Huquq | `sales:view` — admin, manager, sotuvchi, omborchi |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `204` — Yuborildi |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `404` | `NOT_FOUND` |
+| `422` | `RECIPIENT_UNREACHABLE` |
+| `503` | Telegram javob bermadi — qayta urinib ko‘ring |
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -4533,15 +4605,62 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 <a id="messages"></a>
 
-## Xabarlar (SMS)
+## Xabarlar (Telegram va SMS)
 
-Mijozlarga SMS: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kunlik chegara tarifga bog‘liq.
+Mijozlarga xabar: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kanal: botga ulangan → Telegram (bepul), aks holda SMS (sozlangan bo‘lsa), aks holda yetib bormaydi. Kunlik chegara (tarifga bog‘liq) faqat SMS’ni sanaydi. Bot oqimi (shaxsiy QR, chek) — [README → Telegram](README.md#telegram).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
+| `GET` | [`/telegram`](#get-telegram) | Telegram bot holati | `customers:view` |
+| `POST` | [`/telegram/webhook`](#post-telegram-webhook) 🔓 | Telegram webhook | ochiq |
 | `GET` | [`/messages`](#get-messages) | Xabarlar jurnali | `customers:view` |
 | `POST` | [`/messages`](#post-messages) | Xabar yuborish | `customers:create` |
 | `POST` | [`/messages/preview`](#post-messages-preview) | Qabul qiluvchilar soni | `customers:view` |
+
+<a id="get-telegram"></a>
+
+### `GET /telegram` — Telegram bot holati
+
+> `enabled: false` — serverda bot sozlanmagan: «Telegram’ga ulash» va «Chekni Telegram’ga» tugmalarini ko‘rsatmang.
+
+**Qachon / qanday:** Bot holati: `enabled: false` — serverda bot sozlanmagan, «Telegram’ga ulash» va «Chekni Telegram’ga» tugmalarini ko‘rsatmang.
+
+| | |
+|---|---|
+| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`TelegramStatusDto`](schemas.md#telegramstatusdto) |
+
+**Xatolar**
+
+Umumiy: 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#messages)
+
+---
+
+<a id="post-telegram-webhook"></a>
+
+### `POST /telegram/webhook` — Telegram webhook
+
+> Faqat Telegram chaqiradi: `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`, aks holda 401. Qayta ishlash xatosida ham 200 — Telegram yangilanishni qayta-qayta yubormasin.
+
+**Qachon / qanday:** Frontend CHAQIRMAYDI — Telegram serveri uchun (`X-Telegram-Bot-Api-Secret-Token`).
+
+| | |
+|---|---|
+| Huquq | ochiq — token shart emas |
+| Sarlavhalar | `x-telegram-bot-api-secret-token` (majburiy) |
+| Javob | `200` |
+| Audit jurnali | ha |
+
+**Xatolar**
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#messages)
+
+---
 
 <a id="get-messages"></a>
 
@@ -4549,7 +4668,7 @@ Mijozlarga SMS: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kunlik c
 
 > Har xabarda yuborish holati statistikasi
 
-**Qachon / qanday:** Xabarlar jurnali: har xabarda qabul qiluvchilar soni va yuborish holati statistikasi.
+**Qachon / qanday:** Xabarlar jurnali: `recipients` (yuborilganlar; `telegram` — shundan Telegram orqali), `unreachable` (yetib bormaganlar) va yuborish holati statistikasi.
 
 | | |
 |---|---|
@@ -4579,7 +4698,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Qabul qiluvchilar serverda hisoblanadi, shablon o‘zgaruvchilari almashtiriladi. Yuborish fonda (navbat) — so‘rov kutmaydi. Kunlik chegara bor.
 
-**Qachon / qanday:** SMS yuborish: `target` (`customer` + `customerId`, `group` + `group`, `debtors`, `all`) va matn (≤ 600). O‘zgaruvchilar: `{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga serverda almashtiriladi. Yuborish fonda. Kunlik chegara — tarif `smsPerDay` va server `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi; oshsa 429 `MESSAGE_LIMIT_EXCEEDED` (`meta.limit/used/requested`).
+**Qachon / qanday:** Xabar yuborish: `target` (`customer` + `customerId`, `group` + `group`, `debtors`, `all`) va matn (≤ 600). O‘zgaruvchilar: `{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga serverda almashtiriladi. Yuborish fonda. Botga ulangan mijozga — Telegram (do‘kon kartasi: sarlavha, qalin qiymatlar, aloqa), aks holda SMS (sozlangan bo‘lsa). Yetib bormaydigan bitta mijoz — 422 `RECIPIENT_UNREACHABLE` («Mijoz botga ulanmagan», `meta.reason`); guruhda — qolganlarga yuboriladi, yetmaganlar `unreachable` da (hech kimga — 422). Kunlik chegara (faqat SMS) — tarif `smsPerDay` va server `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi; oshsa 429 `MESSAGE_LIMIT_EXCEEDED` (`meta.limit/used/requested`).
 
 | | |
 |---|---|
@@ -4616,7 +4735,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 > Yubormaydi — faqat kim oladi (serverda hisoblanadi)
 
-**Qachon / qanday:** Yuborishdan OLDIN: tanlangan auditoriyada nechta qabul qiluvchi borligi (yubormaydi).
+**Qachon / qanday:** Yuborishdan OLDIN (yubormaydi): `recipients` — yetib boradiganlar, shundan `telegram` — Telegram orqali, `unreachable` — yetib bormaydiganlar (botga ulanmagan, SMS yo‘q). `unreachable > 0` — ogohlantirib tasdiqlating.
 
 | | |
 |---|---|

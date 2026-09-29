@@ -2,12 +2,15 @@ import { randomUUID } from 'node:crypto'
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { PLANS } from '@crm/shared'
+import { SMS_PROVIDER, type SmsProvider } from '@/modules/messages/sms/sms.provider'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
 import { seedClient, seedTenant, testDb, truncateAll } from './helpers/db'
 import { storeSnapshot } from './helpers/snapshot'
 
 const PASSWORD = 'Qurilish2026!'
+/** Kunlik chegara faqat SMS'ga — SMS kanali yoqilgan bo'lsin (yubormaydi: ishchi testda aylanmaydi) */
+const sms: SmsProvider = { name: 'fake', send: async () => ({ providerId: 'fake' }) }
 
 /**
  * Tarif chegaralari (T-125, 09 §9.11): foydalanuvchi, ombor, saqlash
@@ -20,7 +23,7 @@ describe('Tarif chegaralari', () => {
   let auth: string
 
   beforeAll(async () => {
-    app = await createTestApp()
+    app = await createTestApp((builder) => builder.overrideProvider(SMS_PROVIDER).useValue(sms))
   })
 
   afterAll(async () => {

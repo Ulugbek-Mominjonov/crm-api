@@ -26,6 +26,10 @@ const bool = (fallback: 'true' | 'false') =>
 
 const port = z.coerce.number().int().min(1).max(65_535)
 
+/** Bo'sh qiymat (`KEY=`) — berilmagan: namuna fayldagi bo'sh qator formatda yiqilmasin */
+const blankAsUnset = <T extends z.ZodType>(schema: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), schema.optional())
+
 /** Vergul bilan ajratilgan ro'yxat → massiv */
 const csv = (fallback: string) =>
   z
@@ -104,6 +108,17 @@ export const envSchema = z
     SMS_DAILY_LIMIT: z.coerce.number().int().positive().default(1000),
     /** SMS navbati ishchisi qanchalik tez-tez aylanadi (ms); 0 — o'chiq (testlar) */
     SMS_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(15_000),
+    // ── Telegram bot (Q116): bog'langan mijozga xabar SMS o'rniga shu yerdan — token berilmasa o'chiq ──
+    /** @BotFather bergan token */
+    TELEGRAM_BOT_TOKEN: z.string().optional(),
+    /** Yangilanishlar: `webhook` — Telegram o'zi yuboradi (production); `polling` — ochiq manzilsiz (lokal) */
+    TELEGRAM_UPDATES: z.enum(['webhook', 'polling']).default('webhook'),
+    /** Ishga tushganda Telegram'ga o'rnatiladi: https://DOMEN/api/v1/telegram/webhook */
+    TELEGRAM_WEBHOOK_URL: blankAsUnset(z.url()),
+    /** Telegram har webhook so'rovida `X-Telegram-Bot-Api-Secret-Token` sarlavhasida yuboradi */
+    TELEGRAM_WEBHOOK_SECRET: blankAsUnset(
+      z.string().regex(/^[A-Za-z0-9_-]{32,256}$/, "32–256 belgi: harf, raqam, _ va - (openssl rand -hex 32)"),
+    ),
     // ── Obuna to'lovlari (T-126) — berilmasa tegishli webhook o'chiq ──
     /** Payme Merchant API: kassa id (checkout havolasi) va kalit (webhook Basic auth) */
     PAYME_MERCHANT_ID: z.string().optional(),
@@ -133,6 +148,13 @@ export const envSchema = z
     path: ['SMS_TOKEN'],
     message: "SMS provayderi tanlangan bo'lsa SMS_TOKEN majburiy",
   })
+  .refine(
+    (e) => !e.TELEGRAM_BOT_TOKEN || e.TELEGRAM_UPDATES === 'polling' || (!!e.TELEGRAM_WEBHOOK_URL && !!e.TELEGRAM_WEBHOOK_SECRET),
+    {
+      path: ['TELEGRAM_WEBHOOK_URL'],
+      message: 'TELEGRAM_UPDATES=webhook bo‘lsa TELEGRAM_WEBHOOK_URL va TELEGRAM_WEBHOOK_SECRET majburiy',
+    },
+  )
   .refine((e) => !e.OFD_ENABLED || (!!e.OFD_ENDPOINT && !!e.OFD_TOKEN), {
     path: ['OFD_ENDPOINT'],
     message: 'OFD_ENABLED=true bo‘lsa OFD_ENDPOINT va OFD_TOKEN majburiy',

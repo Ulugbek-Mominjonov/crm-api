@@ -2034,6 +2034,20 @@
               "example": "+998901234567",
               "type": "string"
             }
+          },
+          {
+            "name": "telegramStatus",
+            "required": false,
+            "in": "query",
+            "description": "Masalan `none` — botga ulanmaganlar (ularga shaxsiy QR berish uchun)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "linked",
+                "blocked"
+              ]
+            }
           }
         ],
         "responses": {
@@ -2372,6 +2386,127 @@
         "summary": "O‘chirilgan mijozni tiklash (undo)",
         "tags": [
           "clients"
+        ]
+      }
+    },
+    "/api/v1/clients/{id}/telegram-link": {
+      "post": {
+        "description": "Mijoz havolani (QR) ochib Start bosadi — bot shu mijozga ulanadi, raqam yuborish shart emas. Bir martalik, 7 kun amal qiladi; har chaqiruv yangisini beradi (eskisi bekor).",
+        "operationId": "Clients_telegramLink",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramLinkDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "RECIPIENT_UNREACHABLE (`meta.reason: no_channel`) — bot sozlanmagan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Telegram’ga ulash — shaxsiy havola (QR uchun)",
+        "tags": [
+          "clients"
+        ]
+      }
+    },
+    "/api/v1/telegram": {
+      "get": {
+        "description": "`enabled: false` — serverda bot sozlanmagan: «Telegram’ga ulash» va «Chekni Telegram’ga» tugmalarini ko‘rsatmang.",
+        "operationId": "Telegram_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Telegram bot holati",
+        "tags": [
+          "telegram"
+        ]
+      }
+    },
+    "/api/v1/telegram/webhook": {
+      "post": {
+        "description": "Faqat Telegram chaqiradi: `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`, aks holda 401. Qayta ishlash xatosida ham 200 — Telegram yangilanishni qayta-qayta yubormasin.",
+        "operationId": "Telegram_webhook",
+        "parameters": [
+          {
+            "name": "x-telegram-bot-api-secret-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Telegram Update — core.telegram.org/bots/api#update"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Telegram webhook",
+        "tags": [
+          "telegram"
         ]
       }
     },
@@ -4327,6 +4462,66 @@
           }
         ],
         "summary": "Chop etish uchun chek",
+        "tags": [
+          "sales"
+        ]
+      }
+    },
+    "/api/v1/sales/{id}/receipt/telegram": {
+      "post": {
+        "description": "Chekdagi mijoz botga ulangan bo‘lsa — PDF chek (chop etiladigan bilan bir xil) va izoh (raqam, jami, qarz, bonus) bitta xabarda. Darhol yuboriladi. Yetkazib bo‘lmasa — 422 `RECIPIENT_UNREACHABLE`, `meta.reason`: `no_customer` (chekda mijoz yo‘q), `not_linked` (botga ulanmagan), `blocked` (botni bloklagan), `no_channel` (bot sozlanmagan).",
+        "operationId": "Sales_receiptToTelegram",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Yuborildi"
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "RECIPIENT_UNREACHABLE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Telegram javob bermadi — qayta urinib ko‘ring",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Chekni mijozga Telegram’da yuborish",
         "tags": [
           "sales"
         ]
@@ -9982,6 +10177,16 @@
             "example": 12,
             "description": "Sotuv cheklari soni (qaytarishsiz)"
           },
+          "telegramStatus": {
+            "type": "string",
+            "enum": [
+              "none",
+              "linked",
+              "blocked"
+            ],
+            "example": "linked",
+            "description": "Telegram bot: `linked` — xabar va chek Telegram’da; `none` — ulanmagan; `blocked` — mijoz botni bloklagan"
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -10007,6 +10212,7 @@
           "company",
           "notes",
           "salesCount",
+          "telegramStatus",
           "createdAt",
           "updatedAt"
         ]
@@ -10188,6 +10394,43 @@
             "maxLength": 1000
           }
         }
+      },
+      "TelegramLinkDto": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "type": "string",
+            "example": "https://t.me/dokon_xabar_bot?start=Xq3v9Kp2LmN8rT5wYz1AbC",
+            "description": "Mijoz ochib Start bosadi — shu mijozga bog‘lanadi. Bir martalik; yangisi eskisini bekor qiladi"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Shu vaqtgacha amal qiladi (7 kun)"
+          }
+        },
+        "required": [
+          "link",
+          "expiresAt"
+        ]
+      },
+      "TelegramStatusDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Bot sozlanganmi (serverda `TELEGRAM_BOT_TOKEN`)"
+          },
+          "botUsername": {
+            "type": "string",
+            "nullable": true,
+            "example": "dokon_xabar_bot"
+          }
+        },
+        "required": [
+          "enabled",
+          "botUsername"
+        ]
       },
       "SupplierListItemDto": {
         "type": "object",
@@ -14514,7 +14757,7 @@
           },
           "logged": {
             "type": "number",
-            "description": "Provayder `none` — faqat jurnal"
+            "description": "Eski (demo rejimdagi) xabarlar: yuborilmagan, faqat jurnalga yozilgan"
           }
         },
         "required": [
@@ -14557,6 +14800,16 @@
             "example": "queued",
             "description": "queued | sending | sent | partial | failed | logged"
           },
+          "telegram": {
+            "type": "number",
+            "example": 12,
+            "description": "Shundan Telegram orqali — kunlik SMS chegarasiga kirmaydi"
+          },
+          "unreachable": {
+            "type": "number",
+            "example": 5,
+            "description": "Yetib bormaganlar (botga ulanmagan, SMS yo‘q) — `recipients` ga kirmaydi"
+          },
           "stats": {
             "$ref": "#/components/schemas/MessageStatsDto"
           },
@@ -14577,6 +14830,8 @@
           "text",
           "template",
           "deliveryStatus",
+          "telegram",
+          "unreachable",
           "stats",
           "userId",
           "createdAt"
@@ -14649,7 +14904,18 @@
         "properties": {
           "recipients": {
             "type": "number",
-            "example": 42
+            "example": 42,
+            "description": "Yetib boradiganlar"
+          },
+          "telegram": {
+            "type": "number",
+            "example": 12,
+            "description": "Shundan Telegram orqali (botga ulangan mijozlar) — qolgani SMS"
+          },
+          "unreachable": {
+            "type": "number",
+            "example": 5,
+            "description": "Yetib bormaydiganlar: botga ulanmagan (yoki bloklagan) va SMS yo‘q — yuborilmaydi"
           },
           "label": {
             "type": "string",
@@ -14658,6 +14924,8 @@
         },
         "required": [
           "recipients",
+          "telegram",
+          "unreachable",
           "label"
         ]
       },

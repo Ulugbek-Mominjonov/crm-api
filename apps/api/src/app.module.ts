@@ -33,6 +33,7 @@ import { DebtsModule } from '@/modules/debts/debts.module'
 import { PurchaseOrdersModule } from '@/modules/purchase-orders/purchase-orders.module'
 import { DeliveriesModule } from '@/modules/deliveries/deliveries.module'
 import { MessagesModule } from '@/modules/messages/messages.module'
+import { TelegramModule } from '@/modules/telegram/telegram.module'
 import { ReportCacheModule } from '@/modules/reports/report-cache.service'
 import { ReportsModule } from '@/modules/reports/reports.module'
 import { FilesModule } from '@/modules/files/files.module'
@@ -90,6 +91,8 @@ import { QueueModule } from '@/modules/queue/queue.module'
     // Yetkazib berish va xabarlar (E9)
     DeliveriesModule,
     MessagesModule,
+    // Mijozga xabar Telegram bot orqali (Q116)
+    TelegramModule,
     // Hisobot va analitika (E10)
     ReportsModule,
     // Fayl saqlash (E11) va eksport (T-084)

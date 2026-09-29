@@ -100,6 +100,8 @@ describe('Har bir endpoint himoyalangan', () => {
       'POST /api/v1/billing/click/complete',
       'POST /api/v1/billing/click/prepare',
       'POST /api/v1/billing/payme',
+      // Telegram bot (Q116) — JWT emas, webhook siri bilan
+      'POST /api/v1/telegram/webhook',
       // Yangi do'kon ochish (T-124) — hisob hali yo'q; rate limit bilan
       'POST /api/v1/tenants/register',
     ])

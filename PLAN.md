@@ -51,7 +51,7 @@ Umumiy «tayyor» ta'rifi —
 | E6 | Savdo yadrosi | 9 | 9/9 | B3 |
 | E7 | Kassa va moliya | 9 | 9/9 | B3 |
 | E8 | Ta'minot va kreditorlik | 6 | 6/6 | B3 |
-| E9 | Yetkazib berish va xabarlar | 5 | 5/5 | B3 |
+| E9 | Yetkazib berish va xabarlar | 6 | 6/6 | B3 |
 | E10 | Hisobot va analitika | 7 | 7/7 | B3 |
 | E11 | Fayl saqlash (S3) | 8 | 8/8 | B3 |
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
@@ -59,7 +59,7 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| | **Jami** | **131** | **116/131** | |
+| | **Jami** | **132** | **117/132** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -607,6 +607,12 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Bog'liq: T-077
   - Qabul: bir tenant uchun kunlik chegara; ommaviy yuborish fon ishida bajariladi va so'rovni bloklamaydi
   - Tekshirish: `npm run test:e2e -- messages-rate-limit`
+
+- [x] **T-132 · Telegram bot orqali mijozga xabar**
+  - Bog'liq: T-077
+  - Manba: [08 §8.10](../../backend-tz/core/08-operations.md#810-sms-va-telegram), egasi so'rovi (Q116)
+  - Qabul: mijoz SHAXSIY havola (QR, bir martalik, 7 kun, bazada xeshi) orqali Start bosib ulanadi — raqam yuborish shart emas; xabar: botga ulangan → Telegram (HTML karta: do'kon sarlavhasi, qalin qiymatlar, aloqa), aks holda SMS (sozlangan bo'lsa), aks holda yetib bormaydi — bitta mijozda 422 `RECIPIENT_UNREACHABLE` (sababi bilan), guruhda qolganlarga yuboriladi va yetmaganlar soni saqlanadi; chekni Telegram'ga (PDF + izoh); Telegram kunlik SMS chegarasiga kirmaydi; `/stop` yo'q, botni bloklash — "bloklagan" holati (qayta ochsa davom etadi); webhook faqat sir bilan
+  - Tekshirish: `npm run test:e2e -- telegram` va `npm test -w apps/api -- telegram.client`
 
 ---
 

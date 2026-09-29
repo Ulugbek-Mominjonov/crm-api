@@ -1,8 +1,11 @@
 import { Inject, Injectable, Logger, Optional, type OnApplicationBootstrap } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SchedulerRegistry } from '@nestjs/schedule'
+import { Prisma } from '@prisma/client'
 import type { Env } from '@/config/env.schema'
 import { JobQueue } from '@/modules/queue/job-queue'
+import { TELEGRAM_CLIENT, TelegramApiError, type TelegramClient } from '@/modules/telegram/telegram.client'
+import { markTelegramBlocked } from '@/modules/telegram/telegram.service'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import { SMS_PROVIDER, SmsSendError, type SmsProvider } from './sms/sms.provider'
 
@@ -17,7 +20,9 @@ const LEASE_SEC = 300
 interface Claimed {
   id: string
   messageId: string
+  channel: 'sms' | 'telegram'
   phone: string
+  chatId: bigint | null
   text: string
   attempts: number
 }
@@ -37,8 +42,9 @@ export interface DispatchResult {
 }
 
 /**
- * SMS navbati ishchisi (T-077): bazadagi navbatdan (`message_recipients`)
- * oladi, provayderga yuboradi, xatoda keyinroq qayta uradi.
+ * Xabar navbati ishchisi (T-077): bazadagi navbatdan (`message_recipients`)
+ * oladi, qator kanaliga ko'ra SMS provayderiga yoki Telegram botga (Q116)
+ * yuboradi, xatoda keyinroq qayta uradi.
  *
  * - Olish — qisqa tranzaksiyada `FOR UPDATE SKIP LOCKED` bilan va "ijara"
  *   (`next_attempt_at`) qo'yiladi: bir necha instansiya bir qatorni ikki
@@ -46,6 +52,8 @@ export interface DispatchResult {
  * - Yuborish — tranzaksiyadan TASHQARIDA (tashqi HTTP qulf ushlamaydi)
  * - Natija — yana qisqa tranzaksiyada; xabarning umumiy holati yangilanadi
  * - Faqat navbatida ishi bor tenantlar aylanadi (`tenants_with_due_messages`)
+ * - Faqat sozlangan kanal qatorlari olinadi: o'chiq kanalniki navbatda kutadi
+ * - Telegram'da mijoz botni bloklagan bo'lsa — "bloklagan" deb belgilanadi (keyingisi SMS'ga, bo'lsa)
  */
 @Injectable()
 export class MessageDispatcher implements OnApplicationBootstrap {
@@ -58,12 +66,13 @@ export class MessageDispatcher implements OnApplicationBootstrap {
     private readonly scheduler: SchedulerRegistry,
     private readonly queue: JobQueue,
     @Optional() @Inject(SMS_PROVIDER) private readonly provider: SmsProvider | null,
+    @Optional() @Inject(TELEGRAM_CLIENT) private readonly telegram: TelegramClient | null,
   ) {}
 
   /** Yuborish navbat orqali darhol uyg'otadi; interval — qayta urinishlar va zaxira uchun */
   onApplicationBootstrap(): void {
     const every = this.config.get('SMS_DISPATCH_INTERVAL_MS', { infer: true })
-    if (!this.provider || every === 0) return
+    if ((!this.provider && !this.telegram) || every === 0) return
     this.queue.register('sms-dispatch', () => this.tick())
     this.scheduler.addInterval('sms-dispatch', setInterval(() => void this.tick(), every))
   }
@@ -74,7 +83,7 @@ export class MessageDispatcher implements OnApplicationBootstrap {
     try {
       await this.dispatch()
     } catch (err) {
-      this.logger.error({ err }, 'SMS navbati aylanishi yiqildi')
+      this.logger.error({ err }, 'Xabar navbati aylanishi yiqildi')
     } finally {
       this.running = false
     }
@@ -82,10 +91,10 @@ export class MessageDispatcher implements OnApplicationBootstrap {
 
   async dispatch(): Promise<DispatchResult> {
     const total: DispatchResult = { sent: 0, retried: 0, failed: 0 }
-    if (!this.provider) return total
+    if (!this.provider && !this.telegram) return total
     const tenants = await this.prisma.$queryRaw<{ id: string }[]>`SELECT tenants_with_due_messages() AS id`
     for (const { id } of tenants) {
-      const result = await this.dispatchTenant(id, this.provider)
+      const result = await this.dispatchTenant(id)
       total.sent += result.sent
       total.retried += result.retried
       total.failed += result.failed
@@ -93,7 +102,9 @@ export class MessageDispatcher implements OnApplicationBootstrap {
     return total
   }
 
-  private async dispatchTenant(tenantId: string, provider: SmsProvider): Promise<DispatchResult> {
+  private async dispatchTenant(tenantId: string): Promise<DispatchResult> {
+    // Ikkala kanal sozlangan bo'lsa — filtr yo'q; aks holda faqat sozlangani
+    const channelFilter = this.provider && this.telegram ? Prisma.empty : Prisma.sql`AND channel = ${this.provider ? 'sms' : 'telegram'}`
     const claimed = await this.prisma.inTenantTransaction(tenantId, (tx) =>
       tx.$queryRaw<Claimed[]>`
         UPDATE message_recipients r
@@ -102,15 +113,24 @@ export class MessageDispatcher implements OnApplicationBootstrap {
          WHERE r.id IN (
                  SELECT id FROM message_recipients
                   WHERE tenant_id = ${tenantId}::uuid AND status IN ('queued', 'sending') AND next_attempt_at <= now()
+                        ${channelFilter}
                   ORDER BY next_attempt_at
                   LIMIT ${BATCH_SIZE}
                     FOR UPDATE SKIP LOCKED)
-        RETURNING r.id, r.message_id AS "messageId", r.phone, r.text, r.attempts`,
+        RETURNING r.id, r.message_id AS "messageId", r.channel, r.phone, r.chat_id AS "chatId", r.text, r.attempts`,
     )
     if (claimed.length === 0) return { sent: 0, retried: 0, failed: 0 }
 
     const outcomes: Outcome[] = []
-    for (const row of claimed) outcomes.push(await this.sendOne(provider, row))
+    const blocked: bigint[] = []
+    for (const row of claimed) {
+      try {
+        outcomes.push({ id: row.id, status: 'sent', provider_id: await this.deliver(row), error: null, retry_in: 0 })
+      } catch (err) {
+        outcomes.push(this.failure(row, err))
+        if (err instanceof TelegramApiError && err.unreachable && row.chatId !== null) blocked.push(row.chatId)
+      }
+    }
 
     await this.prisma.inTenantTransaction(tenantId, async (tx) => {
       await tx.$executeRaw`
@@ -122,6 +142,8 @@ export class MessageDispatcher implements OnApplicationBootstrap {
             AS o(id uuid, status text, provider_id text, error text, retry_in int)
          WHERE r.tenant_id = ${tenantId}::uuid AND r.id = o.id`
       await this.refreshMessages(tx, tenantId, [...new Set(claimed.map((c) => c.messageId))])
+      // Mijoz botni bloklagan yoki chat yo'q — xodim ko'radi; keyingi xabarlar SMS'ga (bo'lsa)
+      if (blocked.length > 0) await markTelegramBlocked(tx, tenantId, blocked)
     })
     return {
       sent: outcomes.filter((o) => o.status === 'sent').length,
@@ -130,19 +152,27 @@ export class MessageDispatcher implements OnApplicationBootstrap {
     }
   }
 
-  private async sendOne(provider: SmsProvider, row: Claimed): Promise<Outcome> {
-    try {
-      const { providerId } = await provider.send(row.phone, row.text)
-      return { id: row.id, status: 'sent', provider_id: providerId, error: null, retry_in: 0 }
-    } catch (err) {
-      const retryable = !(err instanceof SmsSendError) || err.retryable
-      const error = err instanceof Error ? err.message.slice(0, 500) : String(err)
-      if (retryable && row.attempts < MAX_ATTEMPTS) {
-        return { id: row.id, status: 'queued', provider_id: null, error, retry_in: RETRY_DELAYS_SEC[row.attempts - 1] ?? 0 }
-      }
-      this.logger.warn({ recipient: row.id, attempts: row.attempts }, `SMS yuborilmadi: ${error}`)
-      return { id: row.id, status: 'failed', provider_id: null, error, retry_in: 0 }
+  /**
+   * Qator kanalida yuboradi; provayderdagi xabar identifikatori qaytadi. Kanal sozlanganligini
+   * olish filtri kafolatlaydi. Telegram qatori matni — tayyor HTML karta (`MessagesService`)
+   */
+  private async deliver(row: Claimed): Promise<string> {
+    if (row.channel === 'telegram') {
+      const { message_id } = await this.telegram!.sendMessage(Number(row.chatId), row.text, { html: true })
+      return String(message_id)
     }
+    return (await this.provider!.send(row.phone, row.text)).providerId
+  }
+
+  /** Xato: vaqtinchalik bo'lsa va urinish qolgan bo'lsa — keyinroq qayta; aks holda `failed` */
+  private failure(row: Claimed, err: unknown): Outcome {
+    const retryable = !(err instanceof SmsSendError || err instanceof TelegramApiError) || err.retryable
+    const error = err instanceof Error ? err.message.slice(0, 500) : String(err)
+    if (retryable && row.attempts < MAX_ATTEMPTS) {
+      return { id: row.id, status: 'queued', provider_id: null, error, retry_in: RETRY_DELAYS_SEC[row.attempts - 1] ?? 0 }
+    }
+    this.logger.warn({ recipient: row.id, channel: row.channel, attempts: row.attempts }, `Xabar yuborilmadi: ${error}`)
+    return { id: row.id, status: 'failed', provider_id: null, error, retry_in: 0 }
   }
 
   /** Xabarning umumiy holati qatorlaridan: yuborilmoqda / yuborildi / qisman / xato */

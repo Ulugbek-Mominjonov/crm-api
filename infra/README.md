@@ -211,6 +211,39 @@ o'zgarmaydi (trigger). O'zgarishlar audit jurnaliga tushmaydi va ilova qoidalari
 chetlab o'tadi — farqni tungi invariant tekshiruvi ko'rsatadi. `crm` (jadval egasi, superuser, parol
 `secrets/db_password.txt`) — faqat favqulodda.
 
+## 9. Telegram bot (mijozga xabar, Q116)
+
+Bitta bot — barcha do'konlar uchun: mijoz shaxsiy QR orqali Start bosib ulanadi, xabar va chek
+Telegram'da boradi. Token berilmasa bot o'chiq — xabarlar faqat SMS orqali (`SMS_PROVIDER=none` bo'lsa
+mijozga yetib bormaydi: «Mijoz botga ulanmagan»).
+
+1. Telegram'da **@BotFather** → `/newbot` → nom (masalan «Do'kon xabarlari») va username (`…_bot`
+   bilan tugaydi) → token. Profil (ixtiyoriy, mijoz botni ochganda ko'radi): `/setdescription` —
+   «Do'kon xabarlari: qarz eslatmalari, cheklar, aksiyalar va bonuslar. Ulanish — sotuvchi bergan
+   shaxsiy QR kod orqali.», `/setuserpic` — logotip.
+2. `/opt/crm/.env` ga (sir: `openssl rand -hex 32`):
+
+   ```bash
+   TELEGRAM_BOT_TOKEN=<BotFather bergan token>
+   TELEGRAM_UPDATES=webhook
+   TELEGRAM_WEBHOOK_URL=https://<CRM_DOMAIN>/api/v1/telegram/webhook
+   TELEGRAM_WEBHOOK_SECRET=<64 belgili hex>
+   ```
+
+3. `cd /opt/crm && docker compose -f docker-compose.prod.yml up -d api` — ishga tushganda webhook
+   o'rnatiladi, logda «Telegram webhook o‘rnatildi». Tekshirish (token buyruqda yozilmaydi — `.env` dan):
+
+   ```bash
+   (set -a; . /opt/crm/.env; curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getWebhookInfo")
+   ```
+
+   `url` to'g'ri, `last_error_message` yo'q bo'lsa — tayyor. Sinov: mijoz kartasida «Telegram'ga ulash»
+   (`POST /api/v1/clients/<id>/telegram-link`) → havolani telefonda ochib **Start** → «✅ Tayyor».
+
+Lokal sinov — ALOHIDA test bot (production botining webhook'iga tegmaslik uchun): `apps/api/.env` da
+`TELEGRAM_BOT_TOKEN=<test bot tokeni>`, `TELEGRAM_UPDATES=polling` (ochiq manzil kerak emas).
+Token sizib chiqsa: BotFather → `/revoke` → yangi token `.env` ga → `up -d api`.
+
 ## Xavfsizlik eslatmalari
 
 - Docker e'lon qilgan portlar ufw'ni chetlab o'tadi: tashqi `ports:` FAQAT umumiy Caddy'da (80/443);
