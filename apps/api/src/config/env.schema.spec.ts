@@ -57,6 +57,20 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ ...base, OFD_ENABLED: 'true' })).toThrow(/OFD_/)
   })
 
+  it('Telegram: webhook rejimida manzil va sir majburiy, polling — ularsiz', () => {
+    const token = { TELEGRAM_BOT_TOKEN: '123:abc' }
+    expect(() => parseEnv({ ...base, ...token })).toThrow(/TELEGRAM_WEBHOOK_URL/)
+    expect(parseEnv({ ...base, ...token, TELEGRAM_UPDATES: 'polling' }).TELEGRAM_UPDATES).toBe('polling')
+    const secret = 'a'.repeat(32)
+    const env = parseEnv({ ...base, ...token, TELEGRAM_WEBHOOK_URL: 'https://crm.example.uz/api/v1/telegram/webhook', TELEGRAM_WEBHOOK_SECRET: secret })
+    expect(env.TELEGRAM_UPDATES).toBe('webhook')
+    expect(() => parseEnv({ ...base, TELEGRAM_WEBHOOK_SECRET: 'qisqa' })).toThrow(/TELEGRAM_WEBHOOK_SECRET/)
+    // Namunadagi bo'sh qatorlar — berilmagan
+    const blank = parseEnv({ ...base, TELEGRAM_BOT_TOKEN: '', TELEGRAM_WEBHOOK_URL: '', TELEGRAM_WEBHOOK_SECRET: '' })
+    expect(blank.TELEGRAM_WEBHOOK_URL).toBeUndefined()
+    expect(blank.TELEGRAM_WEBHOOK_SECRET).toBeUndefined()
+  })
+
   it('vergulli ro‘yxatni massivga aylantiradi', () => {
     const env = parseEnv({ ...base, WEB_ORIGINS: 'https://a.uz, https://b.uz' })
     expect(env.WEB_ORIGINS).toEqual(['https://a.uz', 'https://b.uz'])

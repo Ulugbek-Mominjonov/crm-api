@@ -52,9 +52,10 @@ const MIXED_PAYMENT = 'Aralash'
 const WALK_IN_CUSTOMER = 'Naqd xaridor'
 
 const moneyFormat = new Intl.NumberFormat('uz-UZ')
-const money = (n: number): string => moneyFormat.format(n)
+/** Chekdagi summa ko'rinishi — Telegram izohi ham shu (`receipt-telegram.ts`) */
+export const money = (n: number): string => moneyFormat.format(n)
 /** `YYYY-MM-DD` → `DD.MM.YYYY` (frontend `formatDate`) */
-const day = (date: string): string => date.split('-').reverse().join('.')
+export const day = (date: string): string => date.split('-').reverse().join('.')
 
 interface TextStyle {
   bold?: boolean

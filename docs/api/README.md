@@ -67,7 +67,7 @@ login’da do‘kon tanlash).
 | Moliya | Nasiya va qarzlar (eskirish 30/60/60+), qarz to‘lovi, xarajatlar va takrorlanuvchi shablonlar, kirim buyurtmalari (qabul, ta’minotchiga to‘lov) |
 | Savdo | Takliflar (smeta) → sotuvga aylantirish, yetkazib berish (haydovchi ko‘rinishi, marshrut) |
 | Hisobot | Boshqaruv paneli, foyda/zarar (oldingi davr bilan), analitika (ABC), keshlangan agregatlar |
-| Xabarlar | SMS (Eskiz / Playmobile), shablon o‘zgaruvchilari, fon navbati, kunlik chegara |
+| Xabarlar | Telegram bot (shaxsiy QR bilan ulangan mijozga xabar va chek — bepul) va SMS (Eskiz / Playmobile), shablon o‘zgaruvchilari, fon navbati, kunlik SMS chegarasi |
 | Fayllar | Presigned yuklash (server orqali o‘tmaydi), tekshiruv (MIME, xesh), rasm variantlari 128/512 WebP, kvota |
 | Eksport / zaxira | CSV/JSON eksport (katta — fonda), butun do‘kon zaxirasi (gzip JSON) |
 | Migratsiya | Brauzerdagi eski (localStorage) ma’lumotni serverga ko‘chirish: dry-run + import |
@@ -711,6 +711,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `SHIFT_REQUIRED` | 423 | Smena ochilmagan (sotuv, qaytarish, naqd amal) | Smena ochish oynasi |
 | `TENANT_READ_ONLY` | 423 | Do‘kon `suspended`/`deleting` — yozish yopiq (`meta.status`) | Banner + to‘lov/qaytarish tugmasi |
 | `AUTH_ACCOUNT_LOCKED` | 423 | Xodim ishdan bo‘shatilgan (login/refresh) | Login sahifasida xabar |
+| `RECIPIENT_UNREACHABLE` | 422 | Mijozga yetkazib bo‘lmaydi (xabar, chek, Telegram havolasi): `meta.reason` — `not_linked` (botga ulanmagan), `blocked` (botni bloklagan), `no_customer` (chekda mijoz yo‘q), `no_channel` (bot/SMS sozlanmagan); guruhda `meta.unreachable` | «Telegram’ga ulash» (shaxsiy QR) |
 | `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit`, `used`, `requested`) | — |
 | `INTERNAL` | 500 | Kutilmagan xato (tafsilot loglarda, `traceId` bo‘yicha) | Xato kodi bilan |
 
@@ -1108,6 +1109,9 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
   (taklifda sukut narx darajasi); `creditLimit` (`null`/0 — cheklanmagan); `paymentTermDays` (nasiya muddati).
 - Telefon saqlashda normallashtiriladi (raqamlar + boshidagi `+`); aniq qidiruv — `?phone=`.
 - `bonusPoints` faqat o‘qiladi — sotuv/qaytarish/bekor qilishda o‘zgaradi.
+- `telegramStatus` (faqat o‘qiladi) — Telegram bot: `linked` (xabar va chek Telegram’da), `none`
+  (ulanmagan), `blocked` (mijoz botni bloklagan). Filtr: `GET /clients?telegramStatus=none` —
+  ulanmaganlar. Ulash — `POST /clients/:id/telegram-link` ([10.13](#telegram)).
 - `GET /clients/:id/stats` — jami xarid, qarz, muddati o‘tgan qarz, oxirgi xarid (POS ogohlantirishi).
 
 ### 10.12 Xodimlar va foydalanuvchilar
@@ -1127,13 +1131,86 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 - Himoya: oxirgi admin (422 `LAST_ADMIN`), o‘zini o‘chirish (`SELF_DELETE`), o‘z rolini o‘zgartirish
   (`SELF_ROLE_CHANGE`); tarif chegarasi (402).
 
-### 10.13 SMS xabarlar
+### 10.13 Xabarlar (SMS va Telegram)
 
 - Oqim: auditoriya tanlash → `POST /messages/preview` (nechta qabul qiluvchi) → matn →
   `POST /messages` (fonda yuboriladi) → `GET /messages` (holat statistikasi).
 - `target`: `customer` (+ `customerId`), `group` (+ `group`), `debtors` (qarzi borlar), `all`.
 - Matnda o‘zgaruvchilar: `{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga
-  serverda almashtiriladi. Matn ≤ 600 belgi. Kunlik chegara — [8.2](#tenant).
+  serverda almashtiriladi. Matn ≤ 600 belgi. Kunlik chegara — [8.2](#tenant) (faqat SMS sanaladi).
+- Kanal har mijoz uchun SERVERDA tanlanadi (frontend tanlamaydi): **botga ulangan → Telegram**; aks holda
+  **SMS sozlangan bo‘lsa → SMS** (telefoni bo‘lsa); aks holda **yetib bormaydi**:
+  - bitta mijoz (`target=customer`) — 422 `RECIPIENT_UNREACHABLE`, `detail`: «Mijoz botga ulanmagan»
+    (`meta.reason: not_linked`) yoki «Mijoz botni bloklagan» (`blocked`); bot ham, SMS ham sozlanmagan —
+    `no_channel`. Oynada «Telegram’ga ulash» (shaxsiy QR) taklif qiling;
+  - guruh / qarzdorlar / hammasi — yetib boradiganlarga yuboriladi, qolganlari faqat SANALADI
+    (`unreachable`); hech kimga yetib bo‘lmasa — 422 (`meta.unreachable`). Yuborishdan OLDIN
+    `preview` bo‘yicha ogohlantiring (pastda).
+
+<a id="telegram"></a>
+
+#### Telegram bot
+
+Bitta bot — barcha do‘konlar uchun. Bot Start bosgan odamning telefon raqamini **bilmaydi** va odamga
+raqami bo‘yicha yoza **olmaydi** (Telegram qoidasi) — shuning uchun har mijozga **shaxsiy havola**:
+mijoz uni ochib **Start** bosadi va ulanadi. Raqam yuborish yoki biror narsa yozish shart emas.
+
+| Qadam | Kim | Nima bo‘ladi |
+|-------|-----|--------------|
+| 1 | Xodim | Mijoz kartasida «Telegram’ga ulash» → `POST /clients/:id/telegram-link` → `link` dan QR (ekranda) |
+| 2 | Mijoz | QR’ni telefon kamerasi bilan skanerlaydi → Telegram ochiladi → **Start** → ✅ «Tayyor, Ali!» |
+| 3 | Xodim | Odatdagidek `POST /messages`, chekda — «Telegram’ga yuborish» (`POST /sales/:id/receipt/telegram`) |
+
+Frontendda:
+
+- **Bot holati:** `GET /telegram` → `{ enabled, botUsername }`. `enabled: false` — serverda bot sozlanmagan:
+  Telegram tugmalarini ko‘rsatmang.
+- **Ulash (QR):** `POST /clients/:id/telegram-link` → `{ link, expiresAt }` — QR’ni brauzerda chizing
+  (masalan `qrcode` kutubxonasi). Havola **bir martalik**, 7 kun amal qiladi; har chaqiruv yangisini
+  beradi (eskisi bekor) — QR oynasi ochilganda so‘rang, keshlamang. Havolani mijozga boshqa yo‘l bilan
+  (masalan boshqa messenjer) ham yuborish mumkin. Huquq: `customers:edit`.
+- **Mijoz holati:** `ClientDto.telegramStatus` — `linked` (Telegram belgisi), `none`, `blocked`
+  («botni bloklagan» — mijozga ayting). Ulanmaganlar ro‘yxati: `GET /clients?telegramStatus=none`.
+- **Xabar oynasi:** `POST /messages/preview` → `{ recipients, telegram, unreachable, label }`:
+  «42 ta mijozga boradi (12 tasi Telegram’da, 30 tasi SMS). 5 tasiga yetib bormaydi — botga ulanmagan»
+  → tasdiqlash. `unreachable > 0` bo‘lsa «Ulanmaganlar» havolasi → `GET /clients?telegramStatus=none`.
+- **Jurnal:** `MessageDto`: `recipients` (yuborilganlar), `telegram` (shundan Telegram), `unreachable`
+  (yetib bormaganlar); holat (`stats`) ikkala kanal uchun umumiy.
+- **Chek:** chek ko‘rinishi/POS’da «Telegram’ga yuborish» → `POST /sales/:id/receipt/telegram` (204).
+  Mijozga PDF chek (chop etiladigan bilan bir xil, fiskal QR bilan) va izoh boradi. 422
+  `RECIPIENT_UNREACHABLE` — `meta.reason`: `no_customer` (chekda mijoz yo‘q), `not_linked`, `blocked`,
+  `no_channel`; 503 — Telegram javob bermadi (qayta urinish). Huquq: `sales:view`.
+
+Mijoz Telegram’da ko‘radigan xabar (HTML; o‘zgaruvchi qiymatlari qalin, aloqa — sozlamadagi
+chek telefoni va manzili, bo‘sh bo‘lsa chiqmaydi):
+
+```
+🏪 Qurilish Mollari
+
+Hurmatli Ali, qarzingiz 1 250 000 so‘m. Iltimos, to‘lovni kechiktirmang.
+
+📞 +998 71 200-00-00
+📍 Chilonzor 5
+```
+
+Chek (PDF fayl, izohi):
+
+```
+🧾 Chek CHEK-1042 · 29.09.2026
+🏪 Qurilish Mollari
+
+💰 Jami: 188 600 so'm
+⏳ Qarz: 50 000 so'm · muddat 20.10.2026
+🎁 Bonus: +1 886
+```
+
+Qoidalar:
+
+- Mijoz botni o‘zi to‘xtata olmaydi (`/stop` yo‘q). Botni **bloklash** — Telegram’ning o‘z imkoniyati,
+  uni taqiqlab bo‘lmaydi: mijoz `blocked` bo‘ladi, xabarlar unga SMS bilan (sozlangan bo‘lsa) yoki
+  yetib bormaydi; botni qayta ochsa — avtomatik `linked`.
+- Bir Telegram hisobi bir necha mijoz yozuviga (va do‘konga) ulanishi mumkin — har biri o‘z havolasi bilan.
+- Faol bo‘lmagan (to‘xtatilgan, o‘chirilayotgan) do‘kon havolasi ishlamaydi.
 
 ### 10.14 Hisobotlar
 
@@ -1315,8 +1392,8 @@ realtime hodisada yangilanadi.
 | **Ro‘yxatdan o‘tish** (yangi) | — | `POST /tenants/register` → sehrgar: `PATCH /settings`, `POST /warehouses`, `/categories`, `/products`, `/employees`, `/users` | — |
 | **Ilova qobig‘i** (Header, UserMenu, Sidebar) | `POST /auth/refresh` (token yo‘q bo‘lsa), `GET /settings`, socket ulanishi; admin — `GET /tenants/current` (banner) | `POST /auth/logout`, `/auth/logout-all`, `/auth/change-password` | — |
 | **Dashboard** (`/`, finance) | `GET /dashboard?days=30` | davr 7/30/90 | `sale.*`, `debt.paid`, `po.received`, `stock.changed` |
-| **POS** (`/pos`, sales) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` (yoki `?format=pdf`) | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
-| **Cheklar** (`/sales`, sales) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id` (`returnedQty`), `GET /sales?relatedSaleId=` (qaytarishlar), `GET /sales/:id/receipt` (JSON yoki `?format=pdf`), `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
+| **POS** (`/pos`, sales) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` (yoki `?format=pdf`); mijoz botga ulangan bo‘lsa — «Telegram’ga» (`POST /sales/:id/receipt/telegram`) | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
+| **Cheklar** (`/sales`, sales) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id` (`returnedQty`), `GET /sales?relatedSaleId=` (qaytarishlar), `GET /sales/:id/receipt` (JSON yoki `?format=pdf`), `POST /sales/:id/receipt/telegram`, `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
 | **Mahsulotlar** (`/products`, products) | `GET /products` (server sahifa/saralash), `GET /products/summary`, `GET /categories`, `GET /suppliers` (filtr), `GET /files/urls` | CRUD, `.../restore`, `POST /products/import`, `/products/bulk-price`, rasm (`/files/*`), `GET /exports/products` | `stock.changed`, `sale.*`, `po.received` |
 | **Mahsulot kartasi** (`/products/:id`) | `GET /products/:id`, `/products/:id/stats`, `GET /stock/movements?productId=`, admin: `GET /audit?entityId=` | tahrir, rasm | `stock.changed` (shu id) |
 | **Ombor** (`/warehouse`, products) | `GET /warehouses`, `GET /warehouses/stock`, `GET /stock/movements`, `GET /stock/reorder-suggestions` | `POST /stock/intake`, `/writeoff`, `/adjust`, `/transfer`, ombor CRUD/arxiv, `GET /exports/stock-movements` | `stock.changed`, `sale.*`, `po.received` |
@@ -1330,9 +1407,9 @@ realtime hodisada yangilanadi.
 | **Xarajatlar** (`/expenses`, expenses) | `GET /expenses`, `/expenses/summary`, `GET /expense-templates` | CRUD, `.../restore`, shablon CRUD, `POST /expense-templates/run-due`, `GET /exports/expenses` | — |
 | **Hisobotlar** (`/reports`, finance) | `GET /reports/pnl?from&to` | davr tanlash | — (focus’da yangilash) |
 | **Analitika** (`/analytics`, finance) | `GET /analytics?from&to` | davr tanlash | — |
-| **Mijozlar** (`/clients`, customers) | `GET /clients` | CRUD, `.../restore`, `GET /exports/clients` | `sale.*`, `debt.paid` |
-| **Mijoz kartasi** (`/clients/:id`) | `GET /clients/:id`, `/clients/:id/stats`, `GET /sales?customerId=`, `GET /debts?view=receipts&customerId=`, `GET /debts/payments?customerId=` | tahrir, qarz to‘lovi, SMS | `sale.*`, `debt.paid` |
-| **Xabarlar** (`/messages`, customers) | `GET /messages` | `POST /messages/preview`, `POST /messages` | — |
+| **Mijozlar** (`/clients`, customers) | `GET /clients` (`telegramStatus` — belgi va filtr) | CRUD, `.../restore`, `GET /exports/clients` | `sale.*`, `debt.paid` |
+| **Mijoz kartasi** (`/clients/:id`) | `GET /clients/:id`, `/clients/:id/stats`, `GET /sales?customerId=`, `GET /debts?view=receipts&customerId=`, `GET /debts/payments?customerId=` | tahrir, qarz to‘lovi, xabar, «Telegram’ga ulash» (`POST /clients/:id/telegram-link` → QR) | `sale.*`, `debt.paid` |
+| **Xabarlar** (`/messages`, customers) | `GET /messages`, `GET /telegram` (bot holati) | `POST /messages/preview` (kanal bo‘yicha son), `POST /messages`; ulanmaganlar — `GET /clients?telegramStatus=none` | — |
 | **Xodimlar** (`/employees`, employees) | `GET /employees` | CRUD, `.../restore` | — |
 | **Foydalanuvchilar** (`/users`, users) | `GET /users`, `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD, «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | — |
 | **Sozlamalar** (`/settings`, settings) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
@@ -1661,6 +1738,7 @@ tanlangan ombor, til, mavzu, offline navbat.
 | Avval | Endi | Frontendda |
 |-------|------|-----------|
 | Dev proksi faqat lokal backend (`localhost:3000`) uchun ko‘rsatilgan edi | Proksi production’ga ham (`API_PROXY_TARGET=https://crm.workspaces.uz`), `/health` qo‘shildi; LAN uchun HTTPS; production’ga boshqa origin’dan to‘g‘ridan-to‘g‘ri murojaat nega yo‘qligi ([3.1](#connect)) | `vite.config.ts` ga proksi; CORS ro‘yxatini kengaytirish va `SameSite=None` — qilinmaydi |
+| Xabarlar faqat SMS edi; SMS sozlanmaganda xabar faqat jurnalga yozilardi (`logged`, «demo») | Telegram bot: mijoz shaxsiy QR orqali Start bosib ulanadi; xabar — botga ulangan → Telegram (zamonaviy karta), aks holda SMS, aks holda yetmaydi (bitta mijozda 422 `RECIPIENT_UNREACHABLE`, guruhda `unreachable` soni); chekni Telegram’ga (PDF) ([10.13](#telegram)) | `GET /telegram`, `POST /clients/:id/telegram-link` (QR), `ClientDto.telegramStatus` va filtr, `preview.telegram/unreachable`, `MessageDto.telegram/unreachable`, `POST /sales/:id/receipt/telegram`; yangi xato kodi |
 
 **2026-09-28** — frontendga ta’sir qiladi:
 

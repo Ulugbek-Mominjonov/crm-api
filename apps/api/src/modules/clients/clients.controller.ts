@@ -3,7 +3,7 @@ import {
 } from '@nestjs/common'
 import {
   ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiNoContentResponse,
-  ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags,
+  ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags, ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger'
 import { ApiPagedResponse } from '@/common/crud/api-paged-response.decorator'
 import type { Paged } from '@/common/crud/paging'
@@ -11,6 +11,8 @@ import { ApiErrorDto } from '@/common/http/api-error.dto'
 import { ApiIfMatch, IfMatch } from '@/common/http/if-match.decorator'
 import { RequirePermission } from '@/modules/auth/decorators/require-permission.decorator'
 import { AuditAction } from '@/modules/audit/audit.decorator'
+import { TelegramLinkDto } from '@/modules/telegram/dto/telegram.dto'
+import { TelegramService } from '@/modules/telegram/telegram.service'
 import { ClientsService } from './clients.service'
 import { ClientDto, ClientListQueryDto, ClientStatsDto, CreateClientDto, UpdateClientDto } from './dto/client.dto'
 
@@ -19,7 +21,10 @@ import { ClientDto, ClientListQueryDto, ClientStatsDto, CreateClientDto, UpdateC
 @ApiBearerAuth()
 @Controller('clients')
 export class ClientsController {
-  constructor(private readonly clients: ClientsService) {}
+  constructor(
+    private readonly clients: ClientsService,
+    private readonly telegram: TelegramService,
+  ) {}
 
   @Get()
   @RequirePermission('customers', 'view')
@@ -95,5 +100,22 @@ export class ClientsController {
   @ApiNotFoundResponse({ type: ApiErrorDto })
   restore(@Param('id', ParseUUIDPipe) id: string): Promise<ClientDto> {
     return this.clients.restore(id)
+  }
+
+  @Post(':id/telegram-link')
+  @HttpCode(200)
+  @RequirePermission('customers', 'edit')
+  @AuditAction('client.telegramLinkIssued')
+  @ApiOperation({
+    summary: 'Telegram’ga ulash — shaxsiy havola (QR uchun)',
+    description:
+      'Mijoz havolani (QR) ochib Start bosadi — bot shu mijozga ulanadi, raqam yuborish shart emas. ' +
+      'Bir martalik, 7 kun amal qiladi; har chaqiruv yangisini beradi (eskisi bekor).',
+  })
+  @ApiOkResponse({ type: TelegramLinkDto })
+  @ApiNotFoundResponse({ type: ApiErrorDto })
+  @ApiUnprocessableEntityResponse({ description: 'RECIPIENT_UNREACHABLE (`meta.reason: no_channel`) — bot sozlanmagan', type: ApiErrorDto })
+  telegramLink(@Param('id', ParseUUIDPipe) id: string): Promise<TelegramLinkDto> {
+    return this.telegram.createLink(id)
   }
 }

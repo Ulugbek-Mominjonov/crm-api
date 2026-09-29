@@ -39,19 +39,31 @@ export class AuditService {
     if (!ctx?.tenantId) return
 
     const client = tx ?? this.prisma.scoped
-    await client.auditEntry.create({
-      data: {
-        tenantId: ctx.tenantId,
-        userId: ctx.userId ?? null,
-        action: input.action,
-        detail: input.detail?.slice(0, 500),
-        entityType: input.entityType,
-        entityId: input.entityId,
-        diff: input.diff ? (redact(input.diff) as Prisma.InputJsonValue) : undefined,
-      },
-    })
+    await client.auditEntry.create({ data: auditRow(ctx.tenantId, ctx.userId, input) })
     // Har pul/ombor amali jurnalga tushadi (I22) — hisobot keshi shu yerda
     // bekor qilinadi (T-085). Tranzaksiya yiqilsa ham zarar yo'q: faqat kesh o'tkazib yuboriladi
     this.reports?.invalidate(ctx.tenantId)
+  }
+
+  /** Bir amal bir nechta yozuvga tegsa (masalan bir raqamli mijozlar) — bitta INSERT */
+  async logMany(inputs: readonly AuditInput[], tx?: TenantTx): Promise<void> {
+    const ctx = tryContext()
+    if (!ctx?.tenantId || inputs.length === 0) return
+
+    const client = tx ?? this.prisma.scoped
+    await client.auditEntry.createMany({ data: inputs.map((input) => auditRow(ctx.tenantId!, ctx.userId, input)) })
+    this.reports?.invalidate(ctx.tenantId)
+  }
+}
+
+function auditRow(tenantId: string, userId: string | undefined, input: AuditInput): Prisma.AuditEntryCreateManyInput {
+  return {
+    tenantId,
+    userId: userId ?? null,
+    action: input.action,
+    detail: input.detail?.slice(0, 500),
+    entityType: input.entityType,
+    entityId: input.entityId,
+    diff: input.diff ? (redact(input.diff) as Prisma.InputJsonValue) : undefined,
   }
 }

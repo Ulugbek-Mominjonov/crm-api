@@ -12,6 +12,7 @@ import {
   type ClientListQueryDto,
   type ClientStatsDto,
   type CreateClientDto,
+  type TelegramStatus,
   type UpdateClientDto,
 } from './dto/client.dto'
 
@@ -31,11 +32,21 @@ const CLIENT_SELECT = {
   notes: true,
   createdAt: true,
   updatedAt: true,
+  // Chat id tashqariga chiqmaydi — faqat holat (Q116)
+  telegramChatId: true,
+  telegramBlockedAt: true,
   // Ro'yxatdagi "cheklar soni" — sahifa qatorlari uchun shu so'rovning o'zida
   _count: { select: { sales: { where: { type: 'sale', deletedAt: null } } } },
 } satisfies Prisma.ClientSelect
 
 type ClientRow = Prisma.ClientGetPayload<{ select: typeof CLIENT_SELECT }>
+
+/** `telegramStatus` filtri — `toDto` dagi holat bilan bir xil ta'rif */
+const TELEGRAM_FILTER: Readonly<Record<TelegramStatus, Prisma.ClientWhereInput>> = {
+  none: { telegramChatId: null },
+  linked: { telegramChatId: { not: null }, telegramBlockedAt: null },
+  blocked: { telegramChatId: { not: null }, telegramBlockedAt: { not: null } },
+}
 
 /** `q` da shuncha raqam bo'lsa telefon bo'yicha ham qidiriladi */
 const MIN_PHONE_SEARCH_DIGITS = 3
@@ -67,10 +78,11 @@ export class ClientsService extends SoftDeleteCrudService<
     return crudDelegate(this.prisma.scoped.client)
   }
 
-  protected toDto({ _count, ...row }: ClientRow): ClientDto {
+  protected toDto({ _count, telegramChatId, telegramBlockedAt, ...row }: ClientRow): ClientDto {
     return {
       ...row,
       salesCount: _count.sales,
+      telegramStatus: telegramChatId === null ? 'none' : telegramBlockedAt ? 'blocked' : 'linked',
       bonusPoints: moneyFromDb(row.bonusPoints),
       creditLimit: mapNullable(row.creditLimit, moneyFromDb) ?? null,
     }
@@ -96,6 +108,7 @@ export class ClientsService extends SoftDeleteCrudService<
       ...(query.status && { status: query.status }),
       ...(query.group && { group: query.group }),
       ...(query.type && { type: query.type }),
+      ...(query.telegramStatus && TELEGRAM_FILTER[query.telegramStatus]),
     }
   }
 

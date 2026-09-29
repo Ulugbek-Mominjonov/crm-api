@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SettingsModule } from '@/modules/settings/settings.module'
+import { TelegramModule } from '@/modules/telegram/telegram.module'
 import { TenantsModule } from '@/modules/tenants/tenant.module'
 import { MessageDispatcher } from './message-dispatcher'
 import { MessagesController } from './messages.controller'
@@ -9,7 +10,7 @@ import { createSmsProvider } from './sms/sms-provider.factory'
 import { SMS_PROVIDER } from './sms/sms.provider'
 
 @Module({
-  imports: [SettingsModule, TenantsModule],
+  imports: [SettingsModule, TenantsModule, TelegramModule],
   controllers: [MessagesController],
   providers: [
     MessagesService,

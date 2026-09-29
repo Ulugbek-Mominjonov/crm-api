@@ -86,7 +86,8 @@ TABLES = {
         "tarixi o'zgarmaydi. `ref_id` — bog'liq hujjat (sotuv, buyurtma)."),
     'clients': (
         "Mijozlar: jismoniy yoki yuridik, guruh (chakana, ulgurji, VIP), holat (lid, faol, nofaol), sodiqlik "
-        "ballari, nasiya limiti va to'lov muddati."),
+        "ballari, nasiya limiti va to'lov muddati. Telegram botga ulangan bo'lsa (`telegram_chat_id`, shaxsiy "
+        "havola orqali) — xabar va chek Telegram'ga."),
     'sales': (
         "Chek — sotuv yoki qaytarish (`type`): raqam, mijoz, sotuvchi, ombor, smena, narx turi, summalar "
         "(oraliq, chegirma, QQS, yetkazish, jami), to'lov taqsimoti (naqd, karta, o'tkazma), keyin qarzdan "
@@ -131,11 +132,11 @@ TABLES = {
         "Takrorlanuvchi xarajat shablonlari (oylik yoki haftalik, qaysi kuni). Tungi ish muddati kelganini "
         "yaratadi; `last_run_key` bir davrda ikki marta yaratilmasligini kafolatlaydi."),
     'messages': (
-        "SMS xabar (kampaniya): kimga (bitta mijoz, guruh, qarzdorlar, hamma), matn yoki shablon, qabul "
-        "qiluvchilar soni, umumiy holat."),
+        "Xabar (kampaniya): kimga (bitta mijoz, guruh, qarzdorlar, hamma), matn yoki shablon, qabul "
+        "qiluvchilar soni (shundan Telegram orqali), umumiy holat."),
     'message_recipients': (
-        "Xabarning har bir qabul qiluvchisi — yuborish navbati: telefon, shaxsiylashtirilgan matn, holat, "
-        "urinishlar, provayder ID'si, xato."),
+        "Xabarning har bir qabul qiluvchisi — yuborish navbati: kanal (SMS yoki Telegram), telefon yoki chat, "
+        "shaxsiylashtirilgan matn, holat, urinishlar, provayder ID'si, xato."),
     'files': (
         "S3 (R2) dagi fayllar metama'lumoti: tur (mahsulot rasmi, hujjat, eksport, import, zaxira …), kalit, "
         "hajm, SHA-256 (takror yuklashni aniqlash), holat (`pending` — yuklanmoqda, `ready`, `quarantined`), "

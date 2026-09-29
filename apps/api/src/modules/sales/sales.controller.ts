@@ -1,7 +1,8 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Query, StreamableFile } from '@nestjs/common'
 import {
-  ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNotFoundResponse,
-  ApiOkResponse, ApiOperation, ApiProduces, ApiResponse, ApiTags, ApiUnprocessableEntityResponse, getSchemaPath,
+  ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiExtraModels, ApiForbiddenResponse, ApiNoContentResponse,
+  ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiProduces, ApiResponse, ApiServiceUnavailableResponse, ApiTags,
+  ApiUnprocessableEntityResponse, getSchemaPath,
 } from '@nestjs/swagger'
 import type { CursorPage } from '@/common/crud/paging'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
@@ -13,6 +14,7 @@ import { ManualTransaction } from '@/prisma/tenant-transaction.interceptor'
 import {
   CreateSaleDto, ReceiptDto, ReceiptQueryDto, ReturnSaleDto, SaleDto, SaleListItemDto, SalePageDto, SaleQueryDto,
 } from './dto/sale.dto'
+import { ReceiptDeliveryService } from './receipt-delivery.service'
 import { receiptPdf } from './receipt-pdf'
 import { SalesQueriesService } from './sales-queries.service'
 import { SalesService } from './sales.service'
@@ -28,6 +30,7 @@ export class SalesController {
   constructor(
     private readonly sales: SalesService,
     private readonly queries: SalesQueriesService,
+    private readonly receipts: ReceiptDeliveryService,
   ) {}
 
   @Post()
@@ -108,6 +111,28 @@ export class SalesController {
       disposition: `inline; filename="${receipt.sale.number}.pdf"`,
       length: pdf.length,
     })
+  }
+
+  @Post(':id/receipt/telegram')
+  @HttpCode(204)
+  @RequirePermission('sales', 'view')
+  // Telegram'ga yuklash so'rov tranzaksiyasini band qilmasin — servis qisqa tranzaksiyalarini o'zi ochadi
+  @ManualTransaction()
+  // Jurnal — servisda (`sale.receiptSent`), faqat yuborilgach
+  @AuditedInService()
+  @ApiOperation({
+    summary: 'Chekni mijozga Telegram’da yuborish',
+    description:
+      'Chekdagi mijoz botga ulangan bo‘lsa — PDF chek (chop etiladigan bilan bir xil) va izoh (raqam, jami, qarz, bonus) ' +
+      'bitta xabarda. Darhol yuboriladi. Yetkazib bo‘lmasa — 422 `RECIPIENT_UNREACHABLE`, `meta.reason`: ' +
+      '`no_customer` (chekda mijoz yo‘q), `not_linked` (botga ulanmagan), `blocked` (botni bloklagan), `no_channel` (bot sozlanmagan).',
+  })
+  @ApiNoContentResponse({ description: 'Yuborildi' })
+  @ApiNotFoundResponse({ type: ApiErrorDto })
+  @ApiUnprocessableEntityResponse({ description: 'RECIPIENT_UNREACHABLE', type: ApiErrorDto })
+  @ApiServiceUnavailableResponse({ description: 'Telegram javob bermadi — qayta urinib ko‘ring', type: ApiErrorDto })
+  async receiptToTelegram(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.receipts.toTelegram(id)
   }
 
   @Post(':id/return')

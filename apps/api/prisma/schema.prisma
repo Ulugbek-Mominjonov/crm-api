@@ -212,27 +212,37 @@ model Settings {
 // ═══════════════════════════════════════════════ SPRAVOCHNIKLAR
 
 model Client {
-  id              String        @id @default(uuid(7)) @db.Uuid
-  tenantId        String        @map("tenant_id") @db.Uuid
-  name            String
-  type            ClientType    @default(individual)
-  phone           String
-  email           String        @default("")
-  status          ClientStatus  @default(lead)
-  group           CustomerGroup @default(retail)
+  id                    String        @id @default(uuid(7)) @db.Uuid
+  tenantId              String        @map("tenant_id") @db.Uuid
+  name                  String
+  type                  ClientType    @default(individual)
+  phone                 String
+  email                 String        @default("")
+  status                ClientStatus  @default(lead)
+  group                 CustomerGroup @default(retail)
   /// Sodiqlik ballari — pul o'rniga ishlatiladi (I17)
-  bonusPoints     BigInt        @default(0) @map("bonus_points")
+  bonusPoints           BigInt        @default(0) @map("bonus_points")
   /// Nasiya limiti; null yoki 0 — cheklanmagan (I16)
-  creditLimit     BigInt?       @map("credit_limit")
+  creditLimit           BigInt?       @map("credit_limit")
   /// Nasiya to'lov muddati (kun); chek `dueDate` shundan hisoblanadi
-  paymentTermDays Int?          @map("payment_term_days")
-  source          String        @default("")
-  company         String?
-  notes           String?
-  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  paymentTermDays       Int?          @map("payment_term_days")
+  source                String        @default("")
+  company               String?
+  notes                 String?
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz
   /// Versiya (If-Match, T-098): tahrirlanadigan maydon o'zgarganda yangilanadi
-  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
-  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz
+  updatedAt             DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+  deletedAt             DateTime?     @map("deleted_at") @db.Timestamptz
+  /// Telegram chat — mijoz shaxsiy havola (QR) orqali botda Start bosgan: xabar va chek shu yerga (Q116)
+  telegramChatId        BigInt?       @map("telegram_chat_id")
+  /// Botga bog'langan vaqt
+  telegramLinkedAt      DateTime?     @map("telegram_linked_at") @db.Timestamptz
+  /// Mijoz botni bloklagan (yuborib bo'lmaydi); botni qayta ochsa — tozalanadi
+  telegramBlockedAt     DateTime?     @map("telegram_blocked_at") @db.Timestamptz
+  /// Shaxsiy havola tokenining SHA-256 xeshi — bir martalik (token o'zi saqlanmaydi)
+  telegramLinkHash      String?       @map("telegram_link_hash")
+  /// Shaxsiy havola amal qilish muddati (7 kun)
+  telegramLinkExpiresAt DateTime?     @map("telegram_link_expires_at") @db.Timestamptz
 
   sales        Sale[]
   quotes       Quote[]
@@ -892,17 +902,21 @@ enum DeliveryStatus {
 // ═══════════════════════════════════════════════ XABAR VA AUDIT
 
 model Message {
-  id             String        @id @default(uuid(7)) @db.Uuid
-  tenantId       String        @map("tenant_id") @db.Uuid
-  target         MessageTarget
-  recipientLabel String        @map("recipient_label")
-  recipients     Int
-  text           String
-  template       String?
+  id                    String        @id @default(uuid(7)) @db.Uuid
+  tenantId              String        @map("tenant_id") @db.Uuid
+  target                MessageTarget
+  recipientLabel        String        @map("recipient_label")
+  recipients            Int
+  text                  String
+  template              String?
   /// queued | sending | sent | partial | failed | logged (provayder `none`)
-  deliveryStatus String        @default("queued") @map("delivery_status")
-  userId         String?       @map("user_id") @db.Uuid
-  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  deliveryStatus        String        @default("queued") @map("delivery_status")
+  /// Shundan Telegram orqali — kunlik SMS chegarasiga kirmaydi
+  telegramRecipients    Int           @default(0) @map("telegram_recipients")
+  /// Yetib bormaganlar (botga ulanmagan, SMS yo'q) — `recipients` ga kirmaydi, qatori yo'q
+  unreachableRecipients Int           @default(0) @map("unreachable_recipients")
+  userId                String?       @map("user_id") @db.Uuid
+  createdAt             DateTime      @default(now()) @map("created_at") @db.Timestamptz
 
   deliveries MessageRecipient[]
 
@@ -918,7 +932,11 @@ model MessageRecipient {
   messageId     String    @map("message_id") @db.Uuid
   clientId      String?   @map("client_id") @db.Uuid
   phone         String
-  /// Shablon o'zgaruvchilari almashtirilgan matn
+  /// sms | telegram
+  channel       String    @default("sms")
+  /// Telegram chat — `channel = telegram` da
+  chatId        BigInt?   @map("chat_id")
+  /// Shablon o'zgaruvchilari almashtirilgan matn; `telegram` kanalida — tayyor HTML karta
   text          String
   /// queued | sending | sent | failed | logged
   status        String    @default("queued")

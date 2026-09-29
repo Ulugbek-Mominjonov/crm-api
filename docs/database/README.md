@@ -569,6 +569,11 @@ erDiagram
         timestamptz created_at
         timestamptz deleted_at
         timestamptz updated_at
+        bigint telegram_chat_id
+        timestamptz telegram_linked_at
+        timestamptz telegram_blocked_at
+        text telegram_link_hash
+        timestamptz telegram_link_expires_at
     }
     sales {
         uuid id PK
@@ -723,7 +728,7 @@ erDiagram
 
 ### `clients`
 
-Mijozlar: jismoniy yoki yuridik, guruh (chakana, ulgurji, VIP), holat (lid, faol, nofaol), sodiqlik ballari, nasiya limiti va to'lov muddati.
+Mijozlar: jismoniy yoki yuridik, guruh (chakana, ulgurji, VIP), holat (lid, faol, nofaol), sodiqlik ballari, nasiya limiti va to'lov muddati. Telegram botga ulangan bo'lsa (`telegram_chat_id`, shaxsiy havola orqali) — xabar va chek Telegram'ga.
 
 - RLS: majburiy (FORCE)
 
@@ -746,6 +751,11 @@ Mijozlar: jismoniy yoki yuridik, guruh (chakana, ulgurji, VIP), holat (lid, faol
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
 | `updated_at` | timestamptz | — | Versiya (If-Match, T-098): tahrirlanadigan maydon o'zgarganda yangilanadi |
+| `telegram_chat_id` | bigint | ha | Telegram chat — mijoz shaxsiy havola (QR) orqali botda Start bosgan: xabar va chek shu yerga (Q116) |
+| `telegram_linked_at` | timestamptz | ha | Botga bog'langan vaqt |
+| `telegram_blocked_at` | timestamptz | ha | Mijoz botni bloklagan (yuborib bo'lmaydi); botni qayta ochsa — tozalanadi |
+| `telegram_link_hash` | text | ha | Shaxsiy havola tokenining SHA-256 xeshi — bir martalik (token o'zi saqlanmaydi) |
+| `telegram_link_expires_at` | timestamptz | ha | Shaxsiy havola amal qilish muddati (7 kun) |
 
 ### `sales`
 
@@ -1226,6 +1236,8 @@ erDiagram
         text delivery_status
         uuid user_id
         timestamptz created_at
+        integer telegram_recipients
+        integer unreachable_recipients
     }
     message_recipients {
         uuid id PK
@@ -1241,6 +1253,8 @@ erDiagram
         text error
         timestamptz sent_at
         timestamptz created_at
+        text channel
+        bigint chat_id
     }
     files {
         uuid id PK
@@ -1276,7 +1290,7 @@ erDiagram
 
 ### `messages`
 
-SMS xabar (kampaniya): kimga (bitta mijoz, guruh, qarzdorlar, hamma), matn yoki shablon, qabul qiluvchilar soni, umumiy holat.
+Xabar (kampaniya): kimga (bitta mijoz, guruh, qarzdorlar, hamma), matn yoki shablon, qabul qiluvchilar soni (shundan Telegram orqali), umumiy holat.
 
 - RLS: majburiy (FORCE)
 
@@ -1292,10 +1306,12 @@ SMS xabar (kampaniya): kimga (bitta mijoz, guruh, qarzdorlar, hamma), matn yoki 
 | `delivery_status` | text | — | queued \| sending \| sent \| partial \| failed \| logged (provayder `none`) |
 | `user_id` | uuid | ha | Amalni bajargan foydalanuvchi (FK'siz — tarix buzilmasin) |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
+| `telegram_recipients` | integer | — | Shundan Telegram orqali — kunlik SMS chegarasiga kirmaydi |
+| `unreachable_recipients` | integer | — | Yetib bormaganlar (botga ulanmagan, SMS yo'q) — `recipients` ga kirmaydi, qatori yo'q |
 
 ### `message_recipients`
 
-Xabarning har bir qabul qiluvchisi — yuborish navbati: telefon, shaxsiylashtirilgan matn, holat, urinishlar, provayder ID'si, xato.
+Xabarning har bir qabul qiluvchisi — yuborish navbati: kanal (SMS yoki Telegram), telefon yoki chat, shaxsiylashtirilgan matn, holat, urinishlar, provayder ID'si, xato.
 
 - RLS: majburiy (FORCE)
 - Bog‘lanishlar: `message_id` → `messages` (CASCADE)
@@ -1307,7 +1323,7 @@ Xabarning har bir qabul qiluvchisi — yuborish navbati: telefon, shaxsiylashtir
 | `message_id` | uuid | — | → `messages` · Xabar |
 | `client_id` | uuid | ha | Mijoz (FK'siz) |
 | `phone` | text | — | Telefon |
-| `text` | text | — | Shablon o'zgaruvchilari almashtirilgan matn |
+| `text` | text | — | Shablon o'zgaruvchilari almashtirilgan matn; `telegram` kanalida — tayyor HTML karta |
 | `status` | text | — | queued \| sending \| sent \| failed \| logged |
 | `attempts` | integer | — | Yuborish urinishlari soni |
 | `next_attempt_at` | timestamptz | — | Keyingi urinish vaqti |
@@ -1315,6 +1331,8 @@ Xabarning har bir qabul qiluvchisi — yuborish navbati: telefon, shaxsiylashtir
 | `error` | text | ha | Xato matni |
 | `sent_at` | timestamptz | ha | Yuborilgan vaqt |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
+| `channel` | text | — | sms \| telegram |
+| `chat_id` | bigint | ha | Telegram chat — `channel = telegram` da |
 
 ### `files`
 

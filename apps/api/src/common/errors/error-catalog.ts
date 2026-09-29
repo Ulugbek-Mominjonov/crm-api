@@ -63,6 +63,7 @@ export const ErrorCode = {
   // Yetkazish va xabarlar
   INVALID_STATUS_TRANSITION: 'INVALID_STATUS_TRANSITION',
   MESSAGE_LIMIT_EXCEEDED: 'MESSAGE_LIMIT_EXCEEDED',
+  RECIPIENT_UNREACHABLE: 'RECIPIENT_UNREACHABLE',
   // Umumiy
   ALREADY_EXISTS: 'ALREADY_EXISTS',
   REFERENCE_NOT_FOUND: 'REFERENCE_NOT_FOUND',
@@ -137,6 +138,7 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   FILE_NOT_UPLOADED: { status: 409, title: 'Fayl hali yuklanmagan' },
   INVALID_STATUS_TRANSITION: { status: 422, title: 'Holatni bunday o‘zgartirib bo‘lmaydi' },
   MESSAGE_LIMIT_EXCEEDED: { status: 429, title: 'Kunlik xabar chegarasi tugadi' },
+  RECIPIENT_UNREACHABLE: { status: 422, title: 'Mijozga yetkazib bo‘lmaydi' },
 
   ALREADY_EXISTS: { status: 409, title: 'Bunday yozuv allaqachon bor' },
   REFERENCE_NOT_FOUND: { status: 422, title: 'Bog‘langan yozuv topilmadi' },

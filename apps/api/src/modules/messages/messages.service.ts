@@ -11,11 +11,14 @@ import type { Env } from '@/config/env.schema'
 import { AuditService } from '@/modules/audit/audit.service'
 import { JobQueue } from '@/modules/queue/job-queue'
 import { SettingsService } from '@/modules/settings/settings.service'
+import { TELEGRAM_CLIENT, type TelegramClient } from '@/modules/telegram/telegram.client'
+import { storeMessage } from '@/modules/telegram/telegram-texts'
+import { unreachableError } from '@/modules/telegram/telegram.service'
 import { PlanService } from '@/modules/tenants/plan.service'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import { onCommit, requireTenantTx } from '@/prisma/tenant-tx'
 import type { AudiencePreviewDto, MessageAudienceDto, MessageDto, MessageQueryDto, SendMessageDto } from './dto/message.dto'
-import { renderTemplate } from './message-template'
+import { renderTelegram, renderTemplate } from './message-template'
 import { SMS_PROVIDER, type SmsProvider } from './sms/sms.provider'
 
 /** Guruh nomlari jurnal yorlig'i uchun (frontend o'z tilida ko'rsatadi) */
@@ -31,6 +34,18 @@ interface RecipientRow {
   phone: string
   bonus: bigint
   debt: Prisma.Decimal
+  /** Shaxsiy havola orqali botga ulangan mijoz (Q116) */
+  chatId: bigint | null
+  /** Botni bloklagan — Telegram'da yetib bormaydi */
+  blocked: boolean
+}
+
+type Channel = 'telegram' | 'sms'
+
+/** Auditoriya kanal bo'yicha: yetib boradiganlar (kanali bilan) va yetib bormaydiganlar */
+interface Audience {
+  reachable: (RecipientRow & { channel: Channel })[]
+  unreachable: RecipientRow[]
 }
 
 interface MessageRow {
@@ -41,6 +56,8 @@ interface MessageRow {
   text: string
   template: string | null
   deliveryStatus: string
+  telegram: number
+  unreachable: number
   userId: string | null
   createdAt: Date
   queued: bigint
@@ -54,7 +71,11 @@ interface MessageRow {
  * (mijoz / guruh / qarzdorlar / hammasi), shablon har biri uchun
  * almashtiriladi. Yuborish so'rovni bloklamaydi: qatorlar navbatga
  * (`message_recipients`) yoziladi, ishchi (`MessageDispatcher`) yuboradi.
- * Provayder `none` — faqat jurnal (demo rejim).
+ *
+ * Kanal har qabul qiluvchi uchun (Q116): botga ulangan mijozga — Telegram
+ * (bepul, kunlik SMS chegarasiga kirmaydi); aks holda SMS provayderi bo'lsa —
+ * SMS; aks holda yetib bormaydi. Bitta mijozga yetib bo'lmasa — 422 (sababi
+ * bilan), guruhda — yetib boradiganlarga yuboriladi, qolganlari soni saqlanadi.
  */
 @Injectable()
 export class MessagesService {
@@ -66,11 +87,17 @@ export class MessagesService {
     private readonly queue: JobQueue,
     private readonly plans: PlanService,
     @Optional() @Inject(SMS_PROVIDER) private readonly provider: SmsProvider | null,
+    @Optional() @Inject(TELEGRAM_CLIENT) private readonly telegram: TelegramClient | null,
   ) {}
 
   async preview(dto: MessageAudienceDto): Promise<AudiencePreviewDto> {
-    const recipients = await this.recipients(dto)
-    return { recipients: recipients.length, label: await this.label(dto) }
+    const { reachable, unreachable } = await this.audience(dto)
+    return {
+      recipients: reachable.length,
+      telegram: reachable.filter((r) => r.channel === 'telegram').length,
+      unreachable: unreachable.length,
+      label: await this.label(dto),
+    }
   }
 
   /**
@@ -79,41 +106,36 @@ export class MessagesService {
    */
   async send(dto: SendMessageDto): Promise<MessageDto> {
     const { tenantId } = requireTenantTx()
-    const recipients = await this.recipients(dto)
-    if (recipients.length === 0) {
-      throw new DomainError('VALIDATION_FAILED', 'Qabul qiluvchi yo‘q (telefoni bor mijoz topilmadi)', [
-        { field: 'target', code: 'VALIDATION_FAILED' },
-      ])
-    }
-    await this.assertDailyLimit(recipients.length)
+    const { reachable, unreachable } = await this.audience(dto)
+    if (reachable.length === 0) throw this.nobodyReachable(dto, unreachable)
+    const telegram = reachable.filter((r) => r.channel === 'telegram').length
+    await this.assertDailyLimit(reachable.length - telegram)
 
     const [settings, label] = await Promise.all([this.settings.get(), this.label(dto)])
-    const status = this.provider ? 'queued' : 'logged'
     const id = uuidv7()
-    const rows = recipients.map((r) => ({
-      id: uuidv7(),
-      client_id: r.id,
-      phone: r.phone,
-      text: renderTemplate(dto.text, {
-        name: r.name,
-        phone: r.phone,
-        debt: r.debt.toNumber(),
-        bonus: Number(r.bonus),
-        store: settings.storeName,
-      }),
-    }))
+    const rows = reachable.map((r) => {
+      const vars = { name: r.name, phone: r.phone, debt: r.debt.toNumber(), bonus: Number(r.bonus), store: settings.storeName }
+      const base = { id: uuidv7(), client_id: r.id, phone: r.phone, channel: r.channel }
+      // Telegram qatori — tayyor HTML karta (do'kon sarlavhasi, qalin qiymatlar, aloqa): ishchi o'zgartirmay yuboradi
+      return r.channel === 'telegram'
+        ? { ...base, chat_id: String(r.chatId), text: storeMessage(settings, renderTelegram(dto.text, vars)) }
+        : { ...base, chat_id: null, text: renderTemplate(dto.text, vars) }
+    })
     await this.prisma.scoped.$executeRaw(
       withCtes(
         [
           Prisma.sql`message AS (
-            INSERT INTO messages (id, tenant_id, target, recipient_label, recipients, text, template, delivery_status, user_id)
-            VALUES (${id}::uuid, ${tenantId}::uuid, ${dto.target}::"MessageTarget", ${label}, ${rows.length}, ${dto.text},
-                    ${dto.template ?? null}, ${status}, ${currentContext().userId ?? null}::uuid)
+            INSERT INTO messages (id, tenant_id, target, recipient_label, recipients, telegram_recipients,
+                                  unreachable_recipients, text, template, delivery_status, user_id)
+            VALUES (${id}::uuid, ${tenantId}::uuid, ${dto.target}::"MessageTarget", ${label}, ${rows.length}, ${telegram},
+                    ${unreachable.length}, ${dto.text}, ${dto.template ?? null}, 'queued', ${currentContext().userId ?? null}::uuid)
             RETURNING 1)`,
+          // chat_id — matn sifatida: JSON'da katta butun son aniqligini yo'qotmasin
           Prisma.sql`queued AS (
-            INSERT INTO message_recipients (id, tenant_id, message_id, client_id, phone, text, status)
-            SELECT r.id, ${tenantId}::uuid, ${id}::uuid, r.client_id, r.phone, r.text, ${status}
-              FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb) AS r(id uuid, client_id uuid, phone text, text text)
+            INSERT INTO message_recipients (id, tenant_id, message_id, client_id, phone, channel, chat_id, text, status)
+            SELECT r.id, ${tenantId}::uuid, ${id}::uuid, r.client_id, r.phone, r.channel, r.chat_id::bigint, r.text, 'queued'
+              FROM jsonb_to_recordset(${JSON.stringify(rows)}::jsonb)
+                AS r(id uuid, client_id uuid, phone text, channel text, chat_id text, text text)
             RETURNING 1)`,
         ],
         Prisma.sql`SELECT 1`,
@@ -123,10 +145,10 @@ export class MessagesService {
       action: 'message.send',
       entityType: 'message',
       entityId: id,
-      diff: { target: dto.target, recipients: rows.length, provider: this.provider?.name ?? 'none' },
+      diff: { target: dto.target, recipients: rows.length, telegram, unreachable: unreachable.length, provider: this.provider?.name ?? 'none' },
     })
     // Ishchi darhol uyg'onadi — navbatdagi qatorlar COMMIT'dan keyin ko'rinadi
-    if (this.provider) onCommit(() => this.queue.add('sms-dispatch'))
+    onCommit(() => this.queue.add('sms-dispatch'))
     return (await this.page({ page: 1, pageSize: 1 }, id)).items[0]!
   }
 
@@ -142,7 +164,8 @@ export class MessagesService {
     const [rows, [count]] = await Promise.all([
       this.prisma.scoped.$queryRaw<MessageRow[]>`
         SELECT m.id, m.target, m.recipient_label AS "recipientLabel", m.recipients, m.text, m.template,
-               m.delivery_status AS "deliveryStatus", m.user_id AS "userId", m.created_at AS "createdAt",
+               m.delivery_status AS "deliveryStatus", m.telegram_recipients AS telegram,
+               m.unreachable_recipients AS unreachable, m.user_id AS "userId", m.created_at AS "createdAt",
                COUNT(r.id) FILTER (WHERE r.status IN ('queued', 'sending')) AS queued,
                COUNT(r.id) FILTER (WHERE r.status = 'sent') AS sent,
                COUNT(r.id) FILTER (WHERE r.status = 'failed') AS failed,
@@ -166,9 +189,40 @@ export class MessagesService {
     )
   }
 
+  /** Auditoriya kanal bo'yicha (Q116) */
+  private async audience(dto: MessageAudienceDto): Promise<Audience> {
+    const audience: Audience = { reachable: [], unreachable: [] }
+    for (const r of await this.recipients(dto)) {
+      const channel = this.channelOf(r)
+      if (channel) audience.reachable.push({ ...r, channel })
+      else audience.unreachable.push(r)
+    }
+    return audience
+  }
+
+  /** Botga ulangan (bloklamagan) — Telegram; aks holda SMS (provayder va telefon bo'lsa); aks holda — yetib bormaydi */
+  private channelOf(r: RecipientRow): Channel | null {
+    if (this.telegram && r.chatId !== null && !r.blocked) return 'telegram'
+    if (this.provider && r.phone !== '') return 'sms'
+    return null
+  }
+
   /**
-   * Qabul qiluvchilar — bitta so'rov: telefoni bor, o'chirilmagan mijozlar;
-   * qarz `client_balances` dan (o'zgaruvchi `{debt}` va `debtors` uchun).
+   * Hech kimga yetib bo'lmaydi. Auditoriya bo'sh — 400 (mijoz topilmadi); aks holda 422
+   * `RECIPIENT_UNREACHABLE`: bitta mijozda sababi (botga ulanmagan / bloklagan), guruhda — soni
+   */
+  private nobodyReachable(dto: MessageAudienceDto, unreachable: RecipientRow[]): DomainError {
+    if (unreachable.length === 0) {
+      return new DomainError('VALIDATION_FAILED', 'Qabul qiluvchi yo‘q (mijoz topilmadi)', [{ field: 'target', code: 'VALIDATION_FAILED' }])
+    }
+    if (!this.telegram) return unreachableError('no_channel', undefined, { unreachable: unreachable.length })
+    if (dto.target === 'customer') return unreachableError(unreachable[0]!.blocked ? 'blocked' : 'not_linked')
+    return unreachableError('not_linked', 'Tanlangan mijozlarning hech biri botga ulanmagan', { unreachable: unreachable.length })
+  }
+
+  /**
+   * Auditoriya — bitta so'rov: o'chirilmagan mijozlar (telefonsizi ham — botga ulangan
+   * bo'lishi mumkin); qarz `client_balances` dan (o'zgaruvchi `{debt}` va `debtors` uchun).
    */
   private async recipients(dto: MessageAudienceDto): Promise<RecipientRow[]> {
     const { tenantId } = requireTenantTx()
@@ -178,10 +232,11 @@ export class MessagesService {
           : dto.target === 'debtors' ? Prisma.sql`AND b.debt > 0`
             : Prisma.empty
     return this.prisma.scoped.$queryRaw<RecipientRow[]>`
-      SELECT c.id, c.name, c.phone, c.bonus_points AS bonus, COALESCE(b.debt, 0) AS debt
+      SELECT c.id, c.name, c.phone, c.bonus_points AS bonus, COALESCE(b.debt, 0) AS debt,
+             c.telegram_chat_id AS "chatId", c.telegram_blocked_at IS NOT NULL AS blocked
         FROM clients c
         LEFT JOIN client_balances b ON b.tenant_id = c.tenant_id AND b.customer_id = c.id
-       WHERE c.tenant_id = ${tenantId}::uuid AND c.deleted_at IS NULL AND c.phone <> '' ${audience}
+       WHERE c.tenant_id = ${tenantId}::uuid AND c.deleted_at IS NULL ${audience}
        ORDER BY c.id`
   }
 
@@ -200,8 +255,12 @@ export class MessagesService {
     }
   }
 
-  /** Bugungi (Toshkent kuni) yuborilgan + yangi > chegara — 429. Chegara — tarif (T-125) va provayder cheklovi (env) dan kichigi */
+  /**
+   * Bugungi (Toshkent kuni) SMS + yangi SMS > chegara — 429. Chegara — tarif (T-125) va provayder
+   * cheklovi (env) dan kichigi. Faqat Telegram'ga ketadigan xabar tekshirilmaydi
+   */
   private async assertDailyLimit(requested: number): Promise<void> {
+    if (requested === 0) return
     const { tenantId } = requireTenantTx()
     const { limits } = await this.plans.current()
     const limit = Math.min(this.config.get('SMS_DAILY_LIMIT', { infer: true }), limits.smsPerDay)
@@ -214,10 +273,10 @@ export class MessagesService {
   }
 }
 
-/** Bugun (Toshkent kuni) navbatga qo'yilgan SMS soni — chegara va tarif sahifasi uchun */
+/** Bugun (Toshkent kuni) navbatga qo'yilgan SMS soni (Telegram'dagilarsiz) — chegara va tarif sahifasi uchun */
 export async function smsUsedToday(tx: TenantTx, tenantId: string): Promise<number> {
   const [row] = await tx.$queryRaw<{ used: bigint }[]>`
-    SELECT COALESCE(SUM(recipients), 0)::bigint AS used
+    SELECT COALESCE(SUM(recipients - telegram_recipients), 0)::bigint AS used
       FROM messages
      WHERE tenant_id = ${tenantId}::uuid
        AND created_at >= (date_trunc('day', now() AT TIME ZONE ${BUSINESS_TIME_ZONE}) AT TIME ZONE ${BUSINESS_TIME_ZONE})`

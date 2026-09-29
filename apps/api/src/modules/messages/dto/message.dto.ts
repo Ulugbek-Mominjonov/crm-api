@@ -46,7 +46,10 @@ export class SendMessageDto extends MessageAudienceDto {
 export class MessageQueryDto extends ListQueryDto {}
 
 export class AudiencePreviewDto {
-  @ApiProperty({ example: 42 }) recipients!: number
+  @ApiProperty({ example: 42, description: 'Yetib boradiganlar' }) recipients!: number
+  @ApiProperty({ example: 12, description: 'Shundan Telegram orqali (botga ulangan mijozlar) — qolgani SMS' }) telegram!: number
+  @ApiProperty({ example: 5, description: 'Yetib bormaydiganlar: botga ulanmagan (yoki bloklagan) va SMS yo‘q — yuborilmaydi' })
+  unreachable!: number
   @ApiProperty({ example: 'Qarzdorlar' }) label!: string
 }
 
@@ -54,7 +57,7 @@ export class MessageStatsDto {
   @ApiProperty() queued!: number
   @ApiProperty() sent!: number
   @ApiProperty() failed!: number
-  @ApiProperty({ description: 'Provayder `none` — faqat jurnal' }) logged!: number
+  @ApiProperty({ description: 'Eski (demo rejimdagi) xabarlar: yuborilmagan, faqat jurnalga yozilgan' }) logged!: number
 }
 
 export class MessageDto {
@@ -65,6 +68,9 @@ export class MessageDto {
   @ApiProperty() text!: string
   @ApiProperty({ nullable: true, type: String }) template!: string | null
   @ApiProperty({ example: 'queued', description: 'queued | sending | sent | partial | failed | logged' }) deliveryStatus!: string
+  @ApiProperty({ example: 12, description: 'Shundan Telegram orqali — kunlik SMS chegarasiga kirmaydi' }) telegram!: number
+  @ApiProperty({ example: 5, description: 'Yetib bormaganlar (botga ulanmagan, SMS yo‘q) — `recipients` ga kirmaydi' })
+  unreachable!: number
   @ApiProperty({ type: MessageStatsDto }) stats!: MessageStatsDto
   @ApiProperty({ nullable: true, type: String }) userId!: string | null
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date

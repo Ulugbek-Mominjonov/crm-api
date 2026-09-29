@@ -164,8 +164,10 @@ GROUPS = [
     ('expenses', 'Xarajatlar va takrorlanuvchi shablonlar', [r'^/expenses', r'^/expense-templates'],
      'Xarajatlar jurnali va kartalari. Naqd xarajat kassadan chiqadi (ochiq smena shart). Shablonlar '
      '(ijara, oylik) har kuni 00:05 da avtomatik xarajatga aylanadi.'),
-    ('messages', 'Xabarlar (SMS)', [r'^/messages'],
-     'Mijozlarga SMS: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kunlik chegara tarifga bog‘liq.'),
+    ('messages', 'Xabarlar (Telegram va SMS)', [r'^/messages', r'^/telegram'],
+     'Mijozlarga xabar: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kanal: botga ulangan → Telegram '
+     '(bepul), aks holda SMS (sozlangan bo‘lsa), aks holda yetib bormaydi. Kunlik chegara (tarifga bog‘liq) faqat '
+     'SMS’ni sanaydi. Bot oqimi (shaxsiy QR, chek) — [README → Telegram](README.md#telegram).'),
     ('reports', 'Hisobotlar', [r'^/dashboard', r'^/reports', r'^/analytics'],
      'Bosh sahifa (dashboard), foyda/zarar (P&L), analitika. Barcha raqamlar SERVERDA hisoblanadi — '
      'brauzerda yig‘indi qilinmaydi. Tannarx/foyda maydonlari rolga qarab yashiriladi.'),
@@ -325,7 +327,8 @@ NOTES = {
     # clients
     ('GET', '/clients'):
         'Mijozlar sahifasi va POS’da mijoz tanlash (`q` — nom, kompaniya, telefon). `phone` — aniq moslik '
-        '(skaner/telefon bilan tez topish). Qatorda `bonusPoints`, `salesCount`.',
+        '(skaner/telefon bilan tez topish). Qatorda `bonusPoints`, `salesCount`, `telegramStatus` '
+        '(`telegramStatus=none` — botga ulanmaganlar).',
     ('GET', '/clients/:id/stats'):
         'Mijoz kartasi va POS’da mijoz tanlanganda: jami xarid, joriy qarz, muddati o‘tgan qarz, oxirgi xarid. '
         '`overdue > 0` bo‘lsa POS nasiyani ruxsat etmaydi — oldindan ogohlantiring.',
@@ -379,6 +382,10 @@ NOTES = {
         '`format=pdf` — tayyor 80 mm termal chek (PDF, fiskal QR bilan): token bilan `fetch` → `blob` → '
         '`URL.createObjectURL` → yangi oynada ochish/chop etish yoki yuklab olish (`Content-Disposition: inline; filename="CHEK-….pdf"`). '
         '`<a href>` token yubora olmaydi — to‘g‘ridan-to‘g‘ri havola ishlamaydi.',
+    ('POST', '/sales/:id/receipt/telegram'):
+        '«Telegram’ga yuborish» (chek oynasi, POS): chekdagi mijozga PDF chek + izoh (raqam, jami, qarz, bonus) — 204. '
+        'Yetkazib bo‘lmasa 422 `RECIPIENT_UNREACHABLE` (`meta.reason`: `no_customer`, `not_linked`, `blocked`, `no_channel`) — '
+        '`not_linked` da «Telegram’ga ulash» (QR) taklif qiling; 503 — Telegram javob bermadi (qayta urinish).',
     ('POST', '/sales/:id/return'):
         'Qaytarish oynasi: asl chek qatorlari (`saleItemId`) va miqdor (asl qator birligida, ko‘pi bilan `qty − returnedQty` — '
         '`GET /sales/:id`) + sabab. Qaytariladigan summani '
@@ -465,12 +472,22 @@ NOTES = {
     ('POST', '/expense-templates'): 'Shablon: `period` (`monthly` — `dayOfPeriod` 1–28, `weekly` — 1–7, dushanba = 1).',
     ('POST', '/expense-templates/run-due'): '«Hozir ishga tushirish» tugmasi — muddati kelgan shablonlar xarajatga aylanadi (davrga bir marta). Cron o‘zi ham har kuni 00:05 da ishlaydi.',
     # messages
-    ('POST', '/messages/preview'): 'Yuborishdan OLDIN: tanlangan auditoriyada nechta qabul qiluvchi borligi (yubormaydi).',
+    ('POST', '/messages/preview'):
+        'Yuborishdan OLDIN (yubormaydi): `recipients` — yetib boradiganlar, shundan `telegram` — Telegram orqali, '
+        '`unreachable` — yetib bormaydiganlar (botga ulanmagan, SMS yo‘q). `unreachable > 0` — ogohlantirib tasdiqlating.',
     ('POST', '/messages'):
-        'SMS yuborish: `target` (`customer` + `customerId`, `group` + `group`, `debtors`, `all`) va matn (≤ 600). O‘zgaruvchilar: '
+        'Xabar yuborish: `target` (`customer` + `customerId`, `group` + `group`, `debtors`, `all`) va matn (≤ 600). O‘zgaruvchilar: '
         '`{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga serverda almashtiriladi. Yuborish fonda. '
-        'Kunlik chegara — tarif `smsPerDay` va server `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi; oshsa 429 `MESSAGE_LIMIT_EXCEEDED` (`meta.limit/used/requested`).',
-    ('GET', '/messages'): 'Xabarlar jurnali: har xabarda qabul qiluvchilar soni va yuborish holati statistikasi.',
+        'Botga ulangan mijozga — Telegram (do‘kon kartasi: sarlavha, qalin qiymatlar, aloqa), aks holda SMS (sozlangan bo‘lsa). '
+        'Yetib bormaydigan bitta mijoz — 422 `RECIPIENT_UNREACHABLE` («Mijoz botga ulanmagan», `meta.reason`); guruhda — '
+        'qolganlarga yuboriladi, yetmaganlar `unreachable` da (hech kimga — 422). Kunlik chegara (faqat SMS) — tarif `smsPerDay` va server `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi; oshsa 429 '
+        '`MESSAGE_LIMIT_EXCEEDED` (`meta.limit/used/requested`).',
+    ('GET', '/messages'):
+        'Xabarlar jurnali: `recipients` (yuborilganlar; `telegram` — shundan Telegram orqali), `unreachable` (yetib bormaganlar) '
+        'va yuborish holati statistikasi.',
+    ('GET', '/telegram'):
+        'Bot holati: `enabled: false` — serverda bot sozlanmagan, «Telegram’ga ulash» va «Chekni Telegram’ga» tugmalarini ko‘rsatmang.',
+    ('POST', '/telegram/webhook'): 'Frontend CHAQIRMAYDI — Telegram serveri uchun (`X-Telegram-Bot-Api-Secret-Token`).',
     # reports
     ('GET', '/dashboard'):
         'Bosh sahifa (moliya huquqi): bugun/kecha, debitor/kreditor, kam qolganlar, trend (`days` = 7 | 30 | 90), top mahsulot/qarzdor, '
@@ -536,6 +553,9 @@ NOTES = {
         '`creditLimit` `null`/0 — nasiya cheklanmagan; `paymentTermDays` — nasiya chekning to‘lov muddati (kun).',
     ('GET', '/clients/:id'): 'Mijoz kartasi / tahrir formasi. Raqamlar (qarz, xarid) — `GET /clients/:id/stats`.',
     ('POST', '/clients/:id/restore'): 'O‘chirishni qaytarish (undo).',
+    ('POST', '/clients/:id/telegram-link'):
+        '«Telegram’ga ulash» (mijoz kartasi): shaxsiy havola → QR (ekranda). Mijoz skanerlab Start bosadi — ulanadi '
+        '(`telegramStatus: linked`). Bir martalik, 7 kun; har chaqiruv yangisini beradi — QR oynasi ochilganda so‘rang.',
     ('POST', '/suppliers'): 'Yangi ta’minotchi. `paymentTermDays` — kirim buyurtmasida `dueDate` berilmasa shundan hisoblanadi.',
     ('POST', '/suppliers/:id/restore'): 'O‘chirishni qaytarish (undo).',
     ('GET', '/employees'):
