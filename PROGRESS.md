@@ -23,6 +23,8 @@ Frontend (`/home/ulugbek/personal/front/crm-qurilish`) — **alohida frontend da
 npm run openapi -w @crm/api`, keyin `npm run docs:api` (generatsiya + havola/jadval tekshiruvi); endpoint
 xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README ham.
 
+Ma'lumotlar bazasi hujjati — [`docs/database/`](./docs/database/README.md): Mermaid ER diagrammalari va har jadval/ustun vazifasi. Migratsiya qo'shilsa: `npm run services:up && npm run docs:db` (tuzilma bazadan, vazifalar — `scripts/db-docs/tables.py`; yangi jadval tavsifsiz qolsa generator xato beradi).
+
 ## Muhit (bu mashinada)
 
 | Narsa | Holat |
