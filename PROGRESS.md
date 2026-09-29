@@ -177,6 +177,7 @@ Ma'lumotlar bazasi hujjati — [`docs/database/`](./docs/database/README.md): Me
 | T-117 | `SHOW shared_buffers; SELECT count(*) FROM pg_stat_statements` (PG 16 konteyner + `infra/postgres.conf`) | ✅ 12 GB ARM VM uchun (`shared_buffers=3GB`, `work_mem=16MB`, `max_connections=40`); `pg_stat_statements` + `auto_explain` (200 ms) yuklangan. 2026-09-28: 8 GB VPS, boshqa loyihalar bilan umumiy (C36, Q108) — `shared_buffers=1GB`, `effective_cache_size=3GB`, `work_mem=8MB`, `maintenance_work_mem=256MB`; PG 16 da shu fayl bilan qayta tekshirildi (`SHOW shared_buffers` — 1GB, `pg_stat_statements` yuklangan) |
 | T-115 | `ssh deploy@13.140.177.86 'sudo ufw status'`, `sshd -T` (2026-09-28) | ✅ Ubuntu 24.04.5, 4 CPU / 7,8 GB / 96 GB: `deploy` (docker, sudo), `permitrootlogin no`, `passwordauthentication no`, ufw 22/80/443 (+443/udp), fail2ban, swap 4 GB, unattended-upgrades; qayta yuklangandan keyin ham saqlandi |
 | T-116 | `curl -fsS https://crm.workspaces.uz/health/ready` (2026-09-28) | ✅ 200 (baza 6 ms, R2 54 ms), HTTP/2 + HTTP/3; Let's Encrypt; HTTP → HTTPS 308, Swagger 404, HSTS, nosniff, X-Frame-Options, `Server` yo'q; tashqaridan 5432 yopiq; API 95 MiB, server ~0,8 GB / 7,8 GB |
+| T-119 | frontend repo `deploy` (run 36534050756) + DEPLOY.md «Tekshirish» (2026-09-29) | ✅ deploy 40 s; `/`, `/products` — 200 (SPA); `index.html`, `sw.js` — `no-cache`; `/assets/*` — 1 yil `immutable`, yo'q asset — 404; `/api/v1/*`, `/health/ready` — API |
 | T-120 | GitHub Actions: PR #1 `ci`, `master` `deploy` (2026-09-28) | ✅ `ci` — lint, typecheck, unit 106 + 136, e2e 539, OpenAPI drift (6 daq 55 s); `deploy` — obraz → GHCR, SSH (ECDSA izi) → migratsiya → `api` → tashqi sog'liq tekshiruvi. Birinchi urinish `SSH_HOST` yo'qligidan yiqilgan, secret'lardan keyin — yashil |
 | T-121 | `backup.sh` (cron muhitida: `env -i PATH=/usr/bin:/bin`) + `verify-backup.sh` (2026-09-28) | ✅ shifrlangan dump 232 KB → R2 `daily/`; vaqtinchalik PG 16 ga tiklandi: 0 tenant, 0 chek, 25 migratsiya (production hali bo'sh); age maxfiy kaliti serverda yo'q |
 | T-123 | `test:e2e -- invariants` + `npm run job:invariants -w apps/api` | ✅ 3 test; 7 denormalizatsiya (qoldiq, `balance_after`, qarz to'lovi, ta'minotchiga to'lov, kassa, band hajm, hisoblagich) noldan qayta hisoblanadi; farq — `critical` (Sentry), tuzatilmaydi; CLI chiqish kodi 1/0 |
@@ -189,7 +190,7 @@ Ma'lumotlar bazasi hujjati — [`docs/database/`](./docs/database/README.md): Me
 
 ## Keyingi qadamlar
 
-**Bajarildi (backend): E0–E12, E14 ning backend qismi (T-108…T-111), E16; E15 dan T-114…T-117, T-120, T-121, T-123.**
+**Bajarildi (backend): E0–E12, E14 ning backend qismi (T-108…T-111), E16; E15 dan T-114…T-117, T-119 (frontend deploy), T-120, T-121, T-123.**
 
 **Production ishlayapti (2026-09-28):** https://crm.workspaces.uz — Contabo VPS `13.140.177.86` (Ubuntu 24.04, `deploy` foydalanuvchisi), umumiy Caddy (`/opt/edge`) + CRM (`/opt/crm`), R2, kunlik shifrlangan zaxira. `master` ga merge → GitHub Actions `deploy` avtomatik. Server bilan ishlash — `infra/README.md`.
 Frontend integratsiyasi (E13, T-112, T-113) — frontend dasturchida (C32); backend unga tayyor va
@@ -205,7 +206,7 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 
 ### Keyingi sessiyada
 
-1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-119 — frontend deploy (server egasi, DEPLOY.md bo'yicha); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
+1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
 2. **Ochiq savollar (qaror kerak)** — batafsil `docs/api/README.md` §14.1:
    - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq.
    - 2026-09-27 da hal qilindi: sotuvchidan xarid summalari (Q100), PDF chek (C13, Q104), `returnedQty`
@@ -244,7 +245,7 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 | T-116 compose + Caddy | ✅ `https://crm.workspaces.uz` — Let's Encrypt (birinchi urinishda), `/health/ready` 200 (baza, R2); baza faqat `127.0.0.1` (Q113) | — |
 | T-117 Postgres | ✅ `shared_buffers=1GB` serverda | — |
 | T-118 R2 | ✅ bucketlar, token faqat shu ikkisiga (Object Read & Write); `s3-prod-smoke`: kirish ✅ | CORS va lifecycle — Cloudflare panelida |
-| T-119 frontend | Caddy sayti tayyor (`/opt/www/crm`, bosh sahifa hozircha 404) | deploy — server egasi, DEPLOY.md bo'yicha |
+| T-119 frontend | ✅ `https://crm.workspaces.uz` (2026-09-29): frontend `main` ga push → avtomatik deploy, server egasi DEPLOY.md bo'yicha | — |
 | T-120 CI/CD | ✅ `ci` (PR #1, 6 daq 55 s) va `deploy` yashil (SSH ECDSA izi, GHCR, migratsiya, tashqi sog'liq tekshiruvi) | — |
 | T-121 zaxira | ✅ cron `0 0 * * *` (Toshkent 03:00–04:00), R2 `daily/`; tiklash sinovi OK (Q114) | lifecycle (T-118) |
 | T-122 kuzatuv | log rotatsiyasi, Sentry integratsiyasi kodda | UptimeRobot, `SENTRY_DSN` |
