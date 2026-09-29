@@ -139,20 +139,42 @@ ham ishlaydi (qo‘shimcha dastur kerak emas).
 - REST: `/api/v1/...` (masalan `GET /api/v1/products`). Faqat `/health/live`, `/health/ready` — prefiksiz.
 - Realtime: socket.io, nomlar fazosi `/events`, yo‘l — sukut `/socket.io`.
 
-**Dev (tavsiya):** Vite proksi — frontend va API bitta manbada (origin) bo‘ladi, CORS kerak emas:
+**Dev — Vite proksi (yagona qo‘llab-quvvatlanadigan yo‘l):** brauzer uchun frontend va API bitta
+manbada (origin) bo‘ladi — CORS kerak emas, refresh cookie ishlaydi. Proksi lokal backendga ham,
+**production’ga ham** yo‘naltiriladi:
 
 ```ts
-// vite.config.ts
+// vite.config.ts — lokal backend: API_PROXY_TARGET berilmaydi;
+// production: API_PROXY_TARGET=https://crm.workspaces.uz npm run dev
 const target = process.env.API_PROXY_TARGET ?? 'http://localhost:3000'
 export default defineConfig({
   server: {
     proxy: {
       '/api': { target, changeOrigin: true },
       '/socket.io': { target, ws: true, changeOrigin: true },
+      '/health': { target, changeOrigin: true },
     },
   },
 })
 ```
+
+- `VITE_API_URL` bo‘sh, socket — `io('/events')`: kod dev’da ham, production’da ham bir xil.
+- Production’ga proksi sinalgan (2026-09-29): `/health/ready` 200, API va login javob beradi, WebSocket
+  ulanadi (token tekshiruvigacha yetadi).
+- `http://localhost:5173` — refresh cookie (`Secure`) ham ishlaydi: brauzer `localhost` ni xavfsiz
+  manzil deb hisoblaydi.
+- LAN’dan (masalan `http://10.10.112.11:5173`) — `Secure` cookie oddiy `http` da saqlanmaydi: refresh
+  ishlamaydi, 15 daqiqadan keyin qayta login. Yechim — dev serverni HTTPS bilan:
+  `npm i -D @vitejs/plugin-basic-ssl`, `plugins: [basicSsl()]`, `server: { host: true }` →
+  `https://10.10.112.11:5173` (brauzer sertifikat ogohlantirishini bir marta qabul qiladi).
+
+**Production API’ga boshqa origin’dan to‘g‘ridan-to‘g‘ri murojaat qo‘llab-quvvatlanmaydi** (masalan
+`localhost:5173` dan `VITE_API_URL=https://crm.workspaces.uz` bilan): production CORS ro‘yxati
+(`WEB_ORIGINS`) — faqat `https://crm.workspaces.uz`, refresh cookie — `SameSite=Strict` (boshqa saytdan
+kelgan so‘rovga qo‘shilmaydi). Ularni bo‘shatish xavfsizlikni pasaytiradi: ro‘yxatdagi `localhost:5173`
+da ishlagan istalgan sahifa (boshqa loyiha, zararli paket) foydalanuvchi nomidan production’ga so‘rov
+yubora olardi; `SameSite=None` CSRF himoyasini talab qiladi, Safari va Firefox esa bunday uchinchi
+tomon cookie’larini baribir bloklaydi. Proksi bularning hammasini backend o‘zgarishisiz hal qiladi.
 
 **Production — `https://crm.workspaces.uz`** (ishlayapti): frontend va API **bitta serverda, bitta
 domenda**. API — `https://crm.workspaces.uz/api/v1`, Swagger — `https://crm.workspaces.uz/api/docs`,
@@ -1675,6 +1697,12 @@ tanlangan ombor, til, mavzu, offline navbat.
    bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da kimga ruxsat berishni hal qiling.
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-09-29** — frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Dev proksi faqat lokal backend (`localhost:3000`) uchun ko‘rsatilgan edi | Proksi production’ga ham (`API_PROXY_TARGET=https://crm.workspaces.uz`), `/health` qo‘shildi; LAN uchun HTTPS; production’ga boshqa origin’dan to‘g‘ridan-to‘g‘ri murojaat nega yo‘qligi ([3.1](#connect)) | `vite.config.ts` ga proksi; CORS ro‘yxatini kengaytirish va `SameSite=None` — qilinmaydi |
 
 **2026-09-28** — frontendga ta’sir qiladi:
 
