@@ -866,10 +866,7 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Tekshirish: `npm run test:e2e -- s3-prod-smoke`
 
 - [ ] **T-119 · Frontend deploy (shu serverda, C36)**
-  - Bog'liq: T-099
-  - Manba: [11 §11.7](../../backend-tz/core/11-deploy-free.md#117-frontend--cloudflare-pages)
-  - Qabul: build `/opt/www/crm` da, API bilan bitta domenda (`VITE_API_URL` bo'sh); SPA yo'llari ishlaydi; `sw.js` keshlanmaydi, `/assets` — 1 yil; PWA o'rnatiladi
-  - Tekshirish: `curl -fsS https://crm.domen.uz/products -o /dev/null`
+  - Deploy rejasi, sozlamalari va tekshiruvi — frontend repo'sidagi [DEPLOY.md](https://github.com/gayipovdostonbek/crm-qurilish/blob/main/DEPLOY.md)
 
 - [x] **T-120 · CI/CD**
   - Bog'liq: T-114, T-116

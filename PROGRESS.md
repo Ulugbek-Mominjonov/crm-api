@@ -17,11 +17,13 @@ Vazifa tugagach: `./scripts/task.sh done T-0NN` — katakcha va epik
 hisobi avtomatik yangilanadi.
 
 Frontend (`/home/ulugbek/personal/front/crm-qurilish`) — **alohida frontend dasturchi** bajaradi
-(E13, T-112, T-113, T-119); bu repodan frontendga o'zgartirish kiritilmaydi. Unga qo'llanma —
+(E13, T-112, T-113); bu repodan frontendga o'zgartirish kiritilmaydi. Unga qo'llanma —
 [`docs/api/`](./docs/api/README.md): README qo'lda yozilgan, `endpoints.md`/`schemas.md` —
 `apps/api/openapi.json` dan generatsiya (`scripts/api-docs/`). Backend DTO o'zgarsa: `npm run build -w @crm/api &&
 npm run openapi -w @crm/api`, keyin `npm run docs:api` (generatsiya + havola/jadval tekshiruvi); endpoint
 xulqi o'zgarsa — `scripts/api-docs/gen_docs.py` dagi `NOTES` izohi va README ham.
+Frontend deploy'i (T-119) — server egasida, frontend repo'sidagi
+[DEPLOY.md](https://github.com/gayipovdostonbek/crm-qurilish/blob/main/DEPLOY.md) bo'yicha.
 
 Ma'lumotlar bazasi hujjati — [`docs/database/`](./docs/database/README.md): Mermaid ER diagrammalari va har jadval/ustun vazifasi. Migratsiya qo'shilsa: `npm run services:up && npm run docs:db` (tuzilma bazadan, vazifalar — `scripts/db-docs/tables.py`; yangi jadval tavsifsiz qolsa generator xato beradi).
 
@@ -203,13 +205,13 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 
 ### Keyingi sessiyada
 
-1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-119 — frontend build va CI (frontend dasturchi, `crm-web-deploy` — frontend dasturchi yaratib, `.pub` ni yuboradi; qadamlar `docs/api/README.md` §3.1); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
+1. **E15 qoldiqlari:** T-118 — R2 CORS (`crm-media-prod`, origin `https://crm.workspaces.uz`) va lifecycle (`crm-backup-prod`: `daily/` 30, `weekly/` 90, `monthly/` 365 kun) — Cloudflare panelida (token bu sozlamalarga ruxsatsiz; `s3-prod-smoke` CORS testi shundan keyin o'tadi); T-119 — frontend deploy (server egasi, DEPLOY.md bo'yicha); T-122 — UptimeRobot (`https://crm.workspaces.uz/health/ready`) va `SENTRY_DSN`
 2. **Ochiq savollar (qaror kerak)** — batafsil `docs/api/README.md` §14.1:
    - chek qatorida narxni qo'lda o'zgartirish (`price`) `maxDiscountPct` ga bo'ysunmaydi va har rolga ochiq.
    - 2026-09-27 da hal qilindi: sotuvchidan xarid summalari (Q100), PDF chek (C13, Q104), `returnedQty`
      (Q101), o'chirilgan hisoblarni tiklash (Q102), sotuvchiga ulgurji rejim (Q103), analitika `limit` (Q105),
      taklifni aylantirishda ombor tanlash (Q106)
-3. **Frontend** (E13, T-112, T-113, T-119; T-119 ning server qismi — Caddy sayti, `/opt/www/crm` — tayyor, C36) —
+3. **Frontend** (E13, T-112, T-113) —
    frontend dasturchi; vazifalar va qabul mezonlari —
    `docs/api/README.md` §13. Oldingi implementatsiyam: `/home/ulugbek/personal/front/crm-qurilish-e13-integration.patch`
 4. **Env boshqaruvi (rejada, egasi qarori bilan keyinga):** T-130 — ilova qiymatlari GitHub Environments'da,
@@ -242,7 +244,7 @@ Oxirgi to'liq tekshiruv (2026-09-28): CI (`ci.yml`) qadamlari aynan — `npm run
 | T-116 compose + Caddy | ✅ `https://crm.workspaces.uz` — Let's Encrypt (birinchi urinishda), `/health/ready` 200 (baza, R2); baza faqat `127.0.0.1` (Q113) | — |
 | T-117 Postgres | ✅ `shared_buffers=1GB` serverda | — |
 | T-118 R2 | ✅ bucketlar, token faqat shu ikkisiga (Object Read & Write); `s3-prod-smoke`: kirish ✅ | CORS va lifecycle — Cloudflare panelida |
-| T-119 frontend | Caddy sayti tayyor (`/opt/www/crm`, bosh sahifa hozircha 404) | frontend build va CI — frontend dasturchi |
+| T-119 frontend | Caddy sayti tayyor (`/opt/www/crm`, bosh sahifa hozircha 404) | deploy — server egasi, DEPLOY.md bo'yicha |
 | T-120 CI/CD | ✅ `ci` (PR #1, 6 daq 55 s) va `deploy` yashil (SSH ECDSA izi, GHCR, migratsiya, tashqi sog'liq tekshiruvi) | — |
 | T-121 zaxira | ✅ cron `0 0 * * *` (Toshkent 03:00–04:00), R2 `daily/`; tiklash sinovi OK (Q114) | lifecycle (T-118) |
 | T-122 kuzatuv | log rotatsiyasi, Sentry integratsiyasi kodda | UptimeRobot, `SENTRY_DSN` |
