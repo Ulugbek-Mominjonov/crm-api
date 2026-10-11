@@ -4,8 +4,10 @@ import type { Prisma } from '@prisma/client'
 import { TtlCache } from '@/common/cache/ttl-cache'
 import { currentTenantId } from '@/common/context/request-context'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
-import { NotFoundError } from '@/common/errors/domain.error'
+import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import type { Env } from '@/config/env.schema'
+import { AuditService } from '@/modules/audit/audit.service'
+import { DomainEvents } from '@/modules/realtime/domain-events.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import type { SettingsDto, UpdateSettingsDto } from './dto/settings.dto'
 
@@ -33,6 +35,8 @@ const SETTINGS_SELECT = {
   receiptAddress: true,
   receiptFooter: true,
   onboarded: true,
+  brandColor: true,
+  logoFileId: true,
 } satisfies Prisma.SettingsSelect
 
 /**
@@ -49,6 +53,8 @@ export class SettingsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+    private readonly events: DomainEvents,
     config: ConfigService<Env, true>,
   ) {
     this.cache =
@@ -82,15 +88,69 @@ export class SettingsService {
     return settings
   }
 
+  /**
+   * Faqat yuborilgan maydonlar. Bitta tranzaksiyada: do'kon nomi `tenants` ga
+   * ham (kirishdagi do'kon tanlovi, `/auth/me`), almashgan logotipning eski
+   * fayli o'chirishga, jurnalga — o'zgargan maydonlar. COMMIT'dan keyin
+   * boshqa kassalarga `settings.updated` (rang/logotip sahifa yangilanmasdan).
+   */
   async update(dto: UpdateSettingsDto): Promise<SettingsDto> {
     const tenantId = currentTenantId()
+    if (dto.logoFileId) await this.assertLogo(dto.logoFileId)
+    const before = await this.prisma.scoped.settings.findUnique({ where: { tenantId }, select: SETTINGS_SELECT })
+    if (!before) throw new NotFoundError(RESOURCE)
     const row = await this.prisma.scoped.settings
       .update({ where: { tenantId }, data: { ...dto }, select: SETTINGS_SELECT })
       .catch((err: unknown) => rethrowAsDomain(err, { resource: RESOURCE }))
 
-    // Yangi qiymat keshga YOZILMAYDI, faqat eskisi o'chiriladi: parallel
-    // ikki tahrirda kechroq tugagani eski qiymatni keshga qo'yib qo'ymasin
-    this.cache.delete(tenantId)
+    const diff = changes(before, row)
+    if (diff.storeName) await this.prisma.scoped.tenant.update({ where: { id: tenantId }, data: { name: row.storeName } })
+    // Eski logotip — yumshoq o'chirish: kvota 30 kundan keyin bo'shaydi (GC), shu tarkib qayta yuklansa tiklanadi
+    if (diff.logoFileId && before.logoFileId) {
+      await this.prisma.scoped.file.updateMany({ where: { id: before.logoFileId, deletedAt: null }, data: { deletedAt: new Date() } })
+    }
+    await this.audit.log({ action: 'settings.update', entityType: 'settings', diff })
+    this.changed(tenantId)
     return row
   }
+
+  /** Logotip fayli o'chirildi (`DELETE /files/:id`) — sozlamadan uziladi */
+  async detachLogo(fileId: string): Promise<void> {
+    const { count } = await this.prisma.scoped.settings.updateMany({ where: { logoFileId: fileId }, data: { logoFileId: null } })
+    if (count > 0) this.changed(currentTenantId())
+  }
+
+  /**
+   * Kesh bekor va hodisa (COMMIT'dan keyin). Yangi qiymat keshga YOZILMAYDI,
+   * faqat eskisi o'chiriladi: parallel ikki tahrirda kechroq tugagani eski
+   * qiymatni keshga qo'yib qo'ymasin
+   */
+  private changed(tenantId: string): void {
+    this.cache.delete(tenantId)
+    this.events.publish('settings.updated', {})
+  }
+
+  /** Shu do'konning tasdiqlangan logotipi (boshqa tenant fayli RLS ostida ko'rinmaydi) */
+  private async assertLogo(fileId: string): Promise<void> {
+    const file = await this.prisma.scoped.file.findFirst({
+      where: { id: fileId, kind: 'store_logo', status: 'ready', deletedAt: null },
+      select: { id: true },
+    })
+    if (file) return
+    throw new DomainError('VALIDATION_FAILED', 'Logotip topilmadi yoki hali tasdiqlanmagan', [
+      { field: 'logoFileId', code: 'VALIDATION_FAILED' },
+    ])
+  }
+}
+
+type Value = SettingsDto[keyof SettingsDto]
+type Change = { from: Value; to: Value }
+
+/** Jurnal uchun: faqat o'zgargan maydonlar `{ maydon: { from, to } }` */
+function changes(before: SettingsDto, after: SettingsDto): Partial<Record<keyof SettingsDto, Change>> {
+  const diff: Partial<Record<keyof SettingsDto, Change>> = {}
+  for (const key of Object.keys(after) as (keyof SettingsDto)[]) {
+    if (before[key] !== after[key]) diff[key] = { from: before[key], to: after[key] }
+  }
+  return diff
 }

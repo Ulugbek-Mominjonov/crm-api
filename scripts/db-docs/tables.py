@@ -48,7 +48,8 @@ TABLES = {
         "sozlama keshlanadi, holat esa har sotuvda o'zgaradi."),
     'settings': (
         "Do'kon sozlamalari — bitta qator: nom, valyuta, QQS, ulgurji savdo (va sotuvchiga ulgurji), sodiqlik "
-        "ballari, maksimal chegirma, chekdagi telefon, manzil va pastki matn, boshlang'ich sozlash tugaganmi."),
+        "ballari, maksimal chegirma, chekdagi telefon, manzil va pastki matn, boshlang'ich sozlash tugaganmi, "
+        "brend (asosiy rang va logotip — `files` ga havola)."),
     'employees': (
         "Xodim — shaxs haqidagi yagona manba: ism, lavozim, telefon, maosh, holat. Kirish hisobi bo'lmasligi "
         "ham mumkin (masalan haydovchi). Hujjatlarda sotuvchi, mas'ul va haydovchi sifatida ishtirok etadi."),
@@ -138,7 +139,7 @@ TABLES = {
         "Xabarning har bir qabul qiluvchisi — yuborish navbati: kanal (SMS yoki Telegram), telefon yoki chat, "
         "shaxsiylashtirilgan matn, holat, urinishlar, provayder ID'si, xato."),
     'files': (
-        "S3 (R2) dagi fayllar metama'lumoti: tur (mahsulot rasmi, hujjat, eksport, import, zaxira …), kalit, "
+        "S3 (R2) dagi fayllar metama'lumoti: tur (mahsulot rasmi, do'kon logotipi, hujjat, eksport, import, zaxira …), kalit, "
         "hajm, SHA-256 (takror yuklashni aniqlash), holat (`pending` — yuklanmoqda, `ready`, `quarantined`), "
         "rasm variantlari. Faylning o'zi S3'da."),
     'exports': (

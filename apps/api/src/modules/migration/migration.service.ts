@@ -114,6 +114,8 @@ export class MigrationService {
     const s = plan.settings!
     const set = Prisma.join(Object.entries(s).map(([column, value]) => Prisma.sql`${Prisma.raw(`"${column}"`)} = ${value}`))
     await tx.$executeRaw`UPDATE settings SET ${set} WHERE tenant_id = ${tenantId}::uuid`
+    // Do'kon nomi bitta manbada: kirishdagi tanlov va `/auth/me` ham yangi nomni ko'rsin
+    if (s.store_name) await tx.$executeRaw`UPDATE tenants SET name = ${s.store_name} WHERE id = ${tenantId}::uuid`
   }
 
   /**

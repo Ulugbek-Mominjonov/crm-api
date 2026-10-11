@@ -9,6 +9,7 @@ import { uuidv7 } from '@/common/ids'
 import { AuditService } from '@/modules/audit/audit.service'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { JobQueue } from '@/modules/queue/job-queue'
+import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import { onCommit, requireTenantTx } from '@/prisma/tenant-tx'
 import type { FileDto, FileUrlsDto, PresignDto, PresignResultDto, UsageDto, Variant } from './dto/file.dto'
@@ -48,6 +49,7 @@ export class FilesService {
     private readonly s3: S3Service,
     private readonly audit: AuditService,
     private readonly queue: JobQueue,
+    private readonly settings: SettingsService,
   ) {}
 
   /**
@@ -134,7 +136,7 @@ export class FilesService {
       diff: { kind: file.kind, mime: file.mime, size: Number(file.sizeBytes) },
     })
     // Variantlar (T-091) — fonda; ishchi COMMIT'dan keyin tayyor qatorni ko'radi
-    if (file.kind === 'product_image') onCommit(() => this.queue.add('image-variants'))
+    if (FILE_RULES[file.kind].variants) onCommit(() => this.queue.add('image-variants'))
     return toFileDto(ready)
   }
 
@@ -165,7 +167,7 @@ export class FilesService {
       where: { id: { in: ids }, status: 'ready', deletedAt: null },
       select: FILE_SELECT,
     })
-    const visible = files.filter((f) => hasPermission(user.role, FILE_RULES[f.kind].resource, 'view'))
+    const visible = files.filter((f) => can(user, FILE_RULES[f.kind], 'view'))
     const signed = await Promise.all(visible.map(async (f) => [f.id, await this.signedGet(f, variant)] as const))
     return { urls: Object.fromEntries(signed), expiresAt: new Date(Date.now() + PRESIGN_TTL_SEC * 1000) }
   }
@@ -183,6 +185,7 @@ export class FilesService {
     const file = await this.lock(id)
     assertCan(user, FILE_RULES[file.kind], 'delete')
     await this.prisma.scoped.product.updateMany({ where: { imageFileId: id }, data: { imageFileId: null } })
+    if (file.kind === 'store_logo') await this.settings.detachLogo(id)
     await this.prisma.scoped.file.update({ where: { id }, data: { deletedAt: new Date() } })
     await this.audit.log({ action: 'file.delete', entityType: 'file', entityId: id, diff: { kind: file.kind } })
   }
@@ -232,10 +235,8 @@ export class FilesService {
 
   private signedGet(file: FileRecord, variant: Variant, expiresIn?: number): Promise<string> {
     if (file.status !== 'ready') throw new NotFoundError(RESOURCE, file.id)
-    const variants = (file.variants ?? {}) as Record<string, string>
-    const key = variant === 'orig' ? file.key : (variants[variant] ?? file.key)
     const name = file.originalName ?? `${file.id}.${EXTENSIONS[file.mime] ?? 'bin'}`
-    return this.s3.presignGet(bucketOf(file), key, FILE_RULES[file.kind].attachment ? name : undefined, expiresIn)
+    return this.s3.presignGet(bucketOf(file), variantKey(file, variant), FILE_RULES[file.kind].attachment ? name : undefined, expiresIn)
   }
 
   /** Mavjud tarkib: tayyor — qayta ishlatiladi; kutilayotgan — yangi havola; o'chirilgan — tiklanadi */
@@ -318,12 +319,24 @@ export class FilesService {
 }
 
 /** Bazada mantiqiy nom (`media`/`backup`); haqiqiy bucket — sozlamadan (S3Service) */
-function bucketOf(file: FileRecord): BucketName {
+export function bucketOf(file: Pick<FileRecord, 'bucket'>): BucketName {
   return file.bucket as BucketName
 }
 
-function assertCan(user: AuthContext, rule: FileRule, action: 'view' | 'create' | 'delete'): void {
-  if (!hasPermission(user.role, rule.resource, action)) throw new PermissionDeniedError()
+/** Variant kaliti; hali tayyor bo'lmasa (yoki rasm emas) — asl fayl */
+export function variantKey(file: Pick<FileRecord, 'key' | 'variants'>, variant: Variant): string {
+  const variants = (file.variants ?? {}) as Record<string, string>
+  return variant === 'orig' ? file.key : (variants[variant] ?? file.key)
+}
+
+type FileAction = 'view' | 'create' | 'delete'
+
+function can(user: AuthContext, rule: FileRule, action: FileAction): boolean {
+  return (action === 'view' && rule.readableByAll === true) || hasPermission(user.role, rule.resource, action)
+}
+
+function assertCan(user: AuthContext, rule: FileRule, action: FileAction): void {
+  if (!can(user, rule, action)) throw new PermissionDeniedError()
 }
 
 function quotaError(used: number, limit: number): DomainError {

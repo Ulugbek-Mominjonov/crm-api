@@ -38,6 +38,7 @@ erDiagram
     expense_templates |o--o{ expenses : "template_id"
     files |o--o{ exports : "file_id"
     files |o--o{ products : "image_file_id"
+    files |o--o{ settings : "logo_file_id"
     messages ||--o{ message_recipients : "message_id"
     products ||--o{ po_items : "product_id"
     products ||--o{ product_stocks : "product_id"
@@ -72,6 +73,7 @@ Har bir do'kon (SaaS mijozi) — `tenants` dagi bitta qator. Boshqa barcha jadva
 ```mermaid
 erDiagram
     employees ||--o| users : "employee_id"
+    files |o--o{ settings : "logo_file_id"
     tenants ||--o{ employees : "tenant_id"
     tenants ||--o| settings : "tenant_id"
     tenants ||--o| tenant_state : "tenant_id"
@@ -112,6 +114,8 @@ erDiagram
         text receipt_footer
         boolean onboarded
         boolean seller_wholesale_enabled
+        varchar brand_color
+        uuid logo_file_id FK
     }
     employees {
         uuid id PK
@@ -211,9 +215,10 @@ Do'konning tez o'zgaradigan joriy holati — bitta qator: kassadagi naqd (`cash_
 
 ### `settings`
 
-Do'kon sozlamalari — bitta qator: nom, valyuta, QQS, ulgurji savdo (va sotuvchiga ulgurji), sodiqlik ballari, maksimal chegirma, chekdagi telefon, manzil va pastki matn, boshlang'ich sozlash tugaganmi.
+Do'kon sozlamalari — bitta qator: nom, valyuta, QQS, ulgurji savdo (va sotuvchiga ulgurji), sodiqlik ballari, maksimal chegirma, chekdagi telefon, manzil va pastki matn, boshlang'ich sozlash tugaganmi, brend (asosiy rang va logotip — `files` ga havola).
 
 - RLS: majburiy (FORCE)
+- Bog‘lanishlar: `logo_file_id` → `files` (SET NULL)
 
 | Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
 |-------|-----|----|------|
@@ -231,6 +236,8 @@ Do'kon sozlamalari — bitta qator: nom, valyuta, QQS, ulgurji savdo (va sotuvch
 | `receipt_footer` | text | — | Chek pastidagi matn |
 | `onboarded` | boolean | — | Boshlang'ich sozlash tugagan |
 | `seller_wholesale_enabled` | boolean | — | Sotuvchi ham ulgurji narxda sotadi va ulgurji narxni ko'radi (sukut — yo'q) |
+| `brand_color` | varchar(7) | ha | Brend rangi `#RRGGBB` (katta harf); null — standart |
+| `logo_file_id` | uuid | ha | → `files` · Logotip — `store_logo` fayli (do'konda bitta); fayl o'chsa uziladi |
 
 ### `employees`
 
@@ -1336,7 +1343,7 @@ Xabarning har bir qabul qiluvchisi — yuborish navbati: kanal (SMS yoki Telegra
 
 ### `files`
 
-S3 (R2) dagi fayllar metama'lumoti: tur (mahsulot rasmi, hujjat, eksport, import, zaxira …), kalit, hajm, SHA-256 (takror yuklashni aniqlash), holat (`pending` — yuklanmoqda, `ready`, `quarantined`), rasm variantlari. Faylning o'zi S3'da.
+S3 (R2) dagi fayllar metama'lumoti: tur (mahsulot rasmi, do'kon logotipi, hujjat, eksport, import, zaxira …), kalit, hajm, SHA-256 (takror yuklashni aniqlash), holat (`pending` — yuklanmoqda, `ready`, `quarantined`), rasm variantlari. Faylning o'zi S3'da.
 
 - RLS: majburiy (FORCE)
 
@@ -1524,7 +1531,7 @@ Ustunlar: `tenant_id`, `date`, `revenue`, `returns`, `cogs`, `returns_cogs`, `sa
 | `EmployeeStatus` | `active` — ishlayapti, `on_leave` — ta'tilda, `fired` — bo'shatilgan |
 | `ExpenseCategory` | `rent`, `utilities`, `salary`, `transport`, `tax`, `other` |
 | `ExportStatus` | `queued` — navbatda, `running` — tayyorlanmoqda, `ready` — tayyor, `failed` — xato |
-| `FileKind` | `product_image`, `document`, `export`, `import`, `tenant_backup`, `avatar` |
+| `FileKind` | `product_image`, `document`, `export`, `import`, `tenant_backup`, `avatar`, `store_logo` |
 | `FileStatus` | `pending` — yuklanmoqda, `ready` — tayyor, `quarantined` — karantin (tekshiruvdan o'tmadi) |
 | `FiscalStatus` | `pending` — navbatda, `sent` — yuborildi, `confirmed` — tasdiqlandi, `failed` — rad etildi |
 | `InvoiceState` | `created` — yaratildi, `pending` — to'lov kutilmoqda, `paid` — to'landi, `cancelled` — bekor qilindi |

@@ -462,7 +462,7 @@
         ]
       },
       "patch": {
-        "description": "Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida.",
+        "description": "Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida. `storeName` do‘kon nomini ham o‘zgartiradi (kirishdagi tanlov, `/auth/me`). `logoFileId` — tasdiqlangan `store_logo` fayli; almashtirilsa yoki `null` bo‘lsa eski fayl o‘chiriladi. Muvaffaqiyatdan keyin do‘kon xonasiga `settings.updated` hodisasi.",
         "operationId": "Settings_update",
         "parameters": [],
         "requestBody": {
@@ -487,7 +487,7 @@
             }
           },
           "400": {
-            "description": "VALIDATION_FAILED",
+            "description": "VALIDATION_FAILED — jumladan `brandColor` (#RRGGBB emas) va `logoFileId` (begona, tasdiqlanmagan yoki boshqa turdagi fayl)",
             "content": {
               "application/json": {
                 "schema": {
@@ -5067,6 +5067,362 @@
         ]
       }
     },
+    "/api/v1/files/presign": {
+      "post": {
+        "description": "Tur, MIME (oq ro‘yxat), hajm va kvota tekshiriladi, keyin 10 daqiqalik PUT havolasi beriladi. Shu tarkib (`sha256`) allaqachon bor bo‘lsa — `reused: true`, havola yo‘q, mavjud fayl qaytadi. Jurnalga tasdiqlashda yoziladi (kutilayotgan fayl hali o‘zgarish emas).",
+        "operationId": "Files_presign",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PresignResultDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "PAYLOAD_TOO_LARGE | STORAGE_QUOTA_EXCEEDED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "FILE_REJECTED — shu tarkib avval rad etilgan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Yuklash ruxsati (presigned PUT)",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/{id}/confirm": {
+      "post": {
+        "description": "Obyekt hajmi, boshlanish baytlari (MIME) va xeshi tekshiriladi. Mos kelmasa obyekt o‘chiriladi, fayl karantinga tushadi va jurnalga yoziladi (422). Takroriy chaqiruv — tayyor faylni qaytaradi.",
+        "operationId": "Files_confirm",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "FILE_NOT_UPLOADED — obyekt hali PUT qilinmagan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "STORAGE_QUOTA_EXCEEDED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "FILE_REJECTED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Yuklashni tasdiqlash",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/usage": {
+      "get": {
+        "description": "Band hajm, tarif chegarasi va tur bo‘yicha taqsimot",
+        "operationId": "Files_usage",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Saqlash hajmi",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/urls": {
+      "get": {
+        "description": "Sahifadagi rasmlar uchun bitta so‘rov: id → 10 daqiqalik imzolangan havola. Variant tayyor bo‘lmasa — asl fayl. Boshqa do‘kon, tayyor bo‘lmagan yoki huquq yetmagan fayl javobda bo‘lmaydi.",
+        "operationId": "Files_urls",
+        "parameters": [
+          {
+            "name": "ids",
+            "required": true,
+            "in": "query",
+            "description": "Vergul bilan, ko‘pi bilan 100 ta",
+            "schema": {
+              "example": "0199…,0199…",
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant",
+            "required": false,
+            "in": "query",
+            "description": "Variant tayyor bo‘lmasa — `orig`",
+            "schema": {
+              "default": "128",
+              "type": "string",
+              "enum": [
+                "orig",
+                "128",
+                "512"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileUrlsDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bir nechta fayl havolasi (`<img src>` uchun)",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/{id}": {
+      "get": {
+        "operationId": "Files_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FileDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Fayl metama’lumoti",
+        "tags": [
+          "files"
+        ]
+      },
+      "delete": {
+        "description": "Mahsulotlardagi havola uziladi; obyekt 30 kundan keyin tozalanadi (tiklash imkoni uchun).",
+        "operationId": "Files_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Faylni o‘chirish (yumshoq)",
+        "tags": [
+          "files"
+        ]
+      }
+    },
+    "/api/v1/files/{id}/raw": {
+      "get": {
+        "description": "Huquq tekshiriladi, keyin 10 daqiqalik havolaga yo‘naltiriladi. Variant (`128`, `512`) hali tayyor bo‘lmasa — asl fayl. Boshqa do‘kon fayli — 404.",
+        "operationId": "Files_raw",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "variant",
+            "required": false,
+            "in": "query",
+            "description": "Variant tayyor bo‘lmasa — `orig`",
+            "schema": {
+              "default": "orig",
+              "type": "string",
+              "enum": [
+                "orig",
+                "128",
+                "512"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "`Location` — imzolangan havola"
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Faylni o‘qish (302 → presigned GET)",
+        "tags": [
+          "files"
+        ]
+      }
+    },
     "/api/v1/quotes": {
       "get": {
         "description": "`expired` — amal muddati o‘tgan ochiq taklif",
@@ -7718,362 +8074,6 @@
         ]
       }
     },
-    "/api/v1/files/presign": {
-      "post": {
-        "description": "Tur, MIME (oq ro‘yxat), hajm va kvota tekshiriladi, keyin 10 daqiqalik PUT havolasi beriladi. Shu tarkib (`sha256`) allaqachon bor bo‘lsa — `reused: true`, havola yo‘q, mavjud fayl qaytadi. Jurnalga tasdiqlashda yoziladi (kutilayotgan fayl hali o‘zgarish emas).",
-        "operationId": "Files_presign",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PresignDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PresignResultDto"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "PAYLOAD_TOO_LARGE | STORAGE_QUOTA_EXCEEDED",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "FILE_REJECTED — shu tarkib avval rad etilgan",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Yuklash ruxsati (presigned PUT)",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/api/v1/files/{id}/confirm": {
-      "post": {
-        "description": "Obyekt hajmi, boshlanish baytlari (MIME) va xeshi tekshiriladi. Mos kelmasa obyekt o‘chiriladi, fayl karantinga tushadi va jurnalga yoziladi (422). Takroriy chaqiruv — tayyor faylni qaytaradi.",
-        "operationId": "Files_confirm",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "FILE_NOT_UPLOADED — obyekt hali PUT qilinmagan",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "413": {
-            "description": "STORAGE_QUOTA_EXCEEDED",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "FILE_REJECTED",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Yuklashni tasdiqlash",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/api/v1/files/usage": {
-      "get": {
-        "description": "Band hajm, tarif chegarasi va tur bo‘yicha taqsimot",
-        "operationId": "Files_usage",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/UsageDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Saqlash hajmi",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/api/v1/files/urls": {
-      "get": {
-        "description": "Sahifadagi rasmlar uchun bitta so‘rov: id → 10 daqiqalik imzolangan havola. Variant tayyor bo‘lmasa — asl fayl. Boshqa do‘kon, tayyor bo‘lmagan yoki huquq yetmagan fayl javobda bo‘lmaydi.",
-        "operationId": "Files_urls",
-        "parameters": [
-          {
-            "name": "ids",
-            "required": true,
-            "in": "query",
-            "description": "Vergul bilan, ko‘pi bilan 100 ta",
-            "schema": {
-              "example": "0199…,0199…",
-              "type": "string"
-            }
-          },
-          {
-            "name": "variant",
-            "required": false,
-            "in": "query",
-            "description": "Variant tayyor bo‘lmasa — `orig`",
-            "schema": {
-              "default": "128",
-              "type": "string",
-              "enum": [
-                "orig",
-                "128",
-                "512"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileUrlsDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Bir nechta fayl havolasi (`<img src>` uchun)",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/api/v1/files/{id}": {
-      "get": {
-        "operationId": "Files_get",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/FileDto"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Fayl metama’lumoti",
-        "tags": [
-          "files"
-        ]
-      },
-      "delete": {
-        "description": "Mahsulotlardagi havola uziladi; obyekt 30 kundan keyin tozalanadi (tiklash imkoni uchun).",
-        "operationId": "Files_remove",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "204": {
-            "description": ""
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Faylni o‘chirish (yumshoq)",
-        "tags": [
-          "files"
-        ]
-      }
-    },
-    "/api/v1/files/{id}/raw": {
-      "get": {
-        "description": "Huquq tekshiriladi, keyin 10 daqiqalik havolaga yo‘naltiriladi. Variant (`128`, `512`) hali tayyor bo‘lmasa — asl fayl. Boshqa do‘kon fayli — 404.",
-        "operationId": "Files_raw",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "variant",
-            "required": false,
-            "in": "query",
-            "description": "Variant tayyor bo‘lmasa — `orig`",
-            "schema": {
-              "default": "orig",
-              "type": "string",
-              "enum": [
-                "orig",
-                "128",
-                "512"
-              ]
-            }
-          }
-        ],
-        "responses": {
-          "302": {
-            "description": "`Location` — imzolangan havola"
-          },
-          "404": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ApiErrorDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Faylni o‘qish (302 → presigned GET)",
-        "tags": [
-          "files"
-        ]
-      }
-    },
     "/api/v1/exports/jobs/{id}": {
       "get": {
         "description": "Faqat so‘rovchi ko‘radi. Tayyor bo‘lsa — `url` (imzolangan havola, `expiresAt` gacha): brauzerda `window.location` bilan oching.",
@@ -9169,6 +9169,18 @@
           "onboarded": {
             "type": "boolean",
             "description": "Dastlabki sozlash tugatilganmi"
+          },
+          "brandColor": {
+            "type": "string",
+            "nullable": true,
+            "example": "#1A7F5A",
+            "description": "Brend rangi `#RRGGBB` (katta harf); `null` — standart. Kalit doim bor"
+          },
+          "logoFileId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Logotip — `store_logo` fayli (`GET /files/urls?ids=…&variant=128|512`); `null` — yo‘q. Kalit doim bor"
           }
         },
         "required": [
@@ -9184,7 +9196,9 @@
           "receiptPhone",
           "receiptAddress",
           "receiptFooter",
-          "onboarded"
+          "onboarded",
+          "brandColor",
+          "logoFileId"
         ]
       },
       "UpdateSettingsDto": {
@@ -9242,6 +9256,18 @@
           },
           "onboarded": {
             "type": "boolean"
+          },
+          "brandColor": {
+            "type": "string",
+            "nullable": true,
+            "example": "#1A7F5A",
+            "description": "`#RRGGBB`; `null` — standart rang"
+          },
+          "logoFileId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Tasdiqlangan `store_logo` fayli; `null` — logotipni olib tashlash (eski fayl o‘chiriladi)"
           }
         }
       },
@@ -12250,6 +12276,12 @@
           "currency": {
             "type": "string",
             "example": "so'm"
+          },
+          "logoFileId": {
+            "type": "string",
+            "nullable": true,
+            "format": "uuid",
+            "description": "Logotip — `store_logo` fayli (`SettingsDto.logoFileId`)"
           }
         },
         "required": [
@@ -12257,7 +12289,8 @@
           "phone",
           "address",
           "footer",
-          "currency"
+          "currency",
+          "logoFileId"
         ]
       },
       "ReceiptFiscalDto": {
@@ -12766,6 +12799,219 @@
           "pageSize",
           "total",
           "pageCount"
+        ]
+      },
+      "PresignDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "product_image",
+              "document",
+              "export",
+              "import",
+              "tenant_backup",
+              "avatar",
+              "store_logo"
+            ]
+          },
+          "mime": {
+            "type": "string",
+            "example": "image/webp",
+            "description": "Oq ro‘yxatdan (09 §9.6)"
+          },
+          "size": {
+            "type": "number",
+            "example": 153600,
+            "description": "Bayt — imzoga kiradi"
+          },
+          "sha256": {
+            "type": "string",
+            "example": "ab12…",
+            "description": "Tarkib SHA-256 (hex) — takror yuklashni aniqlash"
+          },
+          "originalName": {
+            "type": "string",
+            "example": "sement.webp",
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "kind",
+          "mime",
+          "size",
+          "sha256"
+        ]
+      },
+      "FileDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "product_image",
+              "document",
+              "export",
+              "import",
+              "tenant_backup",
+              "avatar",
+              "store_logo"
+            ]
+          },
+          "mime": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "number"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "originalName": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "quarantined"
+            ]
+          },
+          "variants": {
+            "example": [
+              "128",
+              "512"
+            ],
+            "description": "Tayyor rasm variantlari",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "mime",
+          "sizeBytes",
+          "sha256",
+          "originalName",
+          "status",
+          "variants",
+          "createdAt"
+        ]
+      },
+      "UploadTargetDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "description": "Imzolangan PUT havolasi (≤ 10 daqiqa)"
+          },
+          "method": {
+            "type": "string",
+            "example": "PUT"
+          },
+          "headers": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "example": {
+              "Content-Type": "image/webp"
+            },
+            "description": "Aynan shu sarlavhalar bilan yuborilsin"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "url",
+          "method",
+          "headers",
+          "expiresAt"
+        ]
+      },
+      "PresignResultDto": {
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/FileDto"
+          },
+          "reused": {
+            "type": "boolean",
+            "description": "Shu tarkib allaqachon bor — yuklash shart emas (09 §9.9)"
+          },
+          "upload": {
+            "nullable": true,
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UploadTargetDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "file",
+          "reused",
+          "upload"
+        ]
+      },
+      "UsageDto": {
+        "type": "object",
+        "properties": {
+          "usedBytes": {
+            "type": "number"
+          },
+          "limitBytes": {
+            "type": "number"
+          },
+          "byKind": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            },
+            "description": "tur → bayt"
+          }
+        },
+        "required": [
+          "usedBytes",
+          "limitBytes",
+          "byKind"
+        ]
+      },
+      "FileUrlsDto": {
+        "type": "object",
+        "properties": {
+          "urls": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "Fayl id → imzolangan havola. Yo‘q, tayyor bo‘lmagan yoki huquq yetmagan fayl — ro‘yxatda yo‘q"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Havolalar shu paytgacha amal qiladi"
+          }
+        },
+        "required": [
+          "urls",
+          "expiresAt"
         ]
       },
       "QuotePartyDto": {
@@ -15606,217 +15852,6 @@
           "categories",
           "payments",
           "abc"
-        ]
-      },
-      "PresignDto": {
-        "type": "object",
-        "properties": {
-          "kind": {
-            "type": "string",
-            "enum": [
-              "product_image",
-              "document",
-              "export",
-              "import",
-              "tenant_backup",
-              "avatar"
-            ]
-          },
-          "mime": {
-            "type": "string",
-            "example": "image/webp",
-            "description": "Oq ro‘yxatdan (09 §9.6)"
-          },
-          "size": {
-            "type": "number",
-            "example": 153600,
-            "description": "Bayt — imzoga kiradi"
-          },
-          "sha256": {
-            "type": "string",
-            "example": "ab12…",
-            "description": "Tarkib SHA-256 (hex) — takror yuklashni aniqlash"
-          },
-          "originalName": {
-            "type": "string",
-            "example": "sement.webp",
-            "maxLength": 200
-          }
-        },
-        "required": [
-          "kind",
-          "mime",
-          "size",
-          "sha256"
-        ]
-      },
-      "FileDto": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "kind": {
-            "type": "string",
-            "enum": [
-              "product_image",
-              "document",
-              "export",
-              "import",
-              "tenant_backup",
-              "avatar"
-            ]
-          },
-          "mime": {
-            "type": "string"
-          },
-          "sizeBytes": {
-            "type": "number"
-          },
-          "sha256": {
-            "type": "string"
-          },
-          "originalName": {
-            "type": "string",
-            "nullable": true
-          },
-          "status": {
-            "type": "string",
-            "enum": [
-              "pending",
-              "ready",
-              "quarantined"
-            ]
-          },
-          "variants": {
-            "example": [
-              "128",
-              "512"
-            ],
-            "description": "Tayyor rasm variantlari",
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "id",
-          "kind",
-          "mime",
-          "sizeBytes",
-          "sha256",
-          "originalName",
-          "status",
-          "variants",
-          "createdAt"
-        ]
-      },
-      "UploadTargetDto": {
-        "type": "object",
-        "properties": {
-          "url": {
-            "type": "string",
-            "description": "Imzolangan PUT havolasi (≤ 10 daqiqa)"
-          },
-          "method": {
-            "type": "string",
-            "example": "PUT"
-          },
-          "headers": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "example": {
-              "Content-Type": "image/webp"
-            },
-            "description": "Aynan shu sarlavhalar bilan yuborilsin"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time"
-          }
-        },
-        "required": [
-          "url",
-          "method",
-          "headers",
-          "expiresAt"
-        ]
-      },
-      "PresignResultDto": {
-        "type": "object",
-        "properties": {
-          "file": {
-            "$ref": "#/components/schemas/FileDto"
-          },
-          "reused": {
-            "type": "boolean",
-            "description": "Shu tarkib allaqachon bor — yuklash shart emas (09 §9.9)"
-          },
-          "upload": {
-            "nullable": true,
-            "type": "object",
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/UploadTargetDto"
-              }
-            ]
-          }
-        },
-        "required": [
-          "file",
-          "reused",
-          "upload"
-        ]
-      },
-      "UsageDto": {
-        "type": "object",
-        "properties": {
-          "usedBytes": {
-            "type": "number"
-          },
-          "limitBytes": {
-            "type": "number"
-          },
-          "byKind": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "number"
-            },
-            "description": "tur → bayt"
-          }
-        },
-        "required": [
-          "usedBytes",
-          "limitBytes",
-          "byKind"
-        ]
-      },
-      "FileUrlsDto": {
-        "type": "object",
-        "properties": {
-          "urls": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "string"
-            },
-            "description": "Fayl id → imzolangan havola. Yo‘q, tayyor bo‘lmagan yoki huquq yetmagan fayl — ro‘yxatda yo‘q"
-          },
-          "expiresAt": {
-            "type": "string",
-            "format": "date-time",
-            "description": "Havolalar shu paytgacha amal qiladi"
-          }
-        },
-        "required": [
-          "urls",
-          "expiresAt"
         ]
       },
       "ExportJobDto": {

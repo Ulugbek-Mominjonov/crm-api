@@ -53,13 +53,13 @@ Umumiy «tayyor» ta'rifi —
 | E8 | Ta'minot va kreditorlik | 6 | 6/6 | B3 |
 | E9 | Yetkazib berish va xabarlar | 6 | 6/6 | B3 |
 | E10 | Hisobot va analitika | 7 | 7/7 | B3 |
-| E11 | Fayl saqlash (S3) | 8 | 8/8 | B3 |
+| E11 | Fayl saqlash (S3) | 9 | 9/9 | B3 |
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| | **Jami** | **132** | **117/132** | |
+| | **Jami** | **133** | **118/133** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -709,6 +709,12 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Bog'liq: T-037, T-090
   - Qabul: `PATCH /products/:id` da `imageFileId` qabul qilinadi va fayl shu tenantniki ekani tekshiriladi; eski rasm havolasi uziladi
   - Tekshirish: `npm run test:e2e -- product-image`
+
+- [x] **T-133 · Do'kon brendi: logotip va rang**
+  - Bog'liq: T-091, T-093, T-095
+  - Manba: frontend so'rovi `09-brend.md` (B1–B5), Q117
+  - Qabul: `GET /settings` da `brandColor` va `logoFileId` kalitlari doim bor (`null` — sozlanmagan); rang `#RRGGBB`, katta harfda saqlanadi; logotip — shu do'konning tasdiqlangan `store_logo` fayli (aks holda 400, `field: logoFileId`), almashtirilsa/olib tashlansa eski fayl o'chiriladi; `store_logo`: PNG/JPEG/WebP (SVG yo'q), ≤ 1 MB, yuklash — `settings`, o'qish — barcha rollar, 128/512 variantlar shaffofligi bilan; `storeName` → `tenants.name`; `settings.updated` hodisasi faqat shu do'konga; chek PDF (va Telegram cheki) — logotip oq-qora, nom ustida, fayl buzuq bo'lsa chek logotipsiz
+  - Tekshirish: `npm run test:e2e -- store-brand` va `npm test -w apps/api -- receipt-pdf validation-errors`
 
 ---
 

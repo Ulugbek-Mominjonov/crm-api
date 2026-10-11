@@ -15,7 +15,7 @@ import {
   CreateSaleDto, ReceiptDto, ReceiptQueryDto, ReturnSaleDto, SaleDto, SaleListItemDto, SalePageDto, SaleQueryDto,
 } from './dto/sale.dto'
 import { ReceiptDeliveryService } from './receipt-delivery.service'
-import { receiptPdf } from './receipt-pdf'
+import { ReceiptPdfService } from './receipt-pdf.service'
 import { SalesQueriesService } from './sales-queries.service'
 import { SalesService } from './sales.service'
 
@@ -31,6 +31,7 @@ export class SalesController {
     private readonly sales: SalesService,
     private readonly queries: SalesQueriesService,
     private readonly receipts: ReceiptDeliveryService,
+    private readonly receiptPdf: ReceiptPdfService,
   ) {}
 
   @Post()
@@ -105,7 +106,7 @@ export class SalesController {
   ): Promise<ReceiptDto | StreamableFile> {
     const receipt = await this.queries.receipt(id)
     if (query.format === 'json') return receipt
-    const pdf = await receiptPdf(receipt)
+    const pdf = await this.receiptPdf.render(receipt)
     return new StreamableFile(pdf, {
       type: 'application/pdf',
       disposition: `inline; filename="${receipt.sale.number}.pdf"`,

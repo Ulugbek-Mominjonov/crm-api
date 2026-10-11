@@ -5,7 +5,7 @@ import {
 } from '@nestjs/swagger'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
 import { RequirePermission } from '@/modules/auth/decorators/require-permission.decorator'
-import { AuditAction } from '@/modules/audit/audit.decorator'
+import { AuditedInService } from '@/modules/audit/audit.decorator'
 import { SettingsService } from './settings.service'
 import { SettingsDto, UpdateSettingsDto } from './dto/settings.dto'
 
@@ -31,13 +31,20 @@ export class SettingsController {
 
   @Patch()
   @RequirePermission('settings', 'edit')
-  @AuditAction('settings.update')
+  // Jurnal — servisda: o'zgargan maydonlar `{ from, to }` bilan
+  @AuditedInService()
   @ApiOperation({
     summary: 'Sozlamalarni o‘zgartirish',
-    description: 'Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida.',
+    description:
+      'Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida. `storeName` do‘kon nomini ham o‘zgartiradi ' +
+      '(kirishdagi tanlov, `/auth/me`). `logoFileId` — tasdiqlangan `store_logo` fayli; almashtirilsa yoki `null` ' +
+      'bo‘lsa eski fayl o‘chiriladi. Muvaffaqiyatdan keyin do‘kon xonasiga `settings.updated` hodisasi.',
   })
   @ApiOkResponse({ type: SettingsDto })
-  @ApiBadRequestResponse({ description: 'VALIDATION_FAILED', type: ApiErrorDto })
+  @ApiBadRequestResponse({
+    description: 'VALIDATION_FAILED — jumladan `brandColor` (#RRGGBB emas) va `logoFileId` (begona, tasdiqlanmagan yoki boshqa turdagi fayl)',
+    type: ApiErrorDto,
+  })
   @ApiForbiddenResponse({ description: 'PERMISSION_DENIED', type: ApiErrorDto })
   update(@Body() dto: UpdateSettingsDto): Promise<SettingsDto> {
     return this.settings.update(dto)

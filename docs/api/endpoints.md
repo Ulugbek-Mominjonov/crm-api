@@ -509,7 +509,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 
 ### `PATCH /settings` — Sozlamalarni o‘zgartirish
 
-> Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida.
+> Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida. `storeName` do‘kon nomini ham o‘zgartiradi (kirishdagi tanlov, `/auth/me`). `logoFileId` — tasdiqlangan `store_logo` fayli; almashtirilsa yoki `null` bo‘lsa eski fayl o‘chiriladi. Muvaffaqiyatdan keyin do‘kon xonasiga `settings.updated` hodisasi.
 
 **Qachon / qanday:** Sozlamalar sahifasi va dastlabki sozlash sehrgari. Faqat o‘zgargan maydonlarni yuboring. Foizlar butun son 0–100. Server keshi darhol yangilanadi. `sellerWholesaleEnabled` o‘zgarsa — sotuvchilar katalogni qayta so‘rasin (`wholesalePrice` paydo bo‘ladi/yo‘qoladi).
 
@@ -518,7 +518,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 | Huquq | `settings:edit` — admin, manager |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SettingsDto`](schemas.md#settingsdto) |
-| Audit jurnali | ha — `settings.update` |
+| Audit jurnali | ha |
 
 **So‘rov tanasi** — [`UpdateSettingsDto`](schemas.md#updatesettingsdto)
 
@@ -537,12 +537,14 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 | `receiptAddress` | `string` |  | maks. uzunlik `200` |
 | `receiptFooter` | `string` |  | maks. uzunlik `500` |
 | `onboarded` | `boolean` |  |  |
+| `brandColor` | `string` \| `null` |  | `#RRGGBB`; `null` — standart rang — misol `#1A7F5A` |
+| `logoFileId` | `string` (uuid) \| `null` |  | Tasdiqlangan `store_logo` fayli; `null` — logotipni olib tashlash (eski fayl o‘chiriladi) |
 
 **Xatolar**
 
 | Status | Kod — qachon |
 |---|---|
-| `400` | `VALIDATION_FAILED` |
+| `400` | `VALIDATION_FAILED` — jumladan `brandColor` (#RRGGBB emas) va `logoFileId` (begona, tasdiqlanmagan yoki boshqa turdagi fayl) |
 | `403` | `PERMISSION_DENIED` |
 
 Umumiy: 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
@@ -4938,7 +4940,7 @@ Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g�
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` | ✔ |  |
+| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` | ✔ |  |
 | `mime` | `string` | ✔ | Oq ro‘yxatdan (09 §9.6) — misol `image/webp` |
 | `size` | `number` | ✔ | Bayt — imzoga kiradi — misol `153600` |
 | `sha256` | `string` | ✔ | Tarkib SHA-256 (hex) — takror yuklashni aniqlash — misol `ab12…` |

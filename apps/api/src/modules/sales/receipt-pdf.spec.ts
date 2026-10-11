@@ -1,5 +1,6 @@
+import sharp from 'sharp'
 import type { ReceiptDto, SaleItemDto } from './dto/sale.dto'
-import { receiptPdf } from './receipt-pdf'
+import { LOGO_MAX_HEIGHT, LOGO_MAX_WIDTH, receiptPdf } from './receipt-pdf'
 
 /** Chek PDF (09 §9.13) — 80 mm termal lenta, balandlik mazmunga teng */
 const MM_80 = 226.77
@@ -10,7 +11,7 @@ const item = (i: number, over: Partial<SaleItemDto> = {}): SaleItemDto => ({
 })
 
 const receipt = (items: SaleItemDto[], over: Partial<ReceiptDto> = {}): ReceiptDto => ({
-  store: { name: 'Qurilish Mollari', phone: '+998712000000', address: 'Toshkent', footer: 'Rahmat!', currency: 'so‘m' },
+  store: { name: 'Qurilish Mollari', phone: '+998712000000', address: 'Toshkent', footer: 'Rahmat!', currency: 'so‘m', logoFileId: null },
   sale: {
     id: 's1', number: 'CHEK-1042', type: 'sale', status: 'completed', customerId: null, sellerId: null, warehouseId: null,
     priceTier: 'retail', subtotal: 180_000, discount: 0, taxRate: 0, tax: 0, deliveryFee: 0, total: 180_000,
@@ -57,5 +58,18 @@ describe('receiptPdf', () => {
       }),
     )
     expect(pageSize(fiscal).height).toBeGreaterThan(plain + 80)
+  })
+
+  it('logotip — nom ustida, ≤ 12 mm balandlikda (nisbat saqlanadi); berilmasa chek avvalgidek', async () => {
+    const plain = await receiptPdf(receipt([item(1)]))
+    expect(plain.toString('latin1')).not.toContain('/Subtype /Image')
+
+    // Keng logotip: eni chegarasiga yetadi, balandligi 12 mm dan kichik
+    const wide = await sharp({ create: { width: 400, height: 100, channels: 3, background: '#808080' } }).png().toBuffer()
+    const pdf = await receiptPdf(receipt([item(1)]), { image: wide, width: 400, height: 100 })
+    expect(pdf.toString('latin1')).toContain('/Subtype /Image')
+    const added = pageSize(pdf).height - pageSize(plain).height
+    expect(added).toBeGreaterThan((LOGO_MAX_WIDTH * 100) / 400)
+    expect(added).toBeLessThan(LOGO_MAX_HEIGHT + 5)
   })
 })

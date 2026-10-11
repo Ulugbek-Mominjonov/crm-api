@@ -390,6 +390,8 @@ export class ReceiptStoreDto {
   @ApiProperty() address!: string
   @ApiProperty() footer!: string
   @ApiProperty({ example: "so'm" }) currency!: string
+  @ApiProperty({ type: String, nullable: true, format: 'uuid', description: 'Logotip — `store_logo` fayli (`SettingsDto.logoFileId`)' })
+  logoFileId!: string | null
 }
 
 /** Fiskal ma'lumot (08 §8.9): OFD raqam bergach chek QR bilan chop etiladi */

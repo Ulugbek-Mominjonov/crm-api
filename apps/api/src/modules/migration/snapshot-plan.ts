@@ -7,7 +7,7 @@ import { poReceivedValue, type PurchaseOrder } from '@crm/shared'
 import { uuidv5 } from '@/common/ids'
 import { normalizePhone } from '@/common/validation/phone'
 import type { MigrationDto } from './dto/migration.dto'
-import { bool, day, docNo, int, isObj, list, moment, money, oneOf, qty, text, type Obj } from './parse'
+import { bool, day, docNo, hexColor, int, isObj, list, moment, money, oneOf, qty, text, type Obj } from './parse'
 
 export type Severity = 'error' | 'warning'
 
@@ -788,6 +788,8 @@ class SnapshotPlanner {
       seller_wholesale_enabled: bool(s.sellerWholesaleEnabled), loyalty_enabled: bool(s.loyaltyEnabled),
       loyalty_rate: pct(s.loyaltyRate), max_discount_pct: pct(s.maxDiscountPct), receipt_phone: text(s.receiptPhone, 40),
       receipt_address: text(s.receiptAddress), receipt_footer: text(s.receiptFooter, 2000), onboarded: bool(s.onboarded),
+      // Server zaxirasidan; logotip — fayl, nusxaga kirmaydi (do'kon qayta yuklaydi)
+      brand_color: hexColor(s.brandColor),
     }
     return Object.fromEntries(Object.entries(row).filter(([, v]) => v !== undefined)) as Row
   }
