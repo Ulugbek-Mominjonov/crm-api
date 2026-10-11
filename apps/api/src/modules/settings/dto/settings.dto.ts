@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
-import { Trim } from '@/common/validation/decorators'
+import {
+  IsBoolean, IsInt, IsNotEmpty, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min,
+} from 'class-validator'
+import { ToUpperCase, Trim } from '@/common/validation/decorators'
 
 /** Do'kon sozlamalari — tenantda bitta qator */
 export class SettingsDto {
@@ -23,10 +25,26 @@ export class SettingsDto {
   @ApiProperty({ example: 'Toshkent sh., Qurilish ko‘chasi 1' }) receiptAddress!: string
   @ApiProperty({ example: 'Xaridingiz uchun rahmat!' }) receiptFooter!: string
   @ApiProperty({ description: 'Dastlabki sozlash tugatilganmi' }) onboarded!: boolean
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: '#1A7F5A',
+    description: 'Brend rangi `#RRGGBB` (katta harf); `null` — standart. Kalit doim bor',
+  })
+  brandColor!: string | null
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    format: 'uuid',
+    description: 'Logotip — `store_logo` fayli (`GET /files/urls?ids=…&variant=128|512`); `null` — yo‘q. Kalit doim bor',
+  })
+  logoFileId!: string | null
 }
 
 /** Foizlar 0–100 — baza CHECK'i ham shunday (oxirgi to'siq) */
 const PCT_MAX = 100
+/** Brend rangi — baza CHECK'i bilan bir xil (`settings_brand_color_check`) */
+const BRAND_COLOR = /^#[0-9A-F]{6}$/
 
 export class UpdateSettingsDto {
   @ApiPropertyOptional({ example: 'Qurilish Mollari', maxLength: 120 })
@@ -111,4 +129,20 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   onboarded?: boolean
+
+  @ApiPropertyOptional({ type: String, nullable: true, example: '#1A7F5A', description: '`#RRGGBB`; `null` — standart rang' })
+  @IsOptional()
+  @ToUpperCase()
+  @Matches(BRAND_COLOR, { message: 'brandColor — #RRGGBB ko‘rinishida (masalan #1A7F5A)' })
+  brandColor?: string | null
+
+  @ApiPropertyOptional({
+    type: String,
+    nullable: true,
+    format: 'uuid',
+    description: 'Tasdiqlangan `store_logo` fayli; `null` — logotipni olib tashlash (eski fayl o‘chiriladi)',
+  })
+  @IsOptional()
+  @IsUUID()
+  logoFileId?: string | null
 }

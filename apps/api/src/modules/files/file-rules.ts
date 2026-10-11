@@ -3,6 +3,16 @@ import type { Resource } from '@crm/shared'
 
 const MB = 1024 * 1024
 
+/**
+ * Server yasaydigan `128`/`512` WebP variantlari (09 §9.8). `width` — eni
+ * shu o'lchamgacha (mahsulot surati); `box` — uzun tomoni (logotip: keng
+ * yoki tik bo'lsa ham kvadratga sig'adi). Shaffoflik WebP'da saqlanadi.
+ */
+export interface VariantProfile {
+  fit: 'width' | 'box'
+  quality: number
+}
+
 export interface FileRule {
   /** Oq ro'yxat (09 §9.6). `image/svg+xml`, `text/html` — ATAYLAB yo'q */
   mimes: readonly string[]
@@ -11,20 +21,32 @@ export interface FileRule {
   prefix: string
   /** Huquq resursi: yuklash — `create`, o'qish — `view` */
   resource: Resource
+  /** O'qish — do'konning barcha rollariga (`resource` ning `view` huquqisiz) */
+  readableByAll?: true
   /** Yuklab olishda `Content-Disposition: attachment` (09 §9.16) */
   attachment: boolean
   bucket: 'media' | 'backup'
+  /** Bor bo'lsa — tasdiqlangach fon ishi variantlarni yasaydi */
+  variants?: VariantProfile
 }
 
 const IMAGES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
 export const FILE_RULES: Readonly<Record<FileKind, FileRule>> = {
-  product_image: { mimes: IMAGES, maxBytes: 5 * MB, prefix: 'products', resource: 'products', attachment: false, bucket: 'media' },
+  product_image: {
+    mimes: IMAGES, maxBytes: 5 * MB, prefix: 'products', resource: 'products', attachment: false, bucket: 'media',
+    variants: { fit: 'width', quality: 78 },
+  },
   avatar: { mimes: IMAGES, maxBytes: 5 * MB, prefix: 'avatars', resource: 'employees', attachment: false, bucket: 'media' },
   document: { mimes: ['application/pdf'], maxBytes: 10 * MB, prefix: 'docs', resource: 'sales', attachment: true, bucket: 'media' },
   import: { mimes: ['text/csv'], maxBytes: 10 * MB, prefix: 'imports', resource: 'products', attachment: true, bucket: 'media' },
   export: { mimes: ['text/csv', 'application/json'], maxBytes: 50 * MB, prefix: 'exports', resource: 'finance', attachment: true, bucket: 'media' },
   tenant_backup: { mimes: ['application/gzip'], maxBytes: 200 * MB, prefix: 'backups', resource: 'settings', attachment: true, bucket: 'backup' },
+  // Logotip: yon menyu va chekda — sotuvchi va omborchi ham ko'radi; brauzer ≤ 512 px qilib yuboradi
+  store_logo: {
+    mimes: IMAGES, maxBytes: 1 * MB, prefix: 'logos', resource: 'settings', readableByAll: true, attachment: false, bucket: 'media',
+    variants: { fit: 'box', quality: 90 },
+  },
 }
 
 export const EXTENSIONS: Readonly<Record<string, string>> = {

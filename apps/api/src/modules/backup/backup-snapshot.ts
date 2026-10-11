@@ -195,7 +195,7 @@ export async function* snapshotJson(tx: TenantTx, tenantId: string): AsyncGenera
       select: {
         storeName: true, currency: true, taxEnabled: true, taxRate: true, wholesaleEnabled: true, sellerWholesaleEnabled: true,
         loyaltyEnabled: true, loyaltyRate: true, maxDiscountPct: true, receiptPhone: true, receiptAddress: true,
-        receiptFooter: true, onboarded: true,
+        receiptFooter: true, onboarded: true, brandColor: true,
       },
     }),
     tx.tenantState.findUniqueOrThrow({ where: { tenantId }, select: { cashBalance: true, activeShiftId: true } }),

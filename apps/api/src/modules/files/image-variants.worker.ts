@@ -2,15 +2,16 @@ import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { SchedulerRegistry } from '@nestjs/schedule'
 import { NoSuchKey } from '@aws-sdk/client-s3'
+import type { FileKind } from '@prisma/client'
 import sharp from 'sharp'
 import type { Env } from '@/config/env.schema'
 import { JobQueue } from '@/modules/queue/job-queue'
 import { PrismaService } from '@/prisma/prisma.service'
+import { FILE_RULES, type VariantProfile } from './file-rules'
 import { S3Service, type BucketName } from './s3.service'
 
-/** Server yasaydigan kengliklar (09 §9.8); `orig` ni brauzer ≤ 1600 px qilib yuklaydi */
+/** Server yasaydigan o'lchamlar (09 §9.8); `orig` ni brauzer ≤ 1600 px qilib yuklaydi */
 export const VARIANT_WIDTHS = [128, 512] as const
-const WEBP_QUALITY = 78
 const WEBP_MIME = 'image/webp'
 /** Bir aylanishda bir tenantdan olinadigan rasmlar */
 const BATCH_SIZE = 20
@@ -22,6 +23,7 @@ const MAX_INPUT_PIXELS = 25_000_000
 
 interface Claimed {
   id: string
+  kind: FileKind
   key: string
   bucket: string
 }
@@ -36,7 +38,8 @@ interface Outcome {
 }
 
 /**
- * Mahsulot rasmlarining `128`/`512` WebP variantlari (T-091). Fon ishi:
+ * Rasmlarning `128`/`512` WebP variantlari (T-091): mahsulot surati va
+ * do'kon logotipi (`FILE_RULES[kind].variants`). Fon ishi:
  * so'rovni kutdirmaydi, variant tayyor bo'lguncha `orig` beriladi
  * (`GET /files/:id/raw`). Ish o'chiq bo'lsa (`FILE_VARIANTS_INTERVAL_MS=0`)
  * ilova buzilmaydi — rasmlar shunchaki og'irroq.
@@ -92,12 +95,12 @@ export class ImageVariantsWorker implements OnApplicationBootstrap {
         UPDATE files f SET variants = '{}'::jsonb
          WHERE f.id IN (
                  SELECT id FROM files
-                  WHERE tenant_id = ${tenantId}::uuid AND status = 'ready' AND kind = 'product_image'
+                  WHERE tenant_id = ${tenantId}::uuid AND status = 'ready' AND kind IN ('product_image', 'store_logo')
                     AND variants IS NULL AND deleted_at IS NULL
                   ORDER BY created_at
                   LIMIT ${BATCH_SIZE}
                     FOR UPDATE SKIP LOCKED)
-        RETURNING f.id, f.key, f.bucket`,
+        RETURNING f.id, f.kind, f.key, f.bucket`,
     )
     if (claimed.length === 0) return 0
 
@@ -116,7 +119,9 @@ export class ImageVariantsWorker implements OnApplicationBootstrap {
   private async build(file: Claimed): Promise<Outcome> {
     const bucket = file.bucket as BucketName
     try {
-      const rendered = await this.render(file.id, await this.s3.getBuffer(bucket, file.key))
+      const profile = FILE_RULES[file.kind].variants
+      if (!profile) return { id: file.id, variants: {} }
+      const rendered = await this.render(file.id, profile, await this.s3.getBuffer(bucket, file.key))
       if (!rendered) return { id: file.id, variants: {} }
       const variants: Record<string, string> = {}
       for (const { width, body } of rendered) {
@@ -137,15 +142,20 @@ export class ImageVariantsWorker implements OnApplicationBootstrap {
   }
 
   /** Rasm o'qilmasa (buzilgan, juda katta) — `null` */
-  private async render(fileId: string, source: Buffer): Promise<{ width: number; body: Buffer }[] | null> {
+  private async render(
+    fileId: string,
+    { fit, quality }: VariantProfile,
+    source: Buffer,
+  ): Promise<{ width: number; body: Buffer }[] | null> {
     const out: { width: number; body: Buffer }[] = []
     try {
       for (const width of VARIANT_WIDTHS) {
         const body = await sharp(source, { limitInputPixels: MAX_INPUT_PIXELS })
           // EXIF yo'nalishi qo'llanadi (telefon surati yonboshlab qolmasin), metama'lumot tashlanadi
           .rotate()
-          .resize({ width, withoutEnlargement: true })
-          .webp({ quality: WEBP_QUALITY })
+          .resize(fit === 'box' ? { width, height: width, fit: 'inside', withoutEnlargement: true } : { width, withoutEnlargement: true })
+          // WebP alfa kanalni saqlaydi (sukut `alphaQuality: 100`) — shaffof logotip fonsiz qoladi
+          .webp({ quality })
           .toBuffer()
         out.push({ width, body })
       }

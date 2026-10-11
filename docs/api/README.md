@@ -68,12 +68,12 @@ login’da do‘kon tanlash).
 | Savdo | Takliflar (smeta) → sotuvga aylantirish, yetkazib berish (haydovchi ko‘rinishi, marshrut) |
 | Hisobot | Boshqaruv paneli, foyda/zarar (oldingi davr bilan), analitika (ABC), keshlangan agregatlar |
 | Xabarlar | Telegram bot (shaxsiy QR bilan ulangan mijozga xabar va chek — bepul) va SMS (Eskiz / Playmobile), shablon o‘zgaruvchilari, fon navbati, kunlik SMS chegarasi |
-| Fayllar | Presigned yuklash (server orqali o‘tmaydi), tekshiruv (MIME, xesh), rasm variantlari 128/512 WebP, kvota |
+| Fayllar | Presigned yuklash (server orqali o‘tmaydi), tekshiruv (MIME, xesh), rasm variantlari 128/512 WebP, kvota; do‘kon brendi — logotip va rang (chek PDF’ida ham) |
 | Eksport / zaxira | CSV/JSON eksport (katta — fonda), butun do‘kon zaxirasi (gzip JSON) |
 | Migratsiya | Brauzerdagi eski (localStorage) ma’lumotni serverga ko‘chirish: dry-run + import |
 | Tarif / to‘lov | `free`/`basic`/`pro` chegaralari, hisob-faktura, Payme va Click webhook’lari, muddati o‘tgan do‘kon — faqat o‘qish |
 | Hayot sikli | Do‘konni o‘chirish (30 kun muhlat, bekor qilish mumkin) |
-| Realtime | `/events` — sotuv, qoldiq, smena, qarz, yetkazish, kirim hodisalari |
+| Realtime | `/events` — sotuv, qoldiq, smena, qarz, yetkazish, kirim, sozlama hodisalari |
 | Audit | Har bir pul/ombor/spravochnik amali jurnalga yoziladi |
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
@@ -636,9 +636,9 @@ Barcha xatolar bitta shaklda (RFC 9457 ga yaqin):
 | `current` | Faqat `VERSION_CONFLICT` da — serverdagi joriy yozuv | Farqni ko‘rsatish |
 | `traceId` | So‘rov identifikatori (`X-Request-Id`) | 500 da «Xato kodi» sifatida |
 
-**`field` yo‘li:** biznes xatolarida — `items[0].qty`, `customerId`, `discount`, `If-Match` kabi
-(massiv indeksi bilan). **DTO validatsiyasi (400)** xatolarida `field` YO‘Q — `errors[].meta.message`
-da matn (masalan `"email must be an email"` yoki o‘zbekcha xabar), `detail` da hammasi `; ` bilan.
+**`field` yo‘li:** `items[0].qty`, `customerId`, `discount`, `If-Match` kabi (massiv indeksi bilan).
+**DTO validatsiyasi (400)** xatolarida ham bor (masalan `brandColor`, `items[1].qty`); matn —
+`errors[].meta.message` da (masalan `"email must be an email"` yoki o‘zbekcha xabar), `detail` da hammasi `; ` bilan.
 Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md](schemas.md)).
 
 ### 7.2 Umumiy qayta ishlash
@@ -837,6 +837,7 @@ COMMIT’dan keyin, do‘konning BARCHA ulanishlariga (amalni qilgan foydalanuvc
 | `debt.paid` | `{ saleId, customerId }` | Qarz to‘lovi | qarzlar, to‘lovlar tarixi, shu chek, mijoz, joriy smena |
 | `delivery.status` | `{ deliveryId, status }` | Yetkazish holati | yetkazishlar (ro‘yxat, summary, `/my`, `/route`), shu yetkazish |
 | `po.received` | `{ orderId, productIds }` | Kirim buyurtmasini qabul qilish | buyurtmalar (ro‘yxat, summary, karta), mahsulotlar (`productIds`), ta’minotchilar (qarz), harakatlar |
+| `settings.updated` | `{}` | `PATCH /settings` (rang, logotip, nom …), logotip faylini o‘chirish | `GET /settings` (brend rangi va logotip sahifa yangilanmasdan o‘zgaradi) |
 
 Hodisa kelmaydigan amallar (masalan spravochnik tahriri, xarajat, naqd harakat, SMS, migratsiya)
 — o‘z mutatsiyasidan keyin kesh bekor qilinadi; boshqa foydalanuvchilarda ma’lumot sahifa
@@ -1255,6 +1256,7 @@ yuklaydi → server tekshiradi.
 | `avatar` | `image/jpeg`, `image/png`, `image/webp` | 5 MB | `employees` |
 | `document` | `application/pdf` | 10 MB | `sales` |
 | `import` | `text/csv` | 10 MB | `products` |
+| `store_logo` | `image/jpeg`, `image/png`, `image/webp` | 1 MB | yuklash — `settings`; o‘qish — barcha rollar |
 | `export`, `tenant_backup` | — (server o‘zi yaratadi) | | |
 
 Tarif `fileBytes` kichikroq bo‘lsa — o‘sha amal qiladi. SVG/HTML ATAYLAB taqiqlangan.
@@ -1271,15 +1273,17 @@ Tarif `fileBytes` kichikroq bo‘lsa — o‘sha amal qiladi. SVG/HTML ATAYLAB t
 5. `POST /files/:id/confirm` → `status: "ready"`. Mos kelmasa — 422 `FILE_REJECTED` (fayl karantinda);
    PUT bo‘lmagan — 409 `FILE_NOT_UPLOADED`.
 6. Bog‘lash: `PATCH /products/:id { imageFileId }` (yoki yaratishda). `null` — rasmni olib tashlash.
+   Logotip — `PATCH /settings { logoFileId }` ([10.21](#settings)).
 
 **Ko‘rsatish:** `<img src>` `Authorization` yubora olmaydi → `GET /files/urls?ids=a,b,c&variant=128`
 (≤ 100 id, BITTA so‘rov) → `{ urls: { id: signedUrl }, expiresAt }`; havolalar 10 daqiqa amal qiladi
 (keshni ~9 daqiqa). Variantlar: `128` (ro‘yxat), `512` (karta), `orig`; variant hali tayyor bo‘lmasa —
-asl fayl. Yo‘q/tayyor emas/huquq yetmagan fayl javobda bo‘lmaydi (bitta buzuq rasm sahifani yiqitmaydi).
+asl fayl. Variantlar WebP, shaffoflik saqlanadi; logotipda — uzun tomoni 128/512 (keng logotip ham sig‘adi). Yo‘q/tayyor emas/huquq yetmagan fayl javobda bo‘lmaydi (bitta buzuq rasm sahifani yiqitmaydi).
 `GET /files/:id/raw` — 302 (token talab qiladi, `<img>` uchun emas).
 
 Takroriy tarkib (bir xil `sha256` + `kind`) qayta saqlanmaydi. O‘chirilgan fayl 30 kundan keyin tozalanadi.
-S3 bucket CORS’i frontend domeniga ruxsat berishi kerak (lokal MinIO — ochiq).
+S3 bucket CORS’i frontend domeniga `PUT` (yuklash) va `GET` (logotipni `fetch()` qilish) uchun ruxsat
+berishi kerak (lokal MinIO — ochiq; production — `infra/r2-cors.json`).
 
 ### 10.17 Eksport
 
@@ -1366,11 +1370,26 @@ javobini KUTMAYDI va OFD ishlamasa ham to‘xtamaydi). `GET /sales/:id/receipt` 
 `fiscalId`, `qrPayload` (chekdagi QR mazmuni), `fiscalizedAt`. `confirmed` bo‘lganda
 `sale.fiscalized` hodisasi keladi — chekni QR bilan qayta chop etish mumkin. OFD o‘chiq — `fiscal: null`.
 
+<a id="settings"></a>
+
 ### 10.21 Sozlamalar va dastlabki sozlash
 
 `GET /settings` — ilova ochilganda (hamma rol). Maydonlar: `storeName`, `currency`, `taxEnabled`,
 `taxRate`, `wholesaleEnabled`, `sellerWholesaleEnabled`, `loyaltyEnabled`, `loyaltyRate`, `maxDiscountPct`,
-`receiptPhone`, `receiptAddress`, `receiptFooter`, `onboarded`. `PATCH /settings` — faqat o‘zgarganlarini.
+`receiptPhone`, `receiptAddress`, `receiptFooter`, `onboarded`, `brandColor`, `logoFileId`. `PATCH /settings` —
+faqat o‘zgarganlarini; muvaffaqiyatdan keyin hodisa `settings.updated` ([9.2](#realtime)). `storeName` do‘kon
+nomini ham o‘zgartiradi (kirishdagi do‘kon tanlovi, `/auth/me` dagi `tenant.name`).
+
+**Brend** (do‘kon logotipi va asosiy rangi):
+- `brandColor` — `#RRGGBB`, server katta harfga o‘tkazadi (`#1a7f5a` → `#1A7F5A`); `null` — standart rang.
+  Boshqa ko‘rinish (`red`, `#12345`) — 400 `VALIDATION_FAILED` (`field: brandColor`).
+- `logoFileId` — `store_logo` fayli: yuklash [10.16](#files) oqimi bilan (`kind: "store_logo"`, faqat
+  `settings` huquqi — admin, menejer), keyin `PATCH /settings { logoFileId }`. Begona, tasdiqlanmagan yoki
+  boshqa turdagi fayl — 400 `VALIDATION_FAILED` (`field: logoFileId`). Almashtirilsa yoki `null` bo‘lsa eski
+  fayl o‘chiriladi (kvota bo‘shaydi). Ko‘rsatish — `GET /files/urls?ids=<logoFileId>&variant=128|512`
+  (barcha rollar). Server chekida (`GET /sales/:id/receipt?format=pdf`, Telegram’dagi chek) logotip
+  do‘kon nomi ustida, oq-qora; `ReceiptDto.store.logoFileId`.
+- Ikkala kalit `GET /settings` javobida DOIM bor (sozlanmagan bo‘lsa `null`).
 `sellerWholesaleEnabled` (sukut `false`) — «Sotuvchiga ulgurji narxda sotishga ruxsat»: yoqilsa sotuvchi
 `wholesalePrice` ni ko‘radi va ulgurji chek qila oladi ([6.2](#hidden)); faqat `wholesaleEnabled` bilan
 ma’noga ega.

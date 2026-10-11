@@ -12,6 +12,7 @@ import type { ApiErrorDto, FieldErrorDto } from '@/common/http/api-error.dto'
 import { tryContext } from '@/common/context/request-context'
 import { reportError } from '@/common/monitoring/monitoring'
 import { hiddenFieldsFor, stripHidden } from '@/common/security/field-visibility'
+import type { FieldMessage } from '@/common/validation/validation-errors'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 
 const ERROR_TYPE_BASE = 'https://api.crm.uz/errors'
@@ -22,7 +23,8 @@ function typeUri(code: string): string {
 }
 
 interface NestValidationBody {
-  message?: string | string[]
+  /** `ValidationPipe` (`validationException`) — maydon bilan; boshqa 400 — matn */
+  message?: string | (string | FieldMessage)[]
   error?: string
 }
 
@@ -135,11 +137,10 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
     // ValidationPipe xabarlarni massiv sifatida beradi
     const raw = typeof response === 'object' ? (response as NestValidationBody) : {}
-    const messages = Array.isArray(raw.message)
-      ? raw.message
-      : raw.message
-        ? [raw.message]
-        : []
+    const items = (Array.isArray(raw.message) ? raw.message : raw.message ? [raw.message] : []).map(
+      (m): Partial<FieldMessage> & { message: string } => (typeof m === 'string' ? { message: m } : m),
+    )
+    const messages = items.map((m) => m.message)
 
     return {
       type: typeUri(code),
@@ -149,8 +150,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
       detail: messages.length ? messages.join('; ') : undefined,
       instance,
       traceId,
-      errors: messages.length
-        ? messages.map((m) => ({ code: 'VALIDATION_FAILED' as const, meta: { message: m } }))
+      errors: items.length
+        ? items.map(({ field, message }) => ({ field, code: 'VALIDATION_FAILED' as const, meta: { message } }))
         : undefined,
     }
   }

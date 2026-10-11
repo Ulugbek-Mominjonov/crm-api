@@ -15,6 +15,8 @@ export interface DomainEventMap {
   'debt.paid': { saleId: string; customerId: string | null }
   'delivery.status': { deliveryId: string; status: string }
   'po.received': { orderId: string; productIds: string[] }
+  /** Sozlama (brend rangi, logotip, nom …) o'zgardi — boshqa kassalar `GET /settings` ni qayta so'raydi */
+  'settings.updated': Record<string, never>
 }
 
 export type DomainEventType = keyof DomainEventMap

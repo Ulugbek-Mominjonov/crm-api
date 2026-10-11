@@ -37,6 +37,11 @@ const QR_SIZE = 30 * PT_PER_MM
 const QR_QUIET_MODULES = 4
 /** O'lchov o'tishidagi sahifa — PDF chegarasi (200 dyuym); chek undan uzun bo'lmaydi */
 const MEASURE_HEIGHT = 14_400
+/** Logotip — do'kon nomidan yuqorida: balandligi ≤ 12 mm, eni ≤ 60 %, nisbat saqlanadi */
+export const LOGO_MAX_HEIGHT = 12 * PT_PER_MM
+export const LOGO_MAX_WIDTH = 0.6 * CONTENT_WIDTH
+/** Logotip va do'kon nomi orasida */
+const LOGO_GAP = 4
 
 const FONTS_DIR = join(__dirname, '../../assets/fonts')
 const REGULAR_FONT = readFileSync(join(FONTS_DIR, 'DejaVuSansMono.ttf'))
@@ -60,6 +65,13 @@ export const day = (date: string): string => date.split('-').reverse().join('.')
 interface TextStyle {
   bold?: boolean
   size?: number
+}
+
+/** Chop etishga tayyor logotip (oq-qora PNG) va uning piksel o'lchami */
+export interface ReceiptLogo {
+  image: Buffer
+  width: number
+  height: number
 }
 
 /**
@@ -113,6 +125,15 @@ class ReceiptWriter {
     this.y = y + DIVIDER_GAP
   }
 
+  /** Rasm markazda, chegaraga sig'adigan eng katta o'lchamda (nisbat saqlanadi) */
+  image({ image, width, height }: ReceiptLogo): void {
+    const scale = Math.min(LOGO_MAX_WIDTH / width, LOGO_MAX_HEIGHT / height)
+    const w = width * scale
+    const h = height * scale
+    this.doc.image(image, PADDING + (CONTENT_WIDTH - w) / 2, this.y, { width: w, height: h })
+    this.y += h + LOGO_GAP
+  }
+
   /** Fiskal chek QR'i (08 §8.9) — vektor kvadratlar, markazda, tepa-pastida bo'sh joy bilan */
   qr(payload: string): void {
     const code = qrcode(0, 'M')
@@ -148,8 +169,9 @@ class ReceiptWriter {
   }
 }
 
-/** Chek mazmuni — brauzerdagi chek tartibida (+ nasiya qarzi va fiskal QR) */
-function drawReceipt(w: ReceiptWriter, { store, sale, customer, seller, fiscal }: ReceiptDto): void {
+/** Chek mazmuni — brauzerdagi chek tartibida (+ logotip, nasiya qarzi va fiskal QR) */
+function drawReceipt(w: ReceiptWriter, { store, sale, customer, seller, fiscal }: ReceiptDto, logo: ReceiptLogo | null): void {
+  if (logo) w.image(logo)
   w.center(store.name.toUpperCase(), { bold: true, size: TITLE_SIZE })
   if (store.address) w.center(store.address)
   if (store.phone) w.center(`Tel: ${store.phone}`)
@@ -206,11 +228,11 @@ function newDocument(height: number, receipt: ReceiptDto): PDFKit.PDFDocument {
 /**
  * Chek PDF'i. Lenta balandligi mazmunga teng: avval uzun sahifada o'lchanadi
  * (natija tashlanadi), keyin aniq balandlikda chiziladi — termal printer
- * ortiqcha bo'sh qog'oz chiqarmaydi.
+ * ortiqcha bo'sh qog'oz chiqarmaydi. Logotip — `ReceiptPdfService` tayyorlaydi.
  */
-export async function receiptPdf(receipt: ReceiptDto): Promise<Buffer> {
+export async function receiptPdf(receipt: ReceiptDto, logo: ReceiptLogo | null = null): Promise<Buffer> {
   const measured = new ReceiptWriter(newDocument(MEASURE_HEIGHT, receipt))
-  drawReceipt(measured, receipt)
+  drawReceipt(measured, receipt, logo)
 
   const doc = newDocument(Math.ceil(measured.bottom), receipt)
   const chunks: Buffer[] = []
@@ -219,7 +241,7 @@ export async function receiptPdf(receipt: ReceiptDto): Promise<Buffer> {
     doc.on('end', () => resolve(Buffer.concat(chunks)))
     doc.on('error', reject)
   })
-  drawReceipt(new ReceiptWriter(doc), receipt)
+  drawReceipt(new ReceiptWriter(doc), receipt, logo)
   doc.end()
   return done
 }

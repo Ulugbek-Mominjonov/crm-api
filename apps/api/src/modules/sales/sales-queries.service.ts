@@ -132,6 +132,7 @@ export class SalesQueriesService {
         address: settings.receiptAddress,
         footer: settings.receiptFooter,
         currency: settings.currency,
+        logoFileId: settings.logoFileId,
       },
       sale: toSaleDto(sale, returned),
       customer: sale.customer,

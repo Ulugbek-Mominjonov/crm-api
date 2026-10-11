@@ -55,6 +55,10 @@ export const NormalizeEmail = (): PropertyDecorator =>
     typeof value === 'string' ? value.trim().toLowerCase() : value,
   )
 
+/** Katta harfga (`#1a7f5a` → `#1A7F5A`): bitta ko'rinishda saqlanadi va solishtiriladi */
+export const ToUpperCase = (): PropertyDecorator =>
+  Transform(({ value }: { value: unknown }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
+
 /**
  * Bo'sh satr → `null`. Ixtiyoriy NOYOB maydonlar uchun (shtrix-kod, STIR):
  * aks holda bo'sh qiymatli ikkinchi yozuv "band" xatosini berardi.

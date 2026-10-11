@@ -4,6 +4,7 @@ import cookieParser from 'cookie-parser'
 import { json } from 'express'
 import helmet from 'helmet'
 import { DomainExceptionFilter } from '@/common/filters/domain-exception.filter'
+import { validationException } from '@/common/validation/validation-errors'
 import { RealtimeIoAdapter } from '@/modules/realtime/realtime-io.adapter'
 
 /**
@@ -71,6 +72,8 @@ export function setupApp(
       forbidNonWhitelisted: true,
       transform: true,
       transformOptions: { enableImplicitConversion: false },
+      // Har xato — maydon yo'li bilan (`errors[].field`)
+      exceptionFactory: validationException,
     }),
   )
   app.useGlobalFilters(new DomainExceptionFilter())

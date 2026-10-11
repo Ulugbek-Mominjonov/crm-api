@@ -203,8 +203,13 @@ model Settings {
   receiptAddress         String  @default("") @map("receipt_address")
   receiptFooter          String  @default("") @map("receipt_footer")
   onboarded              Boolean @default(false)
+  /// Brend rangi `#RRGGBB` (katta harf); null — standart
+  brandColor             String? @map("brand_color") @db.VarChar(7)
+  /// Logotip — `store_logo` fayli (do'konda bitta); fayl o'chsa uziladi
+  logoFileId             String? @map("logo_file_id") @db.Uuid
 
-  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logoFile File?  @relation(fields: [logoFileId], references: [id], onDelete: SetNull)
 
   @@map("settings")
 }
@@ -1011,6 +1016,7 @@ model File {
   deletedAt    DateTime?  @map("deleted_at") @db.Timestamptz
 
   products Product[]
+  settings Settings[]
 
   @@unique([tenantId, sha256, kind])
   @@unique([tenantId, id])
@@ -1115,6 +1121,7 @@ enum FileKind {
   import
   tenant_backup
   avatar
+  store_logo
 }
 
 enum FileStatus {

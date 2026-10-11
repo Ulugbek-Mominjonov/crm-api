@@ -3,7 +3,7 @@ import { currentTenantId } from '@/common/context/request-context'
 import { AuditService } from '@/modules/audit/audit.service'
 import { TelegramService } from '@/modules/telegram/telegram.service'
 import { PrismaService } from '@/prisma/prisma.service'
-import { receiptPdf } from './receipt-pdf'
+import { ReceiptPdfService } from './receipt-pdf.service'
 import { receiptCaption } from './receipt-telegram'
 import { SalesQueriesService } from './sales-queries.service'
 
@@ -17,6 +17,7 @@ export class ReceiptDeliveryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly queries: SalesQueriesService,
+    private readonly receiptPdf: ReceiptPdfService,
     private readonly telegram: TelegramService,
     private readonly audit: AuditService,
   ) {}
@@ -24,7 +25,7 @@ export class ReceiptDeliveryService {
   /** So'rov tranzaksiyasiz (`@ManualTransaction`): o'qish va jurnal — qisqa tranzaksiyalarda, yuklash — ularsiz */
   async toTelegram(saleId: string): Promise<void> {
     const receipt = await this.queries.receipt(saleId)
-    const pdf = await receiptPdf(receipt)
+    const pdf = await this.receiptPdf.render(receipt)
     await this.telegram.sendDocument(
       receipt.customer?.id ?? null,
       { name: `${receipt.sale.number}.pdf`, content: pdf, mime: 'application/pdf' },

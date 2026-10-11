@@ -35,6 +35,13 @@ export function bool(v: unknown): boolean | undefined {
   return typeof v === 'boolean' ? v : undefined
 }
 
+/** Rang `#RRGGBB` → katta harf (baza cheklovi `settings_brand_color_check` bilan bir xil) */
+export function hexColor(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined
+  const s = v.trim().toUpperCase()
+  return /^#[0-9A-F]{6}$/.test(s) ? s : undefined
+}
+
 export function oneOf<T extends string>(v: unknown, allowed: readonly T[]): T | undefined {
   return typeof v === 'string' && (allowed as readonly string[]).includes(v) ? (v as T) : undefined
 }
