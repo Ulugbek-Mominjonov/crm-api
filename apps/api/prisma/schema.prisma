@@ -38,6 +38,7 @@ model Tenant {
   deletionScheduledAt DateTime? @map("deletion_scheduled_at") @db.Timestamptz
 
   users     User[]
+  roles     Role[]
   employees Employee[]
   settings  Settings?
   state     TenantState?
@@ -158,7 +159,8 @@ model User {
   email        String
   /// argon2id — hech qachon ochiq parol
   passwordHash String    @map("password_hash")
-  role         Role
+  /// Do'kon roli (T-134) — ruxsatlar rolda, foydalanuvchida emas
+  roleId       String    @map("role_id") @db.Uuid
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
@@ -169,6 +171,8 @@ model User {
   tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   /// Restrict: xodimni o'chirish kirish hisobini yetim qoldirmasin
   employee Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  /// Restrict: foydalanuvchisi bor rol o'chirilmaydi (o'chirishda boshqa rolga o'tkaziladi)
+  role     Role           @relation(fields: [roleId], references: [id], onDelete: Restrict)
   tokens   RefreshToken[]
   auditLog AuditEntry[]
 
@@ -176,14 +180,40 @@ model User {
   @@unique([tenantId, email])
   @@unique([tenantId, id])
   @@index([tenantId, deletedAt])
+  @@index([tenantId, roleId])
   @@map("users")
 }
 
-enum Role {
+/// Tizim rollari — har do'konda bittadan. Bazadagi tur nomi `Role` (T-134 gacha shu nomda edi)
+enum SystemRole {
   admin
   manager
   sotuvchi
   omborchi
+
+  @@map("Role")
+}
+
+/// Do'kon roli (T-134): ruxsatlar to'plami (`@crm/shared` katalogi kalitlari).
+/// Tizim rollari (`key`) o'chirilmaydi; `admin` — doim barcha ruxsat, saqlanmaydi.
+model Role {
+  id          String      @id @default(uuid(7)) @db.Uuid
+  tenantId    String      @map("tenant_id") @db.Uuid
+  /// Tizim roli kaliti; do'kon yaratgan rolda — null
+  key         SystemRole?
+  name        String
+  /// `products.edit` kabi kalitlar, katalog tartibida (normallashtirilgan)
+  permissions String[]    @default([])
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz
+  /// Versiya (If-Match)
+  updatedAt   DateTime    @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  User[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, key])
+  @@map("roles")
 }
 
 model Settings {

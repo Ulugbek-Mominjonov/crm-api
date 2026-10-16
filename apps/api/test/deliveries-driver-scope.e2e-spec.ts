@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
-import { seedTenant, testDb, truncateAll } from './helpers/db'
+import { roleIdOf, seedTenant, testDb, truncateAll } from './helpers/db'
 import { captureQueries } from './helpers/queries'
 
 /**
@@ -34,7 +34,7 @@ describe('Haydovchi ko‘rinishi', () => {
       data: { tenantId: a.tenantId, name: 'Jasur', position: 'Haydovchi', phone: '+998901110000', hiredAt: new Date() },
     })
     const user = await testDb.user.create({
-      data: { tenantId: a.tenantId, employeeId: employee.id, email: `jasur+${a.tenantId.slice(-6)}@crm.uz`, passwordHash: 'x', role: 'omborchi' },
+      data: { tenantId: a.tenantId, employeeId: employee.id, email: `jasur+${a.tenantId.slice(-6)}@crm.uz`, passwordHash: 'x', roleId: await roleIdOf(a.tenantId, 'omborchi') },
     })
     jasur = { employeeId: employee.id, token: await bearer(app, { tenantId: a.tenantId, userId: user.id, employeeId: employee.id }, 'omborchi') }
     other = (await testDb.employee.create({
@@ -77,6 +77,8 @@ describe('Haydovchi ko‘rinishi', () => {
     await delivery(jasur.employeeId, { standaloneFee: 25_000n })
     await delivery(jasur.employeeId, { status: 'cancelled' })
     await delivery(jasur.employeeId, { scheduledDate: new Date('2026-09-25T00:00:00Z') })
+    // Rol ruxsatlari keshda (T-134) — barqaror holat o'lchanadi
+    await request(app.getHttpServer()).get('/api/v1/auth/me').set('Authorization', jasur.token).expect(200)
     const { result, queries } = await captureQueries(() =>
       request(app.getHttpServer()).get('/api/v1/deliveries/route?date=2026-09-24').set('Authorization', jasur.token),
     )

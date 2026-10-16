@@ -3,7 +3,7 @@ import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
-import { openShift, seedClient, seedProduct, seedTenant, testDb, truncateAll } from './helpers/db'
+import { openShift, roleIdOf, seedClient, seedProduct, seedTenant, testDb, truncateAll } from './helpers/db'
 
 /**
  * Raqobatli tahrirlash (T-098, 04 §4.4): `PATCH` + `If-Match: <updatedAt>`.
@@ -100,11 +100,11 @@ describe('Optimistik qulf (If-Match)', () => {
       data: { tenantId: a.tenantId, name: 'Kassir', position: 'Kassir', phone: '+998901234567', hiredAt: new Date('2026-01-01') },
     })
     const user = await testDb.user.create({
-      data: { tenantId: a.tenantId, employeeId: employee.id, email: 'kassir@crm.uz', passwordHash: 'x', role: 'sotuvchi' },
+      data: { tenantId: a.tenantId, employeeId: employee.id, email: 'kassir@crm.uz', passwordHash: 'x', roleId: await roleIdOf(a.tenantId, 'sotuvchi') },
     })
     const seenUser = await get(`users/${user.id}`)
-    await patch(`users/${user.id}`, { role: 'omborchi' }, seenUser.updatedAt).expect(200)
-    const staleUser = await patch(`users/${user.id}`, { role: 'manager' }, seenUser.updatedAt).expect(409)
+    await patch(`users/${user.id}`, { roleId: await roleIdOf(a.tenantId, 'omborchi') }, seenUser.updatedAt).expect(200)
+    const staleUser = await patch(`users/${user.id}`, { roleId: await roleIdOf(a.tenantId, 'manager') }, seenUser.updatedAt).expect(409)
     expect(staleUser.body.current).toMatchObject({ id: user.id, role: 'omborchi' })
 
     const other = await testDb.employee.create({

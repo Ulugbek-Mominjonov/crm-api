@@ -372,6 +372,337 @@
         ]
       }
     },
+    "/api/v1/roles": {
+      "get": {
+        "description": "Hammasi, sahifasiz: avval tizim rollari (admin, manager, sotuvchi, omborchi), keyin nom bo‘yicha.",
+        "operationId": "Roles_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RoleDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon rollari",
+        "tags": [
+          "roles"
+        ]
+      },
+      "post": {
+        "operationId": "Roles_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "PERMISSION_DENIED — administrator emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_EXISTS (`name`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rol yaratish (faqat administrator)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/roles/catalog": {
+      "get": {
+        "description": "Rol oynasi shundan quriladi: guruhlar → bo‘limlar (modullar) → amallar. Statik — keshlash mumkin.",
+        "operationId": "Roles_catalog",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PermissionCatalogDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ruxsatlar katalogi",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
+    "/api/v1/roles/{id}": {
+      "get": {
+        "operationId": "Roles_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Bitta rol",
+        "tags": [
+          "roles"
+        ]
+      },
+      "patch": {
+        "description": "`permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi.",
+        "operationId": "Roles_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "description": "Yozuvning `updatedAt` qiymati: boshqa foydalanuvchi o‘zgartirgan bo‘lsa — 409 `VERSION_CONFLICT` (`current` bilan)",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateRoleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "PERMISSION_DENIED — administrator emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_EXISTS (`name`) | VERSION_CONFLICT",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ROLE_PROTECTED — `admin` roli yoki tizim rolining nomi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rolni tahrirlash (faqat administrator)",
+        "tags": [
+          "roles"
+        ]
+      },
+      "delete": {
+        "description": "Faqat do‘kon yaratgan rol. Foydalanuvchilari bo‘lsa — `replaceWith` rolga o‘tkaziladi (o‘chirilgan hisoblar ham).",
+        "operationId": "Roles_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "replaceWith",
+            "required": false,
+            "in": "query",
+            "description": "Rolda foydalanuvchi bo‘lsa — SHART: ular shu rolga o‘tkaziladi (o‘chirilgan hisoblar ham)",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "PERMISSION_DENIED — administrator emas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ROLE_IN_USE — `replaceWith` berilmagan (`meta.users` — nechta)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "ROLE_PROTECTED — tizim roli | REFERENCE_NOT_FOUND (`replaceWith`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Rolni o‘chirish (faqat administrator)",
+        "tags": [
+          "roles"
+        ]
+      }
+    },
     "/health/live": {
       "get": {
         "description": "Hech qanday bog‘liqlikni tekshirmaydi. Orkestrator shu bo‘yicha konteynerni qayta ishga tushiradi — baza tushganda qayta ishga tushirish yordam bermaydi, shuning uchun u bu yerda tekshirilmaydi.",
@@ -3331,9 +3662,20 @@
             }
           },
           {
+            "name": "roleId",
+            "required": false,
+            "in": "query",
+            "description": "Shu roldagilar",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "role",
             "required": false,
             "in": "query",
+            "deprecated": true,
+            "description": "ESKIRGAN — `roleId` ishlating. Tizim roli kaliti",
             "schema": {
               "type": "string",
               "enum": [
@@ -3416,7 +3758,7 @@
         ]
       },
       "post": {
-        "description": "Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1).",
+        "description": "Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1). Rol — `roleId` (`GET /roles`).",
         "operationId": "Users_create",
         "parameters": [],
         "requestBody": {
@@ -3460,6 +3802,16 @@
               }
             }
           },
+          "403": {
+            "description": "PERMISSION_DENIED — o‘zingizdan kengroq huquqli rol (administrator emas)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
           "409": {
             "description": "EMPLOYEE_HAS_USER (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) | ALREADY_EXISTS (email)",
             "content": {
@@ -3471,7 +3823,7 @@
             }
           },
           "422": {
-            "description": "REFERENCE_NOT_FOUND — xodim yo‘q",
+            "description": "REFERENCE_NOT_FOUND — xodim (`employeeId`) yoki rol (`roleId`) yo‘q",
             "content": {
               "application/json": {
                 "schema": {
@@ -3538,7 +3890,7 @@
         ]
       },
       "patch": {
-        "description": "Parol almashsa yoki hisob faolsizlantirilsa — barcha sessiyalari yopiladi.",
+        "description": "Parol almashsa yoki hisob faolsizlantirilsa — barcha sessiyalari yopiladi. Yangi rol va faolsizlantirish keyingi so‘rovdanoq kuchga kiradi; rol o‘zgarsa do‘konga `access.changed` hodisasi.",
         "operationId": "Users_update",
         "parameters": [
           {
@@ -3590,6 +3942,16 @@
               }
             }
           },
+          "403": {
+            "description": "PERMISSION_DENIED — o‘zingizdan kengroq huquqli rol (administrator emas)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
           "404": {
             "description": "",
             "content": {
@@ -3611,7 +3973,7 @@
             }
           },
           "422": {
-            "description": "LAST_ADMIN | SELF_ROLE_CHANGE | SELF_DELETE",
+            "description": "LAST_ADMIN | SELF_ROLE_CHANGE | SELF_DELETE | REFERENCE_NOT_FOUND (`roleId`)",
             "content": {
               "application/json": {
                 "schema": {
@@ -8944,7 +9306,85 @@
               "manager",
               "sotuvchi",
               "omborchi"
-            ]
+            ],
+            "nullable": true,
+            "description": "Tizim roli kaliti; do‘kon yaratgan rolda — `null`"
+          },
+          "roleId": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string",
+            "example": "Sotuvchi",
+            "description": "Rol nomi (tizim rolida — `role` kaliti bo‘yicha tarjima qiling)"
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Rol ruxsatlari (administrator — katalogdagi hammasi). Menyu, sahifa va tugmalar SHU ro‘yxatdan",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sales.view",
+                "sales.create",
+                "sales.return",
+                "sales.cancel",
+                "quotes.view",
+                "quotes.create",
+                "quotes.edit",
+                "quotes.delete",
+                "deliveries.view",
+                "deliveries.create",
+                "deliveries.edit",
+                "deliveries.delete",
+                "products.view",
+                "products.create",
+                "products.edit",
+                "products.delete",
+                "stock.view",
+                "stock.operate",
+                "stock.manage",
+                "purchases.view",
+                "purchases.create",
+                "purchases.edit",
+                "purchases.receive",
+                "purchases.pay",
+                "purchases.delete",
+                "suppliers.view",
+                "suppliers.create",
+                "suppliers.edit",
+                "suppliers.delete",
+                "cash.view",
+                "cash.operate",
+                "debts.view",
+                "debts.collect",
+                "expenses.view",
+                "expenses.create",
+                "expenses.edit",
+                "expenses.delete",
+                "reports.view",
+                "customers.view",
+                "customers.create",
+                "customers.edit",
+                "customers.delete",
+                "messages.view",
+                "messages.send",
+                "employees.view",
+                "employees.create",
+                "employees.edit",
+                "employees.delete",
+                "users.view",
+                "users.create",
+                "users.edit",
+                "users.delete",
+                "audit.view",
+                "settings.view",
+                "settings.edit",
+                "cost.view",
+                "wholesale.view",
+                "profit.view",
+                "salary.view"
+              ]
+            }
           },
           "position": {
             "type": "string",
@@ -8962,6 +9402,9 @@
           "name",
           "email",
           "role",
+          "roleId",
+          "roleName",
+          "permissions",
           "position",
           "employeeId",
           "tenant"
@@ -9114,6 +9557,457 @@
           "email",
           "password"
         ]
+      },
+      "RoleDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Katta kassir"
+          },
+          "key": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "manager",
+              "sotuvchi",
+              "omborchi"
+            ],
+            "nullable": true,
+            "description": "Tizim roli kaliti; do‘kon yaratgan rolda — `null`. `admin` — o‘zgarmaydi; boshqa tizim rollarida faqat ruxsatlar o‘zgaradi (nom — doimiy), ular o‘chirilmaydi"
+          },
+          "permissions": {
+            "type": "array",
+            "description": "Katalog tartibida. Administrator — doim katalogdagi hammasi",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sales.view",
+                "sales.create",
+                "sales.return",
+                "sales.cancel",
+                "quotes.view",
+                "quotes.create",
+                "quotes.edit",
+                "quotes.delete",
+                "deliveries.view",
+                "deliveries.create",
+                "deliveries.edit",
+                "deliveries.delete",
+                "products.view",
+                "products.create",
+                "products.edit",
+                "products.delete",
+                "stock.view",
+                "stock.operate",
+                "stock.manage",
+                "purchases.view",
+                "purchases.create",
+                "purchases.edit",
+                "purchases.receive",
+                "purchases.pay",
+                "purchases.delete",
+                "suppliers.view",
+                "suppliers.create",
+                "suppliers.edit",
+                "suppliers.delete",
+                "cash.view",
+                "cash.operate",
+                "debts.view",
+                "debts.collect",
+                "expenses.view",
+                "expenses.create",
+                "expenses.edit",
+                "expenses.delete",
+                "reports.view",
+                "customers.view",
+                "customers.create",
+                "customers.edit",
+                "customers.delete",
+                "messages.view",
+                "messages.send",
+                "employees.view",
+                "employees.create",
+                "employees.edit",
+                "employees.delete",
+                "users.view",
+                "users.create",
+                "users.edit",
+                "users.delete",
+                "audit.view",
+                "settings.view",
+                "settings.edit",
+                "cost.view",
+                "wholesale.view",
+                "profit.view",
+                "salary.view"
+              ]
+            }
+          },
+          "usersCount": {
+            "type": "number",
+            "example": 3,
+            "description": "Faol va faolsiz foydalanuvchilar (o‘chirilganlarsiz)"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Versiya — tahrirda `If-Match` ga qo‘yiladi"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "key",
+          "permissions",
+          "usersCount",
+          "updatedAt"
+        ]
+      },
+      "CatalogGroupDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "sales",
+              "stock",
+              "finance",
+              "customers",
+              "admin",
+              "data"
+            ],
+            "example": "sales"
+          },
+          "label": {
+            "type": "string",
+            "example": "Savdo"
+          }
+        },
+        "required": [
+          "key",
+          "label"
+        ]
+      },
+      "CatalogActionDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "return"
+          },
+          "permission": {
+            "type": "string",
+            "enum": [
+              "sales.view",
+              "sales.create",
+              "sales.return",
+              "sales.cancel",
+              "quotes.view",
+              "quotes.create",
+              "quotes.edit",
+              "quotes.delete",
+              "deliveries.view",
+              "deliveries.create",
+              "deliveries.edit",
+              "deliveries.delete",
+              "products.view",
+              "products.create",
+              "products.edit",
+              "products.delete",
+              "stock.view",
+              "stock.operate",
+              "stock.manage",
+              "purchases.view",
+              "purchases.create",
+              "purchases.edit",
+              "purchases.receive",
+              "purchases.pay",
+              "purchases.delete",
+              "suppliers.view",
+              "suppliers.create",
+              "suppliers.edit",
+              "suppliers.delete",
+              "cash.view",
+              "cash.operate",
+              "debts.view",
+              "debts.collect",
+              "expenses.view",
+              "expenses.create",
+              "expenses.edit",
+              "expenses.delete",
+              "reports.view",
+              "customers.view",
+              "customers.create",
+              "customers.edit",
+              "customers.delete",
+              "messages.view",
+              "messages.send",
+              "employees.view",
+              "employees.create",
+              "employees.edit",
+              "employees.delete",
+              "users.view",
+              "users.create",
+              "users.edit",
+              "users.delete",
+              "audit.view",
+              "settings.view",
+              "settings.edit",
+              "cost.view",
+              "wholesale.view",
+              "profit.view",
+              "salary.view"
+            ],
+            "example": "sales.return"
+          },
+          "label": {
+            "type": "string",
+            "example": "Qaytarish",
+            "description": "O‘zbekcha nom (mijozda tarjima bo‘lmasa)"
+          }
+        },
+        "required": [
+          "key",
+          "permission",
+          "label"
+        ]
+      },
+      "CatalogResourceDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "example": "sales"
+          },
+          "group": {
+            "type": "string",
+            "enum": [
+              "sales",
+              "stock",
+              "finance",
+              "customers",
+              "admin",
+              "data"
+            ],
+            "example": "sales"
+          },
+          "label": {
+            "type": "string",
+            "example": "Sotuvlar"
+          },
+          "actions": {
+            "description": "Birinchisi doim `view`",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogActionDto"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "group",
+          "label",
+          "actions"
+        ]
+      },
+      "PermissionCatalogDto": {
+        "type": "object",
+        "properties": {
+          "groups": {
+            "description": "Rol oynasidagi bo‘limlar tartibi",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogGroupDto"
+            }
+          },
+          "resources": {
+            "description": "Bo‘limlar (modullar) va amallari, oynadagi tartibda",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogResourceDto"
+            }
+          }
+        },
+        "required": [
+          "groups",
+          "resources"
+        ]
+      },
+      "CreateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Katta kassir",
+            "maxLength": 50,
+            "description": "Do‘konda noyob (katta-kichik harf farqsiz)"
+          },
+          "permissions": {
+            "type": "array",
+            "example": [
+              "sales.create",
+              "sales.return",
+              "customers.view"
+            ],
+            "description": "Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sales.view",
+                "sales.create",
+                "sales.return",
+                "sales.cancel",
+                "quotes.view",
+                "quotes.create",
+                "quotes.edit",
+                "quotes.delete",
+                "deliveries.view",
+                "deliveries.create",
+                "deliveries.edit",
+                "deliveries.delete",
+                "products.view",
+                "products.create",
+                "products.edit",
+                "products.delete",
+                "stock.view",
+                "stock.operate",
+                "stock.manage",
+                "purchases.view",
+                "purchases.create",
+                "purchases.edit",
+                "purchases.receive",
+                "purchases.pay",
+                "purchases.delete",
+                "suppliers.view",
+                "suppliers.create",
+                "suppliers.edit",
+                "suppliers.delete",
+                "cash.view",
+                "cash.operate",
+                "debts.view",
+                "debts.collect",
+                "expenses.view",
+                "expenses.create",
+                "expenses.edit",
+                "expenses.delete",
+                "reports.view",
+                "customers.view",
+                "customers.create",
+                "customers.edit",
+                "customers.delete",
+                "messages.view",
+                "messages.send",
+                "employees.view",
+                "employees.create",
+                "employees.edit",
+                "employees.delete",
+                "users.view",
+                "users.create",
+                "users.edit",
+                "users.delete",
+                "audit.view",
+                "settings.view",
+                "settings.edit",
+                "cost.view",
+                "wholesale.view",
+                "profit.view",
+                "salary.view"
+              ]
+            }
+          }
+        },
+        "required": [
+          "name",
+          "permissions"
+        ]
+      },
+      "UpdateRoleDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Katta kassir",
+            "maxLength": 50,
+            "description": "Do‘konda noyob (katta-kichik harf farqsiz)"
+          },
+          "permissions": {
+            "type": "array",
+            "example": [
+              "sales.create",
+              "sales.return",
+              "customers.view"
+            ],
+            "description": "Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat",
+            "items": {
+              "type": "string",
+              "enum": [
+                "sales.view",
+                "sales.create",
+                "sales.return",
+                "sales.cancel",
+                "quotes.view",
+                "quotes.create",
+                "quotes.edit",
+                "quotes.delete",
+                "deliveries.view",
+                "deliveries.create",
+                "deliveries.edit",
+                "deliveries.delete",
+                "products.view",
+                "products.create",
+                "products.edit",
+                "products.delete",
+                "stock.view",
+                "stock.operate",
+                "stock.manage",
+                "purchases.view",
+                "purchases.create",
+                "purchases.edit",
+                "purchases.receive",
+                "purchases.pay",
+                "purchases.delete",
+                "suppliers.view",
+                "suppliers.create",
+                "suppliers.edit",
+                "suppliers.delete",
+                "cash.view",
+                "cash.operate",
+                "debts.view",
+                "debts.collect",
+                "expenses.view",
+                "expenses.create",
+                "expenses.edit",
+                "expenses.delete",
+                "reports.view",
+                "customers.view",
+                "customers.create",
+                "customers.edit",
+                "customers.delete",
+                "messages.view",
+                "messages.send",
+                "employees.view",
+                "employees.create",
+                "employees.edit",
+                "employees.delete",
+                "users.view",
+                "users.create",
+                "users.edit",
+                "users.delete",
+                "audit.view",
+                "settings.view",
+                "settings.edit",
+                "cost.view",
+                "wholesale.view",
+                "profit.view",
+                "salary.view"
+              ]
+            }
+          }
+        }
       },
       "SettingsDto": {
         "type": "object",
@@ -11056,6 +11950,14 @@
             "type": "string",
             "example": "kassir@crm.uz"
           },
+          "roleId": {
+            "type": "string"
+          },
+          "roleName": {
+            "type": "string",
+            "example": "Sotuvchi",
+            "description": "Rol nomi (tizim rolida — `role` kaliti bo‘yicha tarjima qiling)"
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -11063,7 +11965,9 @@
               "manager",
               "sotuvchi",
               "omborchi"
-            ]
+            ],
+            "nullable": true,
+            "description": "Tizim roli kaliti; do‘kon yaratgan rolda — `null`"
           },
           "isActive": {
             "type": "boolean"
@@ -11105,6 +12009,8 @@
         "required": [
           "id",
           "email",
+          "roleId",
+          "roleName",
           "role",
           "isActive",
           "lastLoginAt",
@@ -11131,29 +12037,9 @@
             "type": "string",
             "description": "Kamida 8 belgi; ommabop parollar rad etiladi"
           },
-          "role": {
+          "roleId": {
             "type": "string",
-            "enum": [
-              "admin",
-              "manager",
-              "sotuvchi",
-              "omborchi"
-            ]
-          }
-        },
-        "required": [
-          "employeeId",
-          "email",
-          "password",
-          "role"
-        ]
-      },
-      "UpdateUserDto": {
-        "type": "object",
-        "properties": {
-          "email": {
-            "type": "string",
-            "example": "kassir@crm.uz"
+            "description": "Rol (`GET /roles`). `role` berilmasa — SHART"
           },
           "role": {
             "type": "string",
@@ -11163,7 +12049,37 @@
               "sotuvchi",
               "omborchi"
             ],
-            "description": "O‘z rolingizni o‘zgartirib bo‘lmaydi"
+            "deprecated": true,
+            "description": "ESKIRGAN — `roleId` ishlating. Tizim roli kaliti: shu kalitli rol beriladi"
+          }
+        },
+        "required": [
+          "employeeId",
+          "email",
+          "password"
+        ]
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "kassir@crm.uz"
+          },
+          "roleId": {
+            "type": "string",
+            "description": "Boshqa rol (`GET /roles`). O‘z rolingizni o‘zgartirib bo‘lmaydi"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "manager",
+              "sotuvchi",
+              "omborchi"
+            ],
+            "deprecated": true,
+            "description": "ESKIRGAN — `roleId` ishlating. Tizim roli kaliti: shu kalitli rol beriladi"
           },
           "isActive": {
             "type": "boolean",
@@ -15954,13 +16870,14 @@
               "manager",
               "sotuvchi",
               "omborchi"
-            ]
+            ],
+            "nullable": true,
+            "description": "Tizim roli kaliti. Yo‘q yoki `null` — do‘kon roli (zaxiradan, T-134): foydalanuvchi ko‘chirilmaydi"
           }
         },
         "required": [
           "name",
-          "email",
-          "role"
+          "email"
         ]
       },
       "MigrationDto": {

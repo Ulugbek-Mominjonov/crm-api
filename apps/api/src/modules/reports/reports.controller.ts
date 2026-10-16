@@ -5,8 +5,8 @@ import { AnalyticsDto, DashboardDto, DashboardQueryDto, PeriodQueryDto, PnlDto, 
 import { ReportsService } from './reports.service'
 
 /**
- * Hisobotlar (04-api §7) — `finance` huquqi. Tushum qoidasi (I4) barcha
- * hisobotda bir xil; foyda maydonlari sotuvchi rolida yashiriladi.
+ * Hisobotlar (04-api §7) — `reports.view`. Tushum qoidasi (I4) barcha
+ * hisobotda bir xil; foyda maydonlari `profit.view` siz rolda yashiriladi.
  */
 @ApiTags('reports')
 @ApiBearerAuth()
@@ -15,7 +15,7 @@ export class ReportsController {
   constructor(private readonly reports: ReportsService) {}
 
   @Get('dashboard')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('reports', 'view')
   @ApiOperation({ summary: 'Boshqaruv paneli', description: 'Bugun/kecha, balanslar, trend, toplar — bitta so‘rovda' })
   @ApiOkResponse({ type: DashboardDto })
   dashboard(@Query() query: DashboardQueryDto): Promise<DashboardDto> {
@@ -23,7 +23,7 @@ export class ReportsController {
   }
 
   @Get('reports/pnl')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('reports', 'view')
   @ApiOperation({
     summary: 'Foyda/zarar',
     description: 'Oldingi davr bilan solishtirish, trend, to‘lov turlari, top mahsulot/sotuvchi, sotilmayotgan tovar',
@@ -34,7 +34,7 @@ export class ReportsController {
   }
 
   @Get('analytics')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('reports', 'view')
   @ApiOperation({
     summary: 'Analitika',
     description: 'ABC (80/95 %) — sotilgan BARCHA mahsulot (sahifalash mijozda), kategoriya va to‘lov taqsimoti, kunlik trend',

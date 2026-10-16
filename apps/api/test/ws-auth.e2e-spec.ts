@@ -52,7 +52,7 @@ describe('WebSocket autentifikatsiyasi (/events)', () => {
   /** Imzolash — TokenService chetlab (muddat va kalitni boshqarish uchun) */
   const sign = (who: typeof a, opts: { expiresIn?: number; exp?: number; key?: string } = {}) =>
     app.get(JwtService).signAsync(
-      { sub: who.userId, tid: who.tenantId, role: 'admin', eid: who.employeeId, ...(opts.exp && { exp: opts.exp }) },
+      { sub: who.userId, tid: who.tenantId, eid: who.employeeId, ...(opts.exp && { exp: opts.exp }) },
       {
         algorithm: 'RS256',
         privateKey: opts.key ?? readFileSync(process.env.JWT_PRIVATE_KEY_PATH!, 'utf8'),

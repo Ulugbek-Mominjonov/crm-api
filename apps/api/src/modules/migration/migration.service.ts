@@ -89,14 +89,16 @@ export class MigrationService {
     const hashes = await Promise.all(credentials.map((c) => this.passwords.hash(c.password)))
     await insertRows(tx, 'employees', plan.users.map((u) => u.employee))
     await tx.$executeRaw`
-      INSERT INTO users (id, tenant_id, employee_id, email, password_hash, role)
-      SELECT u.id, u.tenant_id, u.employee_id, u.email, u.password_hash, u.role
+      INSERT INTO users (id, tenant_id, employee_id, email, password_hash, role_id)
+      SELECT u.id, u.tenant_id, u.employee_id, u.email, u.password_hash, r.id
         FROM jsonb_to_recordset(${JSON.stringify(
           plan.users.map((u, i) => ({
             id: u.userId, tenant_id: u.employee.tenant_id, employee_id: u.employee.id, email: u.email,
             password_hash: hashes[i], role: u.role,
           })),
         )}::jsonb) AS u(id uuid, tenant_id uuid, employee_id uuid, email text, password_hash text, role "Role")
+        -- Nusxadagi rol — tizim roli kaliti (tizim rollari o'chirilmaydi, T-134)
+        JOIN roles r ON r.tenant_id = u.tenant_id AND r.key = u.role
       ON CONFLICT DO NOTHING`
     return credentials
   }

@@ -4,7 +4,7 @@ import { addDays, businessDate } from '@/common/time'
 import { INLINE_MAX_ROWS } from '@/modules/exports/exports.service'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
-import { seedTenant, testDb, truncateAll } from './helpers/db'
+import { roleIdOf, seedTenant, testDb, truncateAll } from './helpers/db'
 
 const BOM = '\uFEFF'
 const today = businessDate()
@@ -160,7 +160,7 @@ describe('Eksport (/exports)', () => {
         data: { tenantId: a.tenantId, name: 'Menejer', position: 'Menejer', phone: '+998901112244', hiredAt: new Date('2026-01-01') },
       })
       const user = await testDb.user.create({
-        data: { tenantId: a.tenantId, employeeId: employee.id, email: 'menejer@crm.uz', passwordHash: 'x', role: 'manager' },
+        data: { tenantId: a.tenantId, employeeId: employee.id, email: 'menejer@crm.uz', passwordHash: 'x', roleId: await roleIdOf(a.tenantId, 'manager') },
       })
       const other = await bearer(app, { tenantId: a.tenantId, userId: user.id, employeeId: employee.id }, 'manager')
       await api().get(`/api/v1/exports/jobs/${started.body.id}`).set('Authorization', other).expect(404)

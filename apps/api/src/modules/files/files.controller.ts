@@ -18,8 +18,8 @@ import { PRESIGN_TTL_SEC } from './s3.service'
 const RAW_CACHE_SEC = PRESIGN_TTL_SEC - 60
 
 /**
- * Fayllar (E11). Huquq fayl TURIGA bog'liq (mahsulot rasmi — `products`,
- * eksport — `finance` …) va servisda tekshiriladi: yo'l darajasida faqat
+ * Fayllar (E11). Huquq fayl TURIGA bog'liq (mahsulot rasmi — `products.*`,
+ * eksport — `reports.view` …, `FILE_RULES`) va servisda tekshiriladi: yo'l darajasida faqat
  * autentifikatsiya (every-route-guarded oq ro'yxati).
  */
 @ApiTags('files')

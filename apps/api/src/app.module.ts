@@ -24,6 +24,7 @@ import { ClientsModule } from '@/modules/clients/clients.module'
 import { SuppliersModule } from '@/modules/suppliers/suppliers.module'
 import { EmployeesModule } from '@/modules/employees/employees.module'
 import { UsersModule } from '@/modules/users/users.module'
+import { RolesModule } from '@/modules/roles/roles.module'
 import { StockModule } from '@/modules/stock/stock.module'
 import { SalesModule } from '@/modules/sales/sales.module'
 import { QuotesModule } from '@/modules/quotes/quotes.module'
@@ -77,6 +78,7 @@ import { QueueModule } from '@/modules/queue/queue.module'
     SuppliersModule,
     EmployeesModule,
     UsersModule,
+    RolesModule,
     // Ombor amallari (E5)
     StockModule,
     // Savdo yadrosi (E6)

@@ -6,7 +6,7 @@ import type { AuthContext } from '@/modules/auth/decorators/current-user.decorat
 import { SettingsService } from '@/modules/settings/settings.service'
 
 /**
- * Javobdagi maxfiy maydonlarni rolga qarab olib tashlaydi.
+ * Javobdagi maxfiy maydonlarni rol ruxsatlariga qarab olib tashlaydi.
  *
  * Global interceptor (`AppModule`, eng tashqi) — har bir endpointda alohida
  * eslab qolish shart emas. Agregat javoblarga ham qo'llanadi.
@@ -26,12 +26,12 @@ export class FieldVisibilityInterceptor implements NestInterceptor {
   }
 
   /**
-   * Ulgurji narx yashirin rolda (sotuvchi) u do'kon sozlamasiga qarab
-   * ochiladi — faqat shunda sozlama o'qiladi (kesh — sozlamalar servisida).
+   * Ulgurji narx yashirin rolda (`wholesale.view` yo'q) u do'kon sozlamasiga
+   * qarab ochiladi — faqat shunda sozlama o'qiladi (kesh — sozlamalar servisida).
    */
   private async hiddenFor(auth: AuthContext): Promise<Set<string>> {
-    const hidden = hiddenFieldsFor(auth.role)
+    const hidden = hiddenFieldsFor(auth.permissions)
     if (!hidden.has('wholesalePrice')) return hidden
-    return hiddenFieldsFor(auth.role, visibilityPolicy(await this.settings.forTenant(auth.tenantId)))
+    return hiddenFieldsFor(auth.permissions, visibilityPolicy(await this.settings.forTenant(auth.tenantId)))
   }
 }

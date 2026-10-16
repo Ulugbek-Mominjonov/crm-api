@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
-import { currentRole } from '@/common/context/request-context'
+import { currentPermissions } from '@/common/context/request-context'
 import { crudDelegate, SoftDeleteCrudService, type CrudDelegate } from '@/common/crud/crud.service'
 import type { Paged } from '@/common/crud/paging'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
@@ -83,7 +83,7 @@ export class SuppliersService extends SoftDeleteCrudService<
    */
   override async list(query: SupplierListQueryDto): Promise<Paged<SupplierListItemDto>> {
     const page = await super.list(query)
-    if (!canSeePurchaseAmounts(currentRole())) return page
+    if (!canSeePurchaseAmounts(currentPermissions())) return page
     const debts = await this.prisma.scoped.purchaseOrder.groupBy({
       by: ['supplierId'],
       where: { supplierId: { in: page.items.map((s) => s.id) }, deletedAt: null },
@@ -101,7 +101,7 @@ export class SuppliersService extends SoftDeleteCrudService<
         FROM purchase_orders
        WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL AND outstanding > 0`
     const suppliersWithDebt = Number(row!.suppliers)
-    if (!canSeePurchaseAmounts(currentRole())) return { suppliersWithDebt }
+    if (!canSeePurchaseAmounts(currentPermissions())) return { suppliersWithDebt }
     return { debt: Number(row!.debt), suppliersWithDebt }
   }
 
@@ -157,7 +157,7 @@ export class SuppliersService extends SoftDeleteCrudService<
        WHERE s.tenant_id = ${tenantId}::uuid AND s.id = ${id}::uuid AND s.deleted_at IS NULL`
     if (!row) throw new NotFoundError(this.resource, id)
     const { debt, purchased, openOrders, orders, payments, ...supplier } = row
-    if (!canSeePurchaseAmounts(currentRole())) {
+    if (!canSeePurchaseAmounts(currentPermissions())) {
       return {
         ...supplier,
         openOrders: Number(openOrders),

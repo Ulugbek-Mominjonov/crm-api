@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
-import { Prisma, type CustomerGroup, type PriceTier, type QuoteStatus, type Role } from '@prisma/client'
+import { Prisma, type CustomerGroup, type PriceTier, type QuoteStatus } from '@prisma/client'
+import type { PermissionSet } from '@crm/shared'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
@@ -146,9 +147,9 @@ export class QuotesService {
     return toQuoteDto(quote, businessDate())
   }
 
-  async create(dto: CreateQuoteDto, user: Pick<AuthContext, 'employeeId' | 'role'>): Promise<QuoteDto> {
+  async create(dto: CreateQuoteDto, user: Pick<AuthContext, 'employeeId' | 'permissions'>): Promise<QuoteDto> {
     const { tenantId } = requireTenantTx()
-    const priced = await this.price(dto.items, dto.discount ?? 0, dto.priceTier, dto.customerId, user.role)
+    const priced = await this.price(dto.items, dto.discount ?? 0, dto.priceTier, dto.customerId, user.permissions)
     const number = await this.numbers.next('TKLF')
     const quote = await this.prisma.scoped.quote
       .create({
@@ -179,7 +180,7 @@ export class QuotesService {
    * Tahrirlash: qatorlar berilsa — to'liq almashtiriladi va qayta
    * narxlanadi. Aylantirilgan taklif o'zgarmaydi (I20).
    */
-  async update(id: string, dto: UpdateQuoteDto, role: Role): Promise<QuoteDto> {
+  async update(id: string, dto: UpdateQuoteDto, permissions: PermissionSet): Promise<QuoteDto> {
     const current = await this.lockQuote(id)
     assertNotConverted(current)
 
@@ -191,7 +192,7 @@ export class QuotesService {
           dto.discount ?? moneyFromDb(current.discount),
           dto.priceTier,
           dto.customerId ?? current.customerId ?? undefined,
-          role,
+          permissions,
         )
       : undefined
 
@@ -314,7 +315,7 @@ export class QuotesService {
     discount: number,
     priceTier: PriceTier | undefined,
     customerId: string | undefined,
-    role: Role,
+    permissions: PermissionSet,
   ): Promise<PricedQuote> {
     const tx = this.prisma.scoped
     const { tenantId } = requireTenantTx()
@@ -350,7 +351,7 @@ export class QuotesService {
         },
       ]),
     )
-    const tier = resolvePriceTier(priceTier, tierOf(customer?.group ?? null), settings, role)
+    const tier = resolvePriceTier(priceTier, tierOf(customer?.group ?? null), settings, permissions)
     const lines = priceLines(items, pricing, tier)
     const taxRate = settings.taxEnabled ? settings.taxRate : 0
     const totals = computeTotals(lines, { discount, taxRate, maxDiscountPct: settings.maxDiscountPct })

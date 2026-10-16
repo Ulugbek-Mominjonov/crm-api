@@ -10,6 +10,7 @@ Avval openapi.json yangilanadi: `npm run build -w @crm/api && npm run openapi -w
 """
 import json
 import re
+import subprocess
 from collections import defaultdict
 from pathlib import Path
 
@@ -40,30 +41,26 @@ for r in routes:
         p = p[len(PREFIX):]
     ROUTE[(r['method'], p)] = r
 
-# ───────────────────────────── Rollar matritsasi (packages/shared/src/permissions.ts)
-ALL = ['view', 'create', 'edit', 'delete']
-VIEW = ['view']
-NO_DELETE = ['view', 'create', 'edit']
-MATRIX = {
-    'manager': {'products': ALL, 'sales': ALL, 'suppliers': ALL, 'customers': ALL, 'employees': NO_DELETE,
-                'settings': ALL, 'expenses': ALL, 'finance': ALL, 'deliveries': ALL, 'quotes': ALL},
-    'sotuvchi': {'products': VIEW, 'sales': NO_DELETE, 'customers': ALL, 'suppliers': VIEW, 'finance': NO_DELETE,
-                 'deliveries': NO_DELETE, 'quotes': NO_DELETE},
-    'omborchi': {'products': ALL, 'suppliers': ALL, 'sales': VIEW, 'customers': VIEW, 'deliveries': VIEW},
-}
+# ───────────────────────────── Tizim rollarining sukut ruxsatlari (T-134)
+# Manba — `@crm/shared` SYSTEM_ROLES (yig'ilgan `packages/shared/dist`): ikkinchi nusxa yozilmaydi
+SYSTEM_ROLES = json.loads(subprocess.run(
+    ['node', '-e', "process.stdout.write(JSON.stringify(require('./packages/shared/dist').SYSTEM_ROLES))"],
+    cwd=ROOT, check=True, capture_output=True, text=True,
+).stdout)
 
 
-def roles_with(resource: str, action: str) -> list[str]:
-    return ['admin'] + [role for role, m in MATRIX.items() if action in m.get(resource, [])]
+def roles_with(permission: str) -> list[str]:
+    return ['admin'] + [key for key, role in SYSTEM_ROLES.items() if permission in role['permissions']]
 
 
-ADMIN_ONLY = 'faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`)'
+ADMIN_ONLY = 'faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`)'
 ANY_USER = 'har qanday kirgan foydalanuvchi'
-FILE_PERM = ('fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; '
-             '`document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. '
-             'Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete`')
-EXPORT_PERM = ('ro‘yxatga qarab `view` (servisda): `products`, `stock-movements` → `products`; `clients` → `customers`; '
-               '`sales` → `sales`; `expenses` → `expenses`; `audit` → `users` (amalda faqat admin)')
+FILE_PERM = ('fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; '
+             '`avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; '
+             '`tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). '
+             'Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish')
+EXPORT_PERM = ('ro‘yxatga qarab (servisda): `products` → `products.view`; `stock-movements` → `stock.view`; '
+               '`clients` → `customers.view`; `sales` → `sales.view`; `expenses` → `expenses.view`; `audit` → `users.view`')
 
 
 def permission_text(method: str, path: str, route: dict | None) -> str:
@@ -71,10 +68,9 @@ def permission_text(method: str, path: str, route: dict | None) -> str:
         return 'ochiq — token shart emas'
     perm = route and route.get('perm')
     if perm:
-        resource, action = perm.split(':')
-        return f'`{resource}:{action}` — {", ".join(roles_with(resource, action))}'
+        return f'`{perm}` — sukut bo‘yicha: {", ".join(roles_with(perm))} (do‘kon rollarida — administrator belgilaydi)'
     p = short(path)
-    if p.startswith(('/tenants/current', '/billing/invoices', '/backup', '/migration')):
+    if p.startswith(('/tenants/current', '/billing/invoices', '/backup', '/migration', '/roles')):
         return ADMIN_ONLY
     if p.startswith('/files'):
         return FILE_PERM
@@ -100,6 +96,10 @@ EVENTS = {
     ('POST', '/debts/payments'): '`debt.paid`',
     ('POST', '/deliveries/:id/status'): '`delivery.status`',
     ('POST', '/purchase-orders/:id/receive'): '`po.received`',
+    ('PATCH', '/settings'): '`settings.updated`',
+    ('PATCH', '/roles/:id'): '`access.changed` (ruxsatlar o‘zgarsa)',
+    ('DELETE', '/roles/:id'): '`access.changed`',
+    ('PATCH', '/users/:id'): '`access.changed` (rol o‘zgarsa)',
 }
 
 # ───────────────────────────── Bo'limlar tartibi va kirish matni
@@ -140,8 +140,12 @@ GROUPS = [
      'Xodim — shaxs (ism, lavozim, telefon, maosh, holat). Tizimga kirish hisobi alohida (`/users`) va '
      'xodimga bog‘lanadi: ism/lavozim foydalanuvchida takrorlanmaydi.'),
     ('users', 'Foydalanuvchilar (kirish hisoblari)', [r'^/users'],
-     'Faqat administrator (`users:*`). Email + parol + rol, mavjud xodimga bog‘lanadi. '
-     'Tarif foydalanuvchi sonini cheklaydi (402).'),
+     '`users.*` ruxsati (sukut — faqat administrator). Email + parol + rol (`roleId`), mavjud xodimga bog‘lanadi. '
+     'Administrator bo‘lmagan boshqaruvchi o‘zidan kengroq rolga tegolmaydi (403). Tarif foydalanuvchi sonini cheklaydi (402).'),
+    ('roles', 'Rollar va ruxsatlar', [r'^/roles'],
+     'Ruxsatlar ROLGA beriladi (foydalanuvchiga emas), foydalanuvchi — bitta rolda. Har do‘konda 4 ta tizim roli '
+     '(`admin`, `manager`, `sotuvchi`, `omborchi`) + administrator yaratgan rollar. Ko‘rish — `users.view`, '
+     'boshqarish — faqat administrator. Katalog, qoidalar va frontend oqimi — [README → Rollar](README.md#roles).'),
     ('sales', 'Sotuvlar (chek, qaytarish, bekor qilish)', [r'^/sales'],
      'POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qayta hisoblaydi. '
      'Qoidalar (QQS, chegirma, bonus, yaxlitlash, nasiya, qaytim) — [README → Kassa (POS)](README.md#pos).'),
@@ -170,9 +174,9 @@ GROUPS = [
      'SMS’ni sanaydi. Bot oqimi (shaxsiy QR, chek) — [README → Telegram](README.md#telegram).'),
     ('reports', 'Hisobotlar', [r'^/dashboard', r'^/reports', r'^/analytics'],
      'Bosh sahifa (dashboard), foyda/zarar (P&L), analitika. Barcha raqamlar SERVERDA hisoblanadi — '
-     'brauzerda yig‘indi qilinmaydi. Tannarx/foyda maydonlari rolga qarab yashiriladi.'),
+     'brauzerda yig‘indi qilinmaydi. Tannarx/foyda maydonlari rol ruxsatiga qarab (`cost.view`, `profit.view`) yashiriladi.'),
     ('audit', 'Audit jurnali', [r'^/audit'],
-     'Kim, qachon, nima qildi — faqat o‘qish. Faqat administrator (`users:view`).'),
+     'Kim, qachon, nima qildi — faqat o‘qish. `audit.view` ruxsati (sukut — faqat administrator).'),
     ('files', 'Fayllar (rasm, hujjat)', [r'^/files'],
      'Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g‘ridan-to‘g‘ri S3/MinIO ga '
      'yuklaydi, keyin server tasdiqlaydi. To‘liq oqim — [README → Fayl yuklash](README.md#files).'),
@@ -223,7 +227,8 @@ NOTES = {
         'qurilmalardagi access token muddati tugaguncha (≤ 15 daqiqa) ishlashi mumkin. Shu qurilmada darhol login sahifasiga o‘ting.',
     ('GET', '/auth/me'):
         'Joriy foydalanuvchi (ism, lavozim, rol, do‘kon). Login/refresh javobida ham xuddi shu `user` bor — '
-        'ilova ochilganda alohida chaqirish shart emas. Huquqlar `role` dan hisoblanadi (README → Rollar).',
+        'ilova ochilganda alohida chaqirish shart emas. Menyu, sahifa va tugmalar — `permissions` ro‘yxatidan (README → Rollar). '
+        '`access.changed` hodisasida qayta so‘rang — rol yoki uning ruxsatlari o‘zgargan.',
     ('POST', '/auth/change-password'):
         'Profil → «Parolni o‘zgartirish». Muvaffaqiyatda shu qurilma ham qo‘shilgan BARCHA sessiyalar yopiladi '
         'va cookie o‘chiriladi → foydalanuvchini login sahifasiga yuboring. Joriy parol xato — 401, kuchsiz yangi parol — 400.',
@@ -349,18 +354,38 @@ NOTES = {
     ('DELETE', '/employees/:id'): 'Kirish hisobi bor xodim o‘chmaydi — 409 `EMPLOYEE_HAS_USER` (avval `DELETE /users/:id`).',
     # users
     ('GET', '/users'):
-        'Foydalanuvchilar sahifasi (admin). Ism va lavozim xodim yozuvidan. `lastLoginAt` bor. '
+        'Foydalanuvchilar sahifasi. Ism va lavozim xodim yozuvidan, rol — `roleId`/`roleName`/`role`. `lastLoginAt` bor. '
+        '`roleId=` — shu roldagilar. '
         '`deleted=true` — «O‘chirilganlar» (faqat o‘chirilgan hisoblar, `deletedAt` bilan) → «Tiklash» tugmasi.',
     ('POST', '/users'):
-        'Kirish hisobi: mavjud `employeeId` (hisobi yo‘q xodim), email, parol, rol. Xodimda allaqachon hisob bor — '
+        'Kirish hisobi: mavjud `employeeId` (hisobi yo‘q xodim), email, parol, `roleId` (`GET /roles`; eski `role` kaliti '
+        'ham qabul qilinadi). Xodimda allaqachon hisob bor — '
         '409 `EMPLOYEE_HAS_USER` — `errors[0].meta: { userId, deleted }`; `deleted: true` bo‘lsa yangisi o‘rniga «Tiklash» '
         'taklif qiling (`POST /users/{userId}/restore`); '
         'email band — 409 `ALREADY_EXISTS`; tarif to‘lgan — 402.',
     ('PATCH', '/users/:id'):
-        'Rol, email, faollik, parolni tiklash (admin). Parol yoki `isActive: false` — shu foydalanuvchining barcha '
-        'sessiyalari yopiladi. Rol o‘zgarishi uning joriy access tokeniga ≤ 15 daqiqada yetib boradi. '
-        'O‘z rolini/o‘zini o‘chirish — 422; oxirgi admin — 422 `LAST_ADMIN`.',
+        'Rol (`roleId`), email, faollik, parolni tiklash. Parol yoki `isActive: false` — shu foydalanuvchining barcha '
+        'sessiyalari yopiladi. Yangi rol va faolsizlantirish uning KEYINGI so‘rovidanoq kuchga kiradi (token o‘sha); '
+        'rol o‘zgarsa — `access.changed`. O‘z rolini/o‘zini o‘chirish — 422; oxirgi admin — 422 `LAST_ADMIN`; '
+        'o‘zidan kengroq rol — 403.',
     ('DELETE', '/users/:id'): 'Yumshoq o‘chirish (xodim qoladi). O‘zini — 422 `SELF_DELETE`, oxirgi admin — 422 `LAST_ADMIN`.',
+    # roles
+    ('GET', '/roles'):
+        'Foydalanuvchilar → «Rollar» sahifasi va hisob formasidagi rol tanlovi. Hammasi, sahifasiz: avval tizim rollari, '
+        'keyin nom bo‘yicha. `usersCount` — o‘chirilmagan hisoblar. Tizim rolini `key` bo‘yicha tarjima qiling, do‘kon rolini — `name`.',
+    ('GET', '/roles/catalog'):
+        'Rol oynasidagi ruxsatlar jadvali shundan quriladi: guruh → bo‘lim → amallar (birinchisi doim `view`). Statik — '
+        'ilova versiyasi bilan keshlang (`staleTime: Infinity`).',
+    ('GET', '/roles/:id'): 'Rol oynasini ochishda (tahrir oldidan) — `updatedAt` ni `If-Match` uchun oling.',
+    ('POST', '/roles'):
+        '«Yangi rol». `permissions` — katalog kalitlari; server normallashtiradi (bo‘lim amali → uning `view` i, '
+        '`profit.view` → `cost.view`), javobdagi ro‘yxatni ko‘rsating. Nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`).',
+    ('PATCH', '/roles/:id'):
+        'Rol tahriri. `permissions` — TO‘LIQ ro‘yxat (almashtiriladi). `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — '
+        '422 (`field: name`), ruxsatlari o‘zgaradi. `If-Match` qo‘llanadi. Shu rol egalariga keyingi so‘rovdanoq kuchga kiradi.',
+    ('DELETE', '/roles/:id'):
+        'Faqat do‘kon yaratgan rol (tizim roli — 422 `ROLE_PROTECTED`). Rolda hisob bo‘lsa — 409 `ROLE_IN_USE` '
+        '(`errors[0].meta.users`) → «Qaysi rolga o‘tkazamiz?» tanlovi → `?replaceWith=<roleId>` bilan qayta.',
     # sales
     ('POST', '/sales'):
         'POS «To‘lash» (F9). Savat brauzerda turadi, chek BITTA so‘rov bilan yoziladi. `total` — ekranda ko‘rsatilgan '
@@ -392,7 +417,7 @@ NOTES = {
         'brauzerda HISOBLAMANG: javobdagi hujjat — `total` (jami), `paid.cash` (kassadan qaytariladigan naqd), `debtPaid` '
         '(nasiya chekda qarzdan yopilgan qism). Ochiq smena shart.',
     ('POST', '/sales/:id/cancel'):
-        'Chekni bekor qilish (`sales:delete` — admin, manager). Qaytarish yoki qarz to‘lovi bor chek — 409 `SALE_NOT_CANCELLABLE` '
+        'Chekni bekor qilish (`sales.cancel`). Qaytarish yoki qarz to‘lovi bor chek — 409 `SALE_NOT_CANCELLABLE` '
         '(`meta.reason`). Naqd qaytarilsa ochiq smena kerak. Chekni o‘chirish yo‘q — faqat bekor qilish.',
     # cash
     ('GET', '/cash/shifts/current'):
@@ -445,8 +470,8 @@ NOTES = {
         'Tovar keldi: `items[]` — `poItemId` va kelgan miqdor (qisman bo‘lishi mumkin); `items` berilmasa — qolgani HAMMASI. '
         'Buyurtmadan ko‘p — 422 `PO_OVER_RECEIVE`. Har qator — kirim harakati va o‘rtacha tannarx.',
     ('POST', '/purchase-orders/:id/pay'):
-        'Ta’minotchiga to‘lov (`finance:create` — omborchida yo‘q). Kelgan tovar qarzidan oshmaydi (422 `PAYMENT_EXCEEDS_DEBT`) — oldindan to‘lov yo‘q. '
-        '`cash` — kassadan (ochiq smena shart). Sotuvchi rolida xatoda qarz miqdori aytilmaydi (`meta: { requested }`).',
+        'Ta’minotchiga to‘lov (`purchases.pay`). Kelgan tovar qarzidan oshmaydi (422 `PAYMENT_EXCEEDS_DEBT`) — oldindan to‘lov yo‘q. '
+        '`cash` — kassadan (ochiq smena shart). `cost.view` siz rolda xatoda qarz miqdori aytilmaydi (`meta: { requested }`).',
     ('POST', '/purchase-orders/:id/cancel'): 'Faqat `ordered` (hech narsa kelmagan) buyurtma bekor qilinadi; qisman kelgan — 409 `PO_ALREADY_RECEIVED`.',
     ('DELETE', '/purchase-orders/:id'): 'Faqat `ordered` yoki `cancelled` va to‘lanmagan buyurtma (aks holda 409 `PO_ALREADY_RECEIVED`); toast’dagi «Qaytarish» → `.../restore`.',
     # deliveries
@@ -459,8 +484,8 @@ NOTES = {
         'Odatda yetkazish POS’da chek bilan birga yaratiladi (`POST /sales` → `delivery`).',
     ('PATCH', '/deliveries/:id'): 'Faqat faol holatda. `driverId: null` — haydovchini olib tashlash, `lat/lng: null` — joylashuvni tozalash.',
     ('POST', '/deliveries/:id/status'):
-        'Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries:edit` bor rollar (admin, manager, sotuvchi) '
-        'HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (omborchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). '
+        'Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries.edit` bor rol '
+        'HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (haydovchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). '
         'Orqaga — 422 `INVALID_STATUS_TRANSITION`.',
     # expenses
     ('GET', '/expenses'): 'Xarajatlar jurnali. `withDeleted=true` — o‘chirilganlari ham (tiklash uchun).',
@@ -559,8 +584,8 @@ NOTES = {
     ('POST', '/suppliers'): 'Yangi ta’minotchi. `paymentTermDays` — kirim buyurtmasida `dueDate` berilmasa shundan hisoblanadi.',
     ('POST', '/suppliers/:id/restore'): 'O‘chirishni qaytarish (undo).',
     ('GET', '/employees'):
-        'Xodimlar sahifasi va xodim tanlash ro‘yxatlari (haydovchi, sotuvchi; `status=active`). Faqat admin/manager '
-        '(`employees:view`) — sotuvchi va omborchida bu ro‘yxat yo‘q (403), ularga xodim tanlash maydonini ko‘rsatmang.',
+        'Xodimlar sahifasi va xodim tanlash ro‘yxatlari (haydovchi, sotuvchi; `status=active`). `employees.view` kerak '
+        '(sukut — admin, manager): ruxsatsiz rolda ro‘yxat yo‘q (403) — xodim tanlash maydonini ko‘rsatmang.',
     ('POST', '/employees'): 'Yangi xodim (kirish hisobisiz). Tizimga kirishi kerak bo‘lsa — keyin `POST /users` bilan hisob ochiladi.',
     ('GET', '/employees/:id'): 'Xodim kartasi / tahrir formasi (`userId` — kirish hisobi bormi).',
     ('POST', '/employees/:id/restore'): 'O‘chirishni qaytarish (undo).',
@@ -855,7 +880,8 @@ for key, title, _patterns, intro in GROUPS:
             ' 📡' if o['key'] in EVENTS else '',
         ])
         perm = r.get('perm')
-        perm_cell = f'`{perm}`' if perm else ('ochiq' if r.get('public') else 'servisda / hamma')
+        admin_only = permission_text(o['method'], norm(o['path']), r) == ADMIN_ONLY
+        perm_cell = f'`{perm}`' if perm else ('ochiq' if r.get('public') else 'faqat `admin`' if admin_only else 'servisda / hamma')
         lines.append(f'| `{o["method"]}` | [`{o["key"][1]}`](#{op_anchor(o["method"], o["path"])}){marks} | '
                      f'{esc(o["op"].get("summary", ""))} | {perm_cell} |')
     lines.append('')
@@ -874,8 +900,8 @@ lines = [
     '(README → Tiplar).',
     '',
     '**Ustunlar:** so‘rov DTO’sida «Majburiy» ✔ — yuborilishi shart; javob DTO’sida «Doim bor» ✔ — har doim keladi. '
-    'Javobda ✔ bo‘lmagan maydon — rolga qarab yashirilishi mumkin (masalan `cost`, `wholesalePrice`, `stockValue` '
-    'sotuvchiga chiqmaydi) yoki ixtiyoriy. `| null` — qiymat `null` bo‘lishi mumkin (maydon baribir keladi).',
+    'Javobda ✔ bo‘lmagan maydon — rol ruxsatiga qarab yashirilishi mumkin (masalan `cost`, `stockValue` — `cost.view` siz, '
+    '`wholesalePrice` — `wholesale.view` siz chiqmaydi) yoki ixtiyoriy. `| null` — qiymat `null` bo‘lishi mumkin (maydon baribir keladi).',
     '',
     '**Birliklar:** barcha pul maydonlari — butun so‘m (`number`, tiyinsiz); miqdorlar — 3 kasr xonagacha; '
     '`date-time` — ISO 8601 (UTC, `Z`); sana (`YYYY-MM-DD`) — Toshkent kuni.',

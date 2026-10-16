@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { APP_GUARD } from '@nestjs/core'
 import { JwtModule } from '@nestjs/jwt'
+import { RolesModule } from '@/modules/roles/roles.module'
 import { TenantsModule } from '@/modules/tenants/tenant.module'
 import { AuthController } from './auth.controller'
 import { RegistrationController } from './registration.controller'
@@ -12,7 +13,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard'
 import { PermissionsGuard } from './guards/permissions.guard'
 
 @Module({
-  imports: [JwtModule.register({}), TenantsModule],
+  imports: [JwtModule.register({}), TenantsModule, RolesModule],
   controllers: [AuthController, RegistrationController],
   providers: [
     AuthService,

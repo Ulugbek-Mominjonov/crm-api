@@ -1,7 +1,7 @@
 import {
   CashDirection, ClientStatus, ClientType, CustomerGroup, DeliveryStatus, EmployeeStatus, ExpenseCategory,
   MessageTarget, MovementType, PayMethod, POStatus, PriceTier, ProductUnit, QuoteStatus, RecurrencePeriod, SaleStatus,
-  SaleType, ShiftStatus, type Role,
+  SaleType, ShiftStatus, type SystemRole,
 } from '@prisma/client'
 import { poReceivedValue, type PurchaseOrder } from '@crm/shared'
 import { uuidv5 } from '@/common/ids'
@@ -54,7 +54,7 @@ export interface NewUser {
   employee: Row
   userId: string
   email: string
-  role: Role
+  role: SystemRole
 }
 
 export interface ImportPlan {
@@ -337,6 +337,11 @@ class SnapshotPlanner {
       const email = u.email.trim().toLowerCase()
       if (seen.has(email)) {
         this.issue('warning', 'user', email, 'EMAIL_EXISTS', 'bunday foydalanuvchi bor — o‘tkazib yuborildi')
+        continue
+      }
+      // Do'kon yaratgan rol boshqa do'konda yo'q — o'zboshimcha rol berilmaydi
+      if (!u.role) {
+        this.issue('warning', 'user', email, 'CUSTOM_ROLE', 'do‘kon roli ko‘chirilmaydi — foydalanuvchini importdan keyin qo‘shing')
         continue
       }
       seen.add(email)

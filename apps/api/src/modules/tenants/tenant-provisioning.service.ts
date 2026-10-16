@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common'
 import { PRODUCT_CATEGORIES } from '@crm/shared'
 import { PrismaService } from '@/prisma/prisma.service'
-import type { Role } from '@prisma/client'
 import { DOC_PREFIXES } from '@/modules/doc-numbers/doc-number.service'
+import { systemRoleRows } from '@/modules/roles/system-roles'
 
 export const DEFAULT_WAREHOUSE_NAME = 'Asosiy ombor'
 
@@ -67,6 +67,10 @@ export class TenantProvisioningService {
         data: DOC_PREFIXES.map((prefix) => ({ tenantId: tenant.id, prefix })),
       })
 
+      // Tizim rollari (T-134) — egasi administrator
+      const roles = await tx.role.createManyAndReturn({ data: systemRoleRows(tenant.id), select: { id: true, key: true } })
+      const adminRole = roles.find((r) => r.key === 'admin')!
+
       // Egasi: avval SHAXS, keyin unga bog'langan kirish hisobi (D1)
       const employee = await tx.employee.create({
         data: {
@@ -84,7 +88,7 @@ export class TenantProvisioningService {
           employeeId: employee.id,
           email: input.owner.email.trim().toLowerCase(),
           passwordHash: input.owner.passwordHash,
-          role: 'admin' satisfies Role,
+          roleId: adminRole.id,
         },
       })
 

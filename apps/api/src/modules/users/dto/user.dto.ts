@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
-import { Role, type Prisma } from '@prisma/client'
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator'
+import { SystemRole, type Prisma } from '@prisma/client'
+import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength, ValidateIf } from 'class-validator'
 import { ListQueryDto } from '@/common/crud/list-query.dto'
 import { byField, sortValues, type SortDir, type SortMap } from '@/common/crud/sort'
 import { NormalizeEmail, ToBoolean } from '@/common/validation/decorators'
@@ -15,7 +15,9 @@ export const USER_SORT = {
   lastLoginAt: byField('lastLoginAt'),
 } satisfies SortMap<Prisma.UserOrderByWithRelationInput>
 
-const ROLES = Object.values(Role)
+const ROLES = Object.values(SystemRole)
+
+const LEGACY_ROLE = 'ESKIRGAN — `roleId` ishlating. Tizim roli kaliti: shu kalitli rol beriladi'
 
 /**
  * Kirish hisobi. `name` va `position` — XODIM yozuvidan (D1): ular bu
@@ -24,7 +26,11 @@ const ROLES = Object.values(Role)
 export class UserDto {
   @ApiProperty() id!: string
   @ApiProperty({ example: 'kassir@crm.uz' }) email!: string
-  @ApiProperty({ enum: Role }) role!: Role
+  @ApiProperty() roleId!: string
+  @ApiProperty({ example: 'Sotuvchi', description: 'Rol nomi (tizim rolida — `role` kaliti bo‘yicha tarjima qiling)' })
+  roleName!: string
+  @ApiProperty({ enum: SystemRole, nullable: true, description: 'Tizim roli kaliti; do‘kon yaratgan rolda — `null`' })
+  role!: SystemRole | null
   @ApiProperty() isActive!: boolean
   @ApiProperty({ nullable: true, type: String, format: 'date-time' }) lastLoginAt!: Date | null
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date
@@ -58,9 +64,15 @@ export class CreateUserDto {
   @MaxLength(MAX_PASSWORD_LENGTH)
   password!: string
 
-  @ApiProperty({ enum: Role })
+  @ApiPropertyOptional({ description: 'Rol (`GET /roles`). `role` berilmasa — SHART' })
+  @ValidateIf((dto: CreateUserDto) => dto.role === undefined)
+  @IsUUID()
+  roleId?: string
+
+  @ApiPropertyOptional({ enum: SystemRole, deprecated: true, description: LEGACY_ROLE })
+  @IsOptional()
   @IsIn(ROLES)
-  role!: Role
+  role?: SystemRole
 }
 
 /** Xodim bog'lanishi o'zgarmaydi — boshqa odamga hisob yangi yaratiladi */
@@ -72,10 +84,15 @@ export class UpdateUserDto {
   @MaxLength(254)
   email?: string
 
-  @ApiPropertyOptional({ enum: Role, description: 'O‘z rolingizni o‘zgartirib bo‘lmaydi' })
+  @ApiPropertyOptional({ description: 'Boshqa rol (`GET /roles`). O‘z rolingizni o‘zgartirib bo‘lmaydi' })
+  @IsOptional()
+  @IsUUID()
+  roleId?: string
+
+  @ApiPropertyOptional({ enum: SystemRole, deprecated: true, description: LEGACY_ROLE })
   @IsOptional()
   @IsIn(ROLES)
-  role?: Role
+  role?: SystemRole
 
   @ApiPropertyOptional({ description: '`false` — kira olmaydi, sessiyalari yopiladi' })
   @IsOptional()
@@ -95,10 +112,15 @@ export class UserListQueryDto extends ListQueryDto {
   @IsIn(sortValues(USER_SORT))
   sort?: string
 
-  @ApiPropertyOptional({ enum: Role })
+  @ApiPropertyOptional({ description: 'Shu roldagilar' })
+  @IsOptional()
+  @IsUUID()
+  roleId?: string
+
+  @ApiPropertyOptional({ enum: SystemRole, deprecated: true, description: 'ESKIRGAN — `roleId` ishlating. Tizim roli kaliti' })
   @IsOptional()
   @IsIn(ROLES)
-  role?: Role
+  role?: SystemRole
 
   @ApiPropertyOptional()
   @IsOptional()

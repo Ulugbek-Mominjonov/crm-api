@@ -1,6 +1,7 @@
 import { ConfigService } from '@nestjs/config'
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, type SystemRole } from '@prisma/client'
 import type { Env } from '@/config/env.schema'
+import { systemRoleRows } from '@/modules/roles/system-roles'
 import { PrismaService } from '@/prisma/prisma.service'
 
 /**
@@ -37,7 +38,7 @@ export async function truncateAll(): Promise<void> {
   await testDb.$executeRawUnsafe(`TRUNCATE TABLE ${list} RESTART IDENTITY CASCADE`)
 }
 
-/** Minimal tenant: sozlama, holat, sukut ombor, hisoblagichlar */
+/** Minimal tenant: sozlama, holat, sukut ombor, tizim rollari, administrator */
 export async function seedTenant(name = 'Test do‘kon'): Promise<{
   tenantId: string
   warehouseId: string
@@ -52,6 +53,7 @@ export async function seedTenant(name = 'Test do‘kon'): Promise<{
   await testDb.tenantState.create({
     data: { tenantId: tenant.id, activeWarehouseId: warehouse.id },
   })
+  await testDb.role.createMany({ data: systemRoleRows(tenant.id) })
   const employee = await testDb.employee.create({
     data: {
       tenantId: tenant.id,
@@ -68,7 +70,7 @@ export async function seedTenant(name = 'Test do‘kon'): Promise<{
       // uuid v7 boshi — vaqt: ketma-ket yaratilgan tenantlarda bir xil bo'lardi
       email: `admin+${tenant.id.slice(-12)}@crm.uz`,
       passwordHash: 'x',
-      role: 'admin',
+      roleId: await roleIdOf(tenant.id, 'admin'),
     },
   })
   return {
@@ -77,6 +79,12 @@ export async function seedTenant(name = 'Test do‘kon'): Promise<{
     employeeId: employee.id,
     userId: user.id,
   }
+}
+
+/** Do'konning tizim roli id'si */
+export async function roleIdOf(tenantId: string, key: SystemRole): Promise<string> {
+  const role = await testDb.role.findFirstOrThrow({ where: { tenantId, key }, select: { id: true } })
+  return role.id
 }
 
 /** Sinov mahsuloti */

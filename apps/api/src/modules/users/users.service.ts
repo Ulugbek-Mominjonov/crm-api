@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
+import { effectivePermissions } from '@crm/shared'
 import { currentContext, currentTenantId } from '@/common/context/request-context'
 import { crudDelegate, SoftDeleteCrudService, type CrudDelegate } from '@/common/crud/crud.service'
-import { DomainError, NotFoundError } from '@/common/errors/domain.error'
+import { DomainError, NotFoundError, PermissionDeniedError } from '@/common/errors/domain.error'
 import { PasswordService } from '@/modules/auth/password.service'
 import { RefreshTokenService } from '@/modules/auth/refresh-token.service'
+import { DomainEvents } from '@/modules/realtime/domain-events.service'
+import { AccessService } from '@/modules/roles/access.service'
+import { RolesService, type RoleRef } from '@/modules/roles/roles.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import { PlanService } from '@/modules/tenants/plan.service'
 import { assertAdminRemains } from './admin-guard'
@@ -19,7 +23,7 @@ import {
 const USER_SELECT = {
   id: true,
   email: true,
-  role: true,
+  role: { select: { id: true, key: true, name: true } },
   isActive: true,
   lastLoginAt: true,
   createdAt: true,
@@ -32,13 +36,17 @@ const USER_SELECT = {
 
 type UserRow = Prisma.UserGetPayload<{ select: typeof USER_SELECT }>
 
+/** Hisob rolining ruxsatlari bilan — huquq oshirish tekshiruvi uchun */
+const ROLE_REF_SELECT = { select: { id: true, key: true, permissions: true } } satisfies Prisma.RoleDefaultArgs
+
 /**
  * Foydalanuvchilar (kirish hisoblari).
  *
  * Himoya qoidalari: o'z hisobini o'chirib/faolsizlantirib bo'lmaydi
  * (SELF_DELETE), o'z rolini o'zgartirib bo'lmaydi (SELF_ROLE_CHANGE),
- * oxirgi administrator qoladi (LAST_ADMIN). Parol hech qachon javobga
- * chiqmaydi — `select` da umuman yo'q.
+ * oxirgi administrator qoladi (LAST_ADMIN), administrator bo'lmagan
+ * boshqaruvchi o'zidan kengroq rolga tegolmaydi (huquq oshirish). Parol
+ * hech qachon javobga chiqmaydi — `select` da umuman yo'q.
  */
 @Injectable()
 export class UsersService extends SoftDeleteCrudService<
@@ -62,6 +70,9 @@ export class UsersService extends SoftDeleteCrudService<
     private readonly passwords: PasswordService,
     private readonly refresh: RefreshTokenService,
     private readonly plans: PlanService,
+    private readonly roles: RolesService,
+    private readonly access: AccessService,
+    private readonly events: DomainEvents,
   ) {
     super()
   }
@@ -70,8 +81,8 @@ export class UsersService extends SoftDeleteCrudService<
     return crudDelegate(this.prisma.scoped.user)
   }
 
-  protected toDto({ employee, ...row }: UserRow): UserDto {
-    return { ...row, name: employee.name, position: employee.position }
+  protected toDto({ employee, role, ...row }: UserRow): UserDto {
+    return { ...row, roleId: role.id, roleName: role.name, role: role.key, name: employee.name, position: employee.position }
   }
 
   protected filters(query: UserListQueryDto): Prisma.UserWhereInput {
@@ -83,7 +94,8 @@ export class UsersService extends SoftDeleteCrudService<
           { employee: { name: { contains: q, mode: 'insensitive' } } },
         ],
       }),
-      ...(query.role && { role: query.role }),
+      ...(query.roleId && { roleId: query.roleId }),
+      ...(query.role && { role: { key: query.role } }),
       ...(query.isActive !== undefined && { isActive: query.isActive }),
       // Tiklash uchun: `liveWhere` (o'chirilmaganlar) o'rniga — faqat o'chirilganlar
       ...(query.deleted && { deletedAt: { not: null } }),
@@ -97,6 +109,8 @@ export class UsersService extends SoftDeleteCrudService<
    * yangisi o'rniga uni tiklashni taklif qiladi.
    */
   protected async createData(dto: CreateUserDto): Promise<Omit<Prisma.UserUncheckedCreateInput, 'tenantId'>> {
+    const role = await this.roles.resolve(dto)
+    assertWithinActor(role)
     await this.plans.assertRoom('users')
     const employee = await this.prisma.scoped.employee.findFirst({
       where: { id: dto.employeeId, deletedAt: null },
@@ -118,19 +132,20 @@ export class UsersService extends SoftDeleteCrudService<
     return {
       employeeId: dto.employeeId,
       email: dto.email,
-      role: dto.role,
+      roleId: role.id,
       passwordHash: await this.passwords.hash(dto.password),
     }
   }
 
   protected updateData(dto: UpdateUserDto): Prisma.UserUncheckedUpdateInput {
-    return { email: dto.email, role: dto.role, isActive: dto.isActive }
+    return { email: dto.email, isActive: dto.isActive }
   }
 
   /**
    * Rol, faollik va parol. Parol tranzaksiyadan OLDIN xeshlanadi: argon2
    * sekin — qulf ushlab turilmasin. Parol almashsa yoki hisob o'chirilsa,
-   * barcha sessiyalar shu tranzaksiyada yopiladi.
+   * barcha sessiyalar shu tranzaksiyada yopiladi. Rol yoki faollik
+   * o'zgarsa — keyingi so'rovdanoq kuchga kiradi (huquq tokenda emas).
    */
   override async update(id: string, dto: UpdateUserDto, version?: Date): Promise<UserDto> {
     const actorId = currentContext().userId
@@ -139,30 +154,39 @@ export class UsersService extends SoftDeleteCrudService<
     }
     const passwordHash = dto.password === undefined ? undefined : await this.passwords.hash(dto.password)
     const endSessions = passwordHash !== undefined || dto.isActive === false
+    const nextRole = dto.roleId !== undefined || dto.role !== undefined ? await this.roles.resolve(dto) : undefined
 
     const tenantId = currentTenantId()
     return this.prisma.inTenantTransaction(tenantId, async (tx) => {
       const current = await tx.user.findFirst({
         where: { id, deletedAt: null },
-        select: { role: true, isActive: true },
+        select: { isActive: true, role: ROLE_REF_SELECT },
       })
       if (!current) throw new NotFoundError(this.resource, id)
-      if (id === actorId && dto.role !== undefined && dto.role !== current.role) {
-        throw new DomainError('SELF_ROLE_CHANGE')
-      }
+      const roleChanged = nextRole !== undefined && nextRole.id !== current.role.id
+      if (id === actorId && roleChanged) throw new DomainError('SELF_ROLE_CHANGE')
+      assertWithinActor(roleRef(current.role))
+      if (nextRole) assertWithinActor(nextRole)
       // Qayta faollashtirish — tarifdagi joyni egallaydi (T-125)
       if (dto.isActive === true && !current.isActive) await this.plans.assertRoom('users')
 
-      const leavesAdmin = (dto.role !== undefined && dto.role !== 'admin') || dto.isActive === false
-      if (current.role === 'admin' && leavesAdmin) {
+      const leavesAdmin = (roleChanged && nextRole?.key !== 'admin') || dto.isActive === false
+      if (current.role.key === 'admin' && leavesAdmin) {
         await assertAdminRemains(tx, tenantId, id)
       }
 
       await this.assertUnique({ email: dto.email }, id)
       const row = await tx.user
-        .update({ where: { id, ...this.versionWhere(version) }, data: { ...this.updateData(dto), passwordHash }, select: USER_SELECT })
+        .update({
+          where: { id, ...this.versionWhere(version) },
+          data: { ...this.updateData(dto), roleId: nextRole?.id, passwordHash },
+          select: USER_SELECT,
+        })
         .catch(this.staleOr404(id, version))
       if (endSessions) await this.refresh.revokeAllForUser(id, tx)
+      if (roleChanged || dto.isActive === false) this.access.userChanged(id)
+      // Ochiq ilovasi menyuni yangi rol bilan qayta quradi
+      if (roleChanged) this.events.publish('access.changed', {})
       return this.toDto(row)
     })
   }
@@ -175,8 +199,9 @@ export class UsersService extends SoftDeleteCrudService<
   override async restore(id: string): Promise<UserDto> {
     const deleted = await this.prisma.scoped.user.findFirst({
       where: { id, deletedAt: { not: null } },
-      select: { isActive: true, employee: { select: { deletedAt: true } } },
+      select: { isActive: true, role: ROLE_REF_SELECT, employee: { select: { deletedAt: true } } },
     })
+    if (deleted) assertWithinActor(roleRef(deleted.role))
     if (deleted?.employee.deletedAt) {
       throw new DomainError('REFERENCE_NOT_FOUND', 'Xodim o‘chirilgan — avval xodimni tiklang', [
         { field: 'employeeId', code: 'REFERENCE_NOT_FOUND' },
@@ -195,13 +220,33 @@ export class UsersService extends SoftDeleteCrudService<
     await this.prisma.inTenantTransaction(tenantId, async (tx) => {
       const current = await tx.user.findFirst({
         where: { id, deletedAt: null },
-        select: { role: true },
+        select: { role: ROLE_REF_SELECT },
       })
       if (!current) throw new NotFoundError(this.resource, id)
-      if (current.role === 'admin') await assertAdminRemains(tx, tenantId, id)
+      assertWithinActor(roleRef(current.role))
+      if (current.role.key === 'admin') await assertAdminRemains(tx, tenantId, id)
 
       await tx.user.update({ where: { id }, data: { deletedAt: new Date() }, select: { id: true } })
       await this.refresh.revokeAllForUser(id, tx)
+      this.access.userChanged(id)
     })
   }
+}
+
+function roleRef(role: Prisma.RoleGetPayload<typeof ROLE_REF_SELECT>): RoleRef {
+  return { id: role.id, key: role.key, permissions: effectivePermissions(role.key, role.permissions) }
+}
+
+/**
+ * Huquq oshirishdan himoya: administrator bo'lmagan boshqaruvchi (masalan
+ * `users` ruxsati berilgan menejer) o'zidan kengroq rolni bera olmaydi va
+ * bunday rol egasining hisobiga (parol, faollik, o'chirish) tegolmaydi —
+ * aks holda o'ziga yoki sherigiga administrator huquqini olib berardi.
+ */
+function assertWithinActor(target: RoleRef): void {
+  const actor = currentContext()
+  if (actor.role === 'admin') return
+  const own = actor.permissions ?? new Set()
+  if (target.key !== 'admin' && target.permissions.every((p) => own.has(p))) return
+  throw new PermissionDeniedError('O‘zingizdan kengroq huquqli rol bilan ishlab bo‘lmaydi — administratorga murojaat qiling')
 }

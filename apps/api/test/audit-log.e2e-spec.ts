@@ -3,7 +3,7 @@ import request from 'supertest'
 import { businessDayStart } from '@/common/time'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
-import { seedTenant, testDb, truncateAll } from './helpers/db'
+import { roleIdOf, seedTenant, testDb, truncateAll } from './helpers/db'
 
 /**
  * Amallar jurnali (04 §2: `/audit`, `users` huquqi): yangisi birinchi,
@@ -65,7 +65,7 @@ describe('Audit jurnali (GET /audit)', () => {
 
   it('filtrlar: foydalanuvchi, amal guruhi, yozuv, Toshkent kuni, matn', async () => {
     const other = await testDb.user.create({
-      data: { tenantId: a.tenantId, employeeId: (await testDb.employee.create({ data: { tenantId: a.tenantId, name: 'Kassir', position: 'Sotuvchi', phone: '+998901234567', hiredAt: new Date('2026-01-01') } })).id, email: 'kassir@crm.uz', passwordHash: 'x', role: 'sotuvchi' },
+      data: { tenantId: a.tenantId, employeeId: (await testDb.employee.create({ data: { tenantId: a.tenantId, name: 'Kassir', position: 'Sotuvchi', phone: '+998901234567', hiredAt: new Date('2026-01-01') } })).id, email: 'kassir@crm.uz', passwordHash: 'x', roleId: await roleIdOf(a.tenantId, 'sotuvchi') },
     })
     const saleId = crypto.randomUUID()
     await testDb.auditEntry.createMany({

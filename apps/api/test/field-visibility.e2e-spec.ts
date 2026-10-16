@@ -1,20 +1,18 @@
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
 import { PasswordService } from '@/modules/auth/password.service'
-import { TokenService } from '@/modules/auth/token.service'
 import { TenantProvisioningService } from '@/modules/tenants/tenant-provisioning.service'
 import { createTestApp, resetThrottle } from './helpers/app'
+import { bearer } from './helpers/auth'
 import { testDb, truncateAll } from './helpers/db'
 
 const PASSWORD = 'Qurilish2026!'
 
 describe('Maydon himoyasi (HTTP)', () => {
   let app: INestApplication
-  let tokens: TokenService
 
   beforeAll(async () => {
     app = await createTestApp()
-    tokens = app.get(TokenService)
   })
 
   afterAll(async () => {
@@ -36,12 +34,8 @@ describe('Maydon himoyasi (HTTP)', () => {
     })
   })
 
-  const tokenFor = async (role: 'admin' | 'sotuvchi'): Promise<string> => {
-    const { token } = await tokens.signAccess({
-      sub: ctx.userId, tid: ctx.tenantId, role, eid: ctx.employeeId,
-    })
-    return token
-  }
+  const tokenFor = async (role: 'admin' | 'sotuvchi'): Promise<string> =>
+    (await bearer(app, ctx, role)).slice('Bearer '.length)
 
   it('`/auth/me` javobida parol xeshi yo‘q', async () => {
     const res = await request(app.getHttpServer())
@@ -63,9 +57,9 @@ describe('Maydon himoyasi (HTTP)', () => {
       .set('Authorization', `Bearer ${await tokenFor('sotuvchi')}`)
       .expect(200)
 
-    // Ikkalasi ham o'z ma'lumotini oladi, lekin maxfiy maydonlar yo'q
-    expect(asAdmin.body.email).toBe('admin@crm.uz')
-    expect(asSeller.body.email).toBe('admin@crm.uz')
+    // Ikkalasi ham o'z ma'lumotini oladi (huquq — bazadagi roldan), lekin maxfiy maydonlar yo'q
+    expect(asAdmin.body).toMatchObject({ email: 'admin@crm.uz', role: 'admin' })
+    expect(asSeller.body).toMatchObject({ email: expect.stringMatching(/^sotuvchi\+/), role: 'sotuvchi' })
     for (const body of [asAdmin.body, asSeller.body]) {
       expect(body).not.toHaveProperty('passwordHash')
     }

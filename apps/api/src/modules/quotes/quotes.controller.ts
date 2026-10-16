@@ -70,7 +70,7 @@ export class QuotesController {
     @Body() dto: UpdateQuoteDto,
     @CurrentUser() user: AuthContext,
   ): Promise<QuoteDto> {
-    return this.quotes.update(id, dto, user.role)
+    return this.quotes.update(id, dto, user.permissions)
   }
 
   @Delete(':id')

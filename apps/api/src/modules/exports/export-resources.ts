@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client'
-import type { Resource } from '@crm/shared'
+import type { Permission } from '@crm/shared'
 import { BUSINESS_TIME_ZONE } from '@/common/time'
 
 export interface ExportColumn {
@@ -18,8 +18,8 @@ export interface ExportFilter {
 }
 
 export interface ExportResource {
-  /** Ko'rish huquqi (`view`) — eksport ham ko'rish */
-  permission: Resource
+  /** Ko'rish ruxsati — eksport ham ko'rish */
+  permission: Permission
   /** Fayl nomi boshi: `sotuvlar-2026-09-23.csv` */
   filename: string
   /** `dateFrom`/`dateTo` qo'llanadi */
@@ -49,7 +49,7 @@ export const FIRST_CURSOR = '00000000-0000-0000-0000-000000000000'
  */
 export const EXPORT_RESOURCES = {
   products: {
-    permission: 'products',
+    permission: 'products.view',
     filename: 'mahsulotlar',
     dated: false,
     columns: [
@@ -76,7 +76,7 @@ export const EXPORT_RESOURCES = {
        LIMIT ${limit}`,
   },
   clients: {
-    permission: 'customers',
+    permission: 'customers.view',
     filename: 'mijozlar',
     dated: false,
     columns: [
@@ -100,7 +100,7 @@ export const EXPORT_RESOURCES = {
        LIMIT ${limit}`,
   },
   sales: {
-    permission: 'sales',
+    permission: 'sales.view',
     filename: 'sotuvlar',
     dated: true,
     columns: [
@@ -132,7 +132,7 @@ export const EXPORT_RESOURCES = {
        LIMIT ${limit}`,
   },
   'stock-movements': {
-    permission: 'products',
+    permission: 'stock.view',
     filename: 'ombor-harakatlari',
     dated: true,
     columns: [
@@ -158,7 +158,7 @@ export const EXPORT_RESOURCES = {
        LIMIT ${limit}`,
   },
   expenses: {
-    permission: 'expenses',
+    permission: 'expenses.view',
     filename: 'xarajatlar',
     dated: true,
     columns: [
@@ -182,7 +182,7 @@ export const EXPORT_RESOURCES = {
   },
   // Jurnal cheksiz o'sadi — faqat server eksporti (brauzerda yig'ilmaydi); kun — Toshkent vaqti
   audit: {
-    permission: 'users',
+    permission: 'users.view',
     filename: 'audit-jurnali',
     dated: true,
     columns: [

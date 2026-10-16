@@ -17,6 +17,11 @@ export interface DomainEventMap {
   'po.received': { orderId: string; productIds: string[] }
   /** Sozlama (brend rangi, logotip, nom …) o'zgardi — boshqa kassalar `GET /settings` ni qayta so'raydi */
   'settings.updated': Record<string, never>
+  /**
+   * Rol ruxsatlari yoki kimningdir roli o'zgardi (T-134) — ochiq ilovalar
+   * `GET /auth/me` ni qayta so'raydi (menyu va tugmalar yangi ruxsatlar bilan)
+   */
+  'access.changed': Record<string, never>
 }
 
 export type DomainEventType = keyof DomainEventMap

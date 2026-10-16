@@ -119,13 +119,13 @@ export class SalesService {
    * `POST /sales` — narx darajasi (sotuvchiga ulgurji — sozlama bilan), QQS,
    * bonus va chegirma chegarasi sozlamadan
    */
-  async create(dto: CreateSaleDto, user: Pick<AuthContext, 'employeeId' | 'role'>): Promise<SaleDto> {
+  async create(dto: CreateSaleDto, user: Pick<AuthContext, 'employeeId' | 'permissions'>): Promise<SaleDto> {
     const settings = await this.settings.get()
     return this.place({
       customerId: dto.customerId,
       sellerId: dto.sellerId ?? user.employeeId,
       warehouseId: dto.warehouseId,
-      priceTier: resolvePriceTier(dto.priceTier, 'retail', settings, user.role),
+      priceTier: resolvePriceTier(dto.priceTier, 'retail', settings, user.permissions),
       lines: dto.items,
       discount: dto.discount ?? 0,
       bonusRequested: settings.loyaltyEnabled ? (dto.bonusUsed ?? 0) : 0,

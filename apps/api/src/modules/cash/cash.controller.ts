@@ -15,7 +15,7 @@ import {
 } from './dto/cash.dto'
 import { ShiftsService } from './shifts.service'
 
-/** Kassa: smena, naqd kirim/chiqim, X/Z hisobot (04-api §5) — `finance` huquqi */
+/** Kassa: smena, naqd kirim/chiqim, X/Z hisobot (04-api §5) — `cash` ruxsatlari */
 @ApiTags('cash')
 @ApiBearerAuth()
 @Controller('cash')
@@ -26,7 +26,7 @@ export class CashController {
   ) {}
 
   @Get('shifts/current')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('cash', 'view')
   @ApiOperation({ summary: 'Joriy smena va kassa balansi', description: '`shift: null` — smena ochilmagan' })
   @ApiOkResponse({ type: CurrentShiftDto })
   current(): Promise<CurrentShiftDto> {
@@ -34,7 +34,7 @@ export class CashController {
   }
 
   @Get('shifts')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('cash', 'view')
   @ApiOperation({ summary: 'Smenalar tarixi' })
   @ApiOkResponse({ type: ShiftPageDto })
   list(@Query() query: ShiftQueryDto): Promise<Paged<ShiftDto>> {
@@ -42,7 +42,7 @@ export class CashController {
   }
 
   @Post('shifts/open')
-  @RequirePermission('finance', 'create')
+  @RequirePermission('cash', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({ summary: 'Smena ochish', description: 'Balans sanoqqa tenglashadi (I10). Bir vaqtda bitta smena (I8). Idempotent.' })
@@ -54,7 +54,7 @@ export class CashController {
 
   @Post('shifts/close')
   @HttpCode(200)
-  @RequirePermission('finance', 'create')
+  @RequirePermission('cash', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({ summary: 'Smena yopish', description: 'Kutilgan, sanalgan va farq saqlanadi (I10). Idempotent.' })
@@ -65,7 +65,7 @@ export class CashController {
   }
 
   @Get('shifts/:id/report')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('cash', 'view')
   @ApiOperation({ summary: 'X/Z hisobot', description: 'Barcha raqamlar bitta agregat so‘rovda; nasiya cheklar ham (I4).' })
   @ApiOkResponse({ type: ShiftReportDto })
   @ApiNotFoundResponse({ type: ApiErrorDto })
@@ -74,7 +74,7 @@ export class CashController {
   }
 
   @Post('movements')
-  @RequirePermission('finance', 'create')
+  @RequirePermission('cash', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({ summary: 'Naqd kirim/chiqim', description: 'Faqat ochiq smenada (I8, I9); sabab majburiy. Idempotent.' })
@@ -85,7 +85,7 @@ export class CashController {
   }
 
   @Get('movements')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('cash', 'view')
   @ApiOperation({ summary: 'Smenadagi naqd harakatlar', description: '`shiftId` berilmasa — joriy smena' })
   @ApiOkResponse({ type: CashMovementPageDto })
   listMovements(@Query() query: CashMovementQueryDto): Promise<Paged<CashMovementDto>> {

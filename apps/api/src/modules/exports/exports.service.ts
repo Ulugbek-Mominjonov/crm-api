@@ -1,7 +1,6 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common'
-import type { Role } from '@prisma/client'
-import { Prisma } from '@prisma/client'
-import { CSV_BOM, csvLine, hasPermission } from '@crm/shared'
+import { Prisma, type SystemRole } from '@prisma/client'
+import { CSV_BOM, csvLine, effectivePermissions, type PermissionSet } from '@crm/shared'
 import { runWithContext } from '@/common/context/request-context'
 import { DomainError, NotFoundError, PermissionDeniedError } from '@/common/errors/domain.error'
 import { uuidv7 } from '@/common/ids'
@@ -67,7 +66,7 @@ export class ExportsService implements OnApplicationBootstrap {
 
   async start(name: ExportResourceName, query: ExportQueryDto, user: AuthContext): Promise<{ file: ExportFile } | { job: ExportJobDto }> {
     const resource: ExportResource = EXPORT_RESOURCES[name]
-    if (!hasPermission(user.role, resource.permission, 'view')) throw new PermissionDeniedError()
+    if (!user.permissions.has(resource.permission)) throw new PermissionDeniedError()
     if (query.dateFrom && query.dateTo && query.dateFrom > query.dateTo) {
       throw new DomainError('VALIDATION_FAILED', '`dateFrom` `dateTo` dan keyin', [{ field: 'dateFrom', code: 'VALIDATION_FAILED' }])
     }
@@ -77,7 +76,7 @@ export class ExportsService implements OnApplicationBootstrap {
     const params = { dateFrom: filter.dateFrom, dateTo: filter.dateTo }
 
     if (counted!.n <= INLINE_MAX_ROWS) {
-      const lines = await this.collect(resource, filter, query.format, user.role, (sql) => this.prisma.scoped.$queryRaw<Row[]>(sql))
+      const lines = await this.collect(resource, filter, query.format, user.permissions, (sql) => this.prisma.scoped.$queryRaw<Row[]>(sql))
       await this.audit.log({ action: 'export.download', entityType: 'export', diff: { resource: name, format: query.format, rows: counted!.n, ...params } })
       return { file: toFile(name, query.format, lines) }
     }
@@ -134,7 +133,8 @@ export class ExportsService implements OnApplicationBootstrap {
     const format = claimed.format as ExportFormat
     const params = claimed.params as Pick<ExportFilter, 'dateFrom' | 'dateTo'>
     try {
-      const lines = await this.collect(resource, { tenantId, ...params }, format, claimed.role, (sql) =>
+      const permissions = new Set(effectivePermissions(claimed.roleKey, claimed.permissions))
+      const lines = await this.collect(resource, { tenantId, ...params }, format, permissions, (sql) =>
         this.prisma.inTenantTransaction(tenantId, (tx) => tx.$queryRaw<Row[]>(sql)),
       )
       const file = toFile(claimed.resource as ExportResourceName, format, lines)
@@ -164,11 +164,11 @@ export class ExportsService implements OnApplicationBootstrap {
     resource: ExportResource,
     filter: ExportFilter,
     format: ExportFormat,
-    role: Role,
+    permissions: PermissionSet,
     read: (sql: Prisma.Sql) => Promise<Row[]>,
   ): Promise<string[]> {
     const policy = visibilityPolicy(await this.settings.forTenant(filter.tenantId))
-    const columns = resource.columns.filter((c) => !c.visibility || canSeeField(role, c.visibility, policy))
+    const columns = resource.columns.filter((c) => !c.visibility || canSeeField(permissions, c.visibility, policy))
     const lines = [format === 'csv' ? csvLine(columns.map((c) => c.label)) : '']
     let after = FIRST_CURSOR
     for (;;) {
@@ -186,14 +186,24 @@ function filterOf(resource: ExportResource, query: ExportQueryDto, tenantId: str
   return resource.dated ? { tenantId, dateFrom: query.dateFrom, dateTo: query.dateTo } : { tenantId }
 }
 
-/** Navbatdagi ishni oladi (bir marta) — so'rovchining JORIY roli bilan */
-async function claim(tx: TenantTx, tenantId: string, exportId: string) {
-  const [row] = await tx.$queryRaw<{ resource: string; format: string; params: Prisma.JsonValue; userId: string; role: Role }[]>`
+interface ClaimedExport {
+  resource: string
+  format: string
+  params: Prisma.JsonValue
+  userId: string
+  roleKey: SystemRole | null
+  permissions: string[]
+}
+
+/** Navbatdagi ishni oladi (bir marta) — so'rovchi rolining JORIY ruxsatlari bilan */
+async function claim(tx: TenantTx, tenantId: string, exportId: string): Promise<ClaimedExport | undefined> {
+  const [row] = await tx.$queryRaw<ClaimedExport[]>`
     UPDATE exports e SET status = 'running'
       FROM users u
+      JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
      WHERE e.tenant_id = ${tenantId}::uuid AND e.id = ${exportId}::uuid AND e.status = 'queued'
        AND u.tenant_id = e.tenant_id AND u.id = e.user_id
-    RETURNING e.resource, e.format, e.params, e.user_id AS "userId", u.role`
+    RETURNING e.resource, e.format, e.params, e.user_id AS "userId", r.key AS "roleKey", r.permissions`
   return row
 }
 

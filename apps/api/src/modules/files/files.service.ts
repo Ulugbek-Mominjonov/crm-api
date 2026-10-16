@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import { Prisma, type FileKind } from '@prisma/client'
-import { hasPermission, planLimits } from '@crm/shared'
+import { planLimits } from '@crm/shared'
 import { currentContext } from '@/common/context/request-context'
 import { moneyFromDb } from '@/common/crud/convert'
 import { CommittedDomainError, DomainError, NotFoundError, PermissionDeniedError } from '@/common/errors/domain.error'
@@ -13,7 +13,7 @@ import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import { onCommit, requireTenantTx } from '@/prisma/tenant-tx'
 import type { FileDto, FileUrlsDto, PresignDto, PresignResultDto, UsageDto, Variant } from './dto/file.dto'
-import { EXTENSIONS, FILE_RULES, MAGIC_HEAD_BYTES, matchesMagic, type FileRule } from './file-rules'
+import { EXTENSIONS, FILE_RULES, MAGIC_HEAD_BYTES, matchesMagic, type FileAction, type FileRule } from './file-rules'
 import { PRESIGN_TTL_SEC, S3Service, type BucketName } from './s3.service'
 
 const RESOURCE = 'Fayl'
@@ -329,10 +329,8 @@ export function variantKey(file: Pick<FileRecord, 'key' | 'variants'>, variant: 
   return variant === 'orig' ? file.key : (variants[variant] ?? file.key)
 }
 
-type FileAction = 'view' | 'create' | 'delete'
-
 function can(user: AuthContext, rule: FileRule, action: FileAction): boolean {
-  return (action === 'view' && rule.readableByAll === true) || hasPermission(user.role, rule.resource, action)
+  return (action === 'view' && rule.readableByAll === true) || user.permissions.has(rule.access[action])
 }
 
 function assertCan(user: AuthContext, rule: FileRule, action: FileAction): void {

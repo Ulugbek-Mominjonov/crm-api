@@ -29,7 +29,7 @@ export class StockController {
   ) {}
 
   @Post('intake')
-  @RequirePermission('products', 'edit')
+  @RequirePermission('stock', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({
@@ -44,7 +44,7 @@ export class StockController {
   }
 
   @Post('writeoff')
-  @RequirePermission('products', 'edit')
+  @RequirePermission('stock', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({ summary: 'Chiqim (hisobdan chiqarish)', description: 'Sabab majburiy. Qoldiqdan ko‘p — 422 STOCK_INSUFFICIENT (I2).' })
@@ -55,7 +55,7 @@ export class StockController {
   }
 
   @Post('adjust')
-  @RequirePermission('products', 'edit')
+  @RequirePermission('stock', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({
@@ -69,7 +69,7 @@ export class StockController {
   }
 
   @Post('transfer')
-  @RequirePermission('products', 'edit')
+  @RequirePermission('stock', 'operate')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({
@@ -83,7 +83,7 @@ export class StockController {
   }
 
   @Get('movements')
-  @RequirePermission('products', 'view')
+  @RequirePermission('stock', 'view')
   @ApiOperation({
     summary: 'Harakatlar jurnali',
     description: 'Kursorli sahifalash: javobdagi `nextCursor` keyingi so‘rovga `cursor` bo‘lib beriladi.',
@@ -94,7 +94,7 @@ export class StockController {
   }
 
   @Get('reorder-suggestions')
-  @RequirePermission('products', 'view')
+  @RequirePermission('stock', 'view')
   @ApiOperation({
     summary: 'Buyurtma taklifi',
     description: 'Kam qolgan tovarlar ta’minotchi bo‘yicha: `max(minStock×2 − stock, minStock)` (shared).',

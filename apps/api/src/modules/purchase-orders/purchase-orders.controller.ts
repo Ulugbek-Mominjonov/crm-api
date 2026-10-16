@@ -15,8 +15,8 @@ import {
 import { PurchaseOrdersService } from './purchase-orders.service'
 
 /**
- * Kirim buyurtmalari (04-api §6). Buyurtma va qabul — ta'minot huquqi
- * (`suppliers`, omborchi ham), to'lov — moliya (`finance`).
+ * Kirim buyurtmalari (04-api §6) — `purchases` ruxsatlari: qabul
+ * (`receive`, omborchi ham) va to'lov (`pay`) — alohida amallar.
  */
 @ApiTags('purchase-orders')
 @ApiBearerAuth()
@@ -25,7 +25,7 @@ export class PurchaseOrdersController {
   constructor(private readonly orders: PurchaseOrdersService) {}
 
   @Get()
-  @RequirePermission('suppliers', 'view')
+  @RequirePermission('purchases', 'view')
   @ApiOperation({ summary: 'Kirim buyurtmalari', description: 'Har buyurtmada qarz — faqat kelgan tovar uchun (I18)' })
   @ApiOkResponse({ type: PurchaseOrderPageDto })
   list(@Query() query: PurchaseOrderQueryDto): Promise<Paged<PurchaseOrderDto>> {
@@ -33,7 +33,7 @@ export class PurchaseOrdersController {
   }
 
   @Get('summary')
-  @RequirePermission('suppliers', 'view')
+  @RequirePermission('purchases', 'view')
   @ApiOperation({ summary: 'Xaridlar xulosasi', description: 'Kreditorlik, kutilayotgan buyurtmalar, oy va qabul qilingan summa — bitta so‘rov.' })
   @ApiOkResponse({ type: PurchaseOrderSummaryDto })
   summary(): Promise<PurchaseOrderSummaryDto> {
@@ -41,7 +41,7 @@ export class PurchaseOrdersController {
   }
 
   @Get(':id')
-  @RequirePermission('suppliers', 'view')
+  @RequirePermission('purchases', 'view')
   @ApiOperation({ summary: 'Kirim buyurtmasi' })
   @ApiOkResponse({ type: PurchaseOrderDto })
   @ApiNotFoundResponse({ type: ApiErrorDto })
@@ -50,7 +50,7 @@ export class PurchaseOrdersController {
   }
 
   @Post()
-  @RequirePermission('suppliers', 'create')
+  @RequirePermission('purchases', 'create')
   @AuditedInService()
   @ApiOperation({ summary: 'Buyurtma yaratish', description: 'Raqam `BUY-NNNN` (I12)' })
   @ApiCreatedResponse({ type: PurchaseOrderDto })
@@ -60,7 +60,7 @@ export class PurchaseOrdersController {
   }
 
   @Patch(':id')
-  @RequirePermission('suppliers', 'edit')
+  @RequirePermission('purchases', 'edit')
   @AuditedInService()
   @ApiOperation({ summary: 'Buyurtmani tahrirlash', description: 'Faqat `ordered` holatida' })
   @ApiOkResponse({ type: PurchaseOrderDto })
@@ -71,7 +71,7 @@ export class PurchaseOrdersController {
 
   @Post(':id/cancel')
   @HttpCode(200)
-  @RequirePermission('suppliers', 'edit')
+  @RequirePermission('purchases', 'edit')
   @AuditedInService()
   @ApiOperation({ summary: 'Buyurtmani bekor qilish', description: 'Faqat `ordered` — qisman kelgani bekor qilinmaydi (I19)' })
   @ApiOkResponse({ type: PurchaseOrderDto })
@@ -82,7 +82,7 @@ export class PurchaseOrdersController {
 
   @Delete(':id')
   @HttpCode(204)
-  @RequirePermission('suppliers', 'delete')
+  @RequirePermission('purchases', 'delete')
   @AuditedInService()
   @ApiOperation({ summary: 'Buyurtmani o‘chirish', description: 'Tovar kelmagan va to‘lanmagan bo‘lsa' })
   @ApiNoContentResponse()
@@ -92,7 +92,7 @@ export class PurchaseOrdersController {
 
   @Post(':id/restore')
   @HttpCode(200)
-  @RequirePermission('suppliers', 'delete')
+  @RequirePermission('purchases', 'delete')
   @AuditedInService()
   @ApiOperation({ summary: 'O‘chirilgan buyurtmani tiklash (undo)' })
   @ApiOkResponse({ type: PurchaseOrderDto })
@@ -103,7 +103,7 @@ export class PurchaseOrdersController {
 
   @Post(':id/receive')
   @HttpCode(200)
-  @RequirePermission('suppliers', 'edit')
+  @RequirePermission('purchases', 'receive')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({
@@ -118,7 +118,7 @@ export class PurchaseOrdersController {
   }
 
   @Post(':id/pay')
-  @RequirePermission('finance', 'create')
+  @RequirePermission('purchases', 'pay')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({

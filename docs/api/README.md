@@ -27,7 +27,7 @@ Jonli, sinab ko‘rish mumkin bo‘lgan versiya — Swagger UI: `http://localhos
 3. [Frontendni ulash: manzil, proksi, cookie, tiplar, API mijozi](#connect)
 4. [Umumiy qoidalar (konvensiyalar)](#conventions)
 5. [Autentifikatsiya](#auth)
-6. [Rollar, huquqlar va yashirin maydonlar](#roles)
+6. [Rollar, ruxsatlar va yashirin maydonlar](#roles)
 7. [Xatolar](#errors)
 8. [Do‘kon holati, tarif chegaralari va to‘lov](#tenant)
 9. [Realtime (WebSocket) va keshni yangilash](#realtime)
@@ -47,7 +47,7 @@ Jonli, sinab ko‘rish mumkin bo‘lgan versiya — Swagger UI: `http://localhos
 **Stek:** NestJS 11 (Node ≥ 22), PostgreSQL 16 + Prisma 6, Redis (ixtiyoriy: kesh, navbat),
 S3-mos obyekt saqlagich (lokal — MinIO, production — Cloudflare R2), socket.io (realtime).
 Monorepo: `apps/api` (server) va `packages/shared` (`@crm/shared` — frontend bilan UMUMIY sof
-funksiyalar: chek hisobi, birliklar, nasiya, bonus, huquqlar matritsasi, tariflar, CSV).
+funksiyalar: chek hisobi, birliklar, nasiya, bonus, ruxsatlar katalogi, tariflar, CSV).
 
 **Ko‘p do‘konli (multi-tenant):** bitta server ko‘p do‘konga xizmat qiladi. Do‘kon (tenant) ma’lumoti
 uch qatlamda ajratilgan (so‘rov konteksti, Prisma filtri, PostgreSQL RLS). `tenantId` HECH QACHON
@@ -59,7 +59,7 @@ login’da do‘kon tanlash).
 | Bo‘lim | Imkoniyat |
 |--------|-----------|
 | Auth | Kirish (bir email bir necha do‘konda), JWT access token (15 daq) + httpOnly refresh cookie (30 kun, rotatsiya, o‘g‘irlik aniqlash), chiqish, barcha qurilmalardan chiqish, parol o‘zgartirish, yangi do‘kon ro‘yxatdan o‘tishi |
-| Rollar | `admin`, `manager`, `sotuvchi`, `omborchi` — resurs × amal matritsasi; tannarx/foyda maydonlari rolga qarab javobdan olib tashlanadi |
+| Rollar | Ruxsatlar ROLGA beriladi: 59 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
 | Spravochniklar | Omborlar (arxiv), kategoriyalar, mahsulotlar (qo‘shimcha birlik, import, ommaviy narx, rasm), mijozlar, ta’minotchilar, xodimlar, foydalanuvchilar — sahifalash, saralash, qidiruv, yumshoq o‘chirish + tiklash, optimistik qulf |
 | Ombor | Kirim (o‘rtacha tannarx), chiqim, inventarizatsiya, ko‘chirish, harakatlar jurnali, buyurtma taklifi; qoldiq manfiy bo‘lmaydi |
 | Sotuv | Chek (bitta tranzaksiya: qoldiq, kassa, bonus, yetkazish), qaytarish, bekor qilish, chop etish uchun chek (JSON yoki tayyor 80 mm PDF), OFD fiskal chek (navbat orqali) |
@@ -73,12 +73,12 @@ login’da do‘kon tanlash).
 | Migratsiya | Brauzerdagi eski (localStorage) ma’lumotni serverga ko‘chirish: dry-run + import |
 | Tarif / to‘lov | `free`/`basic`/`pro` chegaralari, hisob-faktura, Payme va Click webhook’lari, muddati o‘tgan do‘kon — faqat o‘qish |
 | Hayot sikli | Do‘konni o‘chirish (30 kun muhlat, bekor qilish mumkin) |
-| Realtime | `/events` — sotuv, qoldiq, smena, qarz, yetkazish, kirim, sozlama hodisalari |
+| Realtime | `/events` — sotuv, qoldiq, smena, qarz, yetkazish, kirim, sozlama, huquq hodisalari |
 | Audit | Har bir pul/ombor/spravochnik amali jurnalga yoziladi |
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
 Uni serverga ulash — frontend vazifasi ([13-bo‘lim](#tasks)). Backend tomoni tayyor va sinalgan
-(130 unit + 539 e2e test).
+(267 unit + 576 e2e test).
 
 ---
 
@@ -229,8 +229,8 @@ type ProductQuery = paths['/api/v1/products']['get']['parameters']['query']
 Backend DTO o‘zgarsa: backendda `npm run build -w @crm/api && npm run openapi -w @crm/api`,
 keyin frontendda `npm run gen:api` va `typecheck`.
 
-Yashirin maydonlar (masalan `cost`) sxemada **ixtiyoriy** (`cost?: number`) — sotuvchi rolida
-ular javobda umuman bo‘lmaydi. Kodda `product.cost ?? null` kabi tekshiring.
+Yashirin maydonlar (masalan `cost`) sxemada **ixtiyoriy** (`cost?: number`) — `cost.view` siz rolda
+ular javobda umuman bo‘lmaydi ([6.6](#hidden)). Kodda `product.cost ?? null` kabi tekshiring.
 
 ### 3.4 Umumiy formulalar — `@crm/shared`
 
@@ -244,7 +244,7 @@ Shuning uchun frontend `packages/shared/src/*` dagi funksiyalardan foydalansin:
 | `units.ts` | `unitOptions`, `hasAltUnit`, `toBaseQty`, `fromBaseQty`, `priceForUnit` |
 | `finance.ts` | `evaluateCredit`, `dueDateFor`, `isRevenueSale`, ... |
 | `loyalty.ts` | `bonusEarned` |
-| `permissions.ts` | `hasPermission(role, resource, action)` |
+| `permissions.ts` | `PERMISSIONS`, `PERMISSION_CATALOG`, `normalizePermissions` (rol oynasidagi bog‘liqliklar), `hasPermission(permissions, resource, action)` — rol emas, ruxsatlar to‘plami ([6](#roles)) |
 | `plans.ts` | `PLANS`, `planLimits`, `PLAN_MONTHLY_PRICE` |
 | `csv.ts` | `csvLine`, `CSV_BOM` (formula in’yeksiyasidan himoya bilan) |
 | `recurring.ts`, `reorder.ts`, `warehouse.ts`, `cost.ts` | shablon muddati, buyurtma taklifi, ombor, o‘rtacha tannarx |
@@ -373,7 +373,7 @@ ustiga yozmasligi uchun:
 2. `PATCH` da `If-Match: <o‘sha updatedAt>` sarlavhasini yuboring (aynan kelgan ISO satr;
    qo‘shtirnoq ixtiyoriy).
 3. Shu orada boshqa birov o‘zgartirgan bo‘lsa — **409 `VERSION_CONFLICT`**, javobda `current`
-   (serverdagi joriy yozuv, rolga qarab tozalangan). UI: «Yozuv boshqa foydalanuvchi tomonidan
+   (serverdagi joriy yozuv, rol ruxsatiga qarab tozalangan). UI: «Yozuv boshqa foydalanuvchi tomonidan
    o‘zgartirilgan» + yangi qiymatlarni ko‘rsatib, qayta tahrirlash yoki ustiga yozishni taklif qiling.
 4. Muvaffaqiyatli javobdagi yangi `updatedAt` — keyingi tahrir uchun.
 
@@ -442,15 +442,17 @@ Qoidalar:
 | Saqlash | Faqat XOTIRADA (localStorage’ga yozilmaydi) | Brauzer o‘zi |
 | Yuborish | `Authorization: Bearer …` | Avtomatik (`credentials: 'include'`), faqat `/api/v1/auth/*` ga |
 
-Access token — RS256 JWT: `sub` (user id), `tid` (do‘kon), `role`, `eid` (xodim id), `jti`.
-Frontend uni dekodlashi shart emas — foydalanuvchi ma’lumoti login/refresh javobidagi `user` da:
+Access token — RS256 JWT: `sub` (user id), `tid` (do‘kon), `eid` (xodim id), `jti`. Rol tokenda YO‘Q —
+server uni har so‘rovda bazadan o‘qiydi ([6.5](#access-changed)). Frontend tokenni dekodlashi shart emas —
+foydalanuvchi ma’lumoti login/refresh javobidagi `user` da:
 
 ```json
 {
   "accessToken": "eyJ…",
   "expiresIn": 900,
   "user": {
-    "id": "…", "name": "Bobur Toshmatov", "email": "admin@crm.uz", "role": "admin",
+    "id": "…", "name": "Bobur Toshmatov", "email": "admin@crm.uz",
+    "role": "admin", "roleId": "…", "roleName": "Administrator", "permissions": ["sales.view", "sales.create", "…"],
     "position": "Direktor", "employeeId": "…", "tenant": { "id": "…", "name": "Qurilish Mollari (demo)", "status": "active" }
   }
 }
@@ -513,8 +515,9 @@ Refresh xatolari — barchasida xotirani tozalab login sahifasiga («Sessiya tug
 | Parolni o‘zgartirish | `POST /auth/change-password` `{ currentPassword, newPassword }` | Barcha sessiyalar (shu qurilma ham) yopiladi → login sahifasi |
 | Admin parolni tiklasa / hisobni o‘chirsa | `PATCH /users/:id` (`password` yoki `isActive:false`) | O‘sha foydalanuvchining barcha sessiyalari yopiladi |
 
-Access token bekor qilinmaydi — muddati tugaguncha (≤ 15 daq) ishlaydi. Shuning uchun rol
-o‘zgarishi foydalanuvchiga ≤ 15 daqiqada yetib boradi.
+Access token bekor qilinmaydi, lekin huquq tokenda emas: rol o‘zgarishi va hisobni faolsizlantirish/o‘chirish
+foydalanuvchining KEYINGI so‘rovidanoq kuchga kiradi (faolsiz hisob — 401). Xodimni ishdan bo‘shatish esa
+login/refresh’ni yopadi — ochiq sessiya access token muddati (≤ 15 daq) tugaguncha ishlaydi.
 
 Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FAILED`).
 
@@ -522,71 +525,240 @@ Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FA
 
 <a id="roles"></a>
 
-## 6. Rollar, huquqlar va yashirin maydonlar
+## 6. Rollar, ruxsatlar va yashirin maydonlar
 
-### 6.1 Huquqlar matritsasi
+<a id="roles-model"></a>
 
-Manba — `packages/shared/src/permissions.ts` (frontend ham shuni ishlatsin: menyu, tugmalar,
-yo‘llar). `admin` — hammasi. ✔ = view + create + edit + delete; `V` — faqat ko‘rish;
-`VCE` — o‘chirishsiz.
+### 6.1 Qanday ishlaydi
 
-| Resurs → | products | sales | customers | suppliers | employees | users | settings | expenses | finance | deliveries | quotes |
-|---|---|---|---|---|---|---|---|---|---|---|---|
-| **admin** | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ | ✔ |
-| **manager** | ✔ | ✔ | ✔ | ✔ | VCE | — | ✔ | ✔ | ✔ | ✔ | ✔ |
-| **sotuvchi** | V | VCE | ✔ | V | — | — | — | — | VCE | VCE | VCE |
-| **omborchi** | ✔ | V | V | ✔ | — | — | — | — | — | V | — |
+- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (59 ta, 21 bo‘lim) —
+  [6.2](#permissions), kodda — `packages/shared/src/permissions.ts` (`PERMISSIONS`, `PERMISSION_CATALOG`),
+  API’da — `GET /roles/catalog`.
+- **Rol** — ruxsatlar to‘plami. Ruxsat **ROLGA** beriladi, foydalanuvchiga emas: bitta foydalanuvchi —
+  bitta rol, alohida foydalanuvchiga qo‘shimcha ruxsat yo‘q. Kerak bo‘lsa yangi rol yaratiladi
+  («Katta kassir», «Haydovchi»).
+- **Har do‘konda 4 ta tizim roli** (`key`: `admin`, `manager`, `sotuvchi`, `omborchi`) — o‘chirilmaydi.
+  Ularning sukut ruxsatlari avvalgi qat’iy matritsa bilan **aynan bir xil** (mavjud do‘konlarda hech
+  kimning huquqi o‘zgarmadi). Administrator ularning ruxsatlarini o‘zgartira oladi (`admin` dan tashqari).
+- **Do‘kon rollari** — administrator yaratadi (`key: null`), nomi va ruxsatlari erkin.
+- **`admin` roli** — doim katalogdagi HAMMA ruxsat (keyin qo‘shiladigan yangilari ham), o‘zgarmaydi.
+  Bundan tashqari faqat administrator qila oladigan amallar bor ([6.3](#admin-only)).
+- **Server huquqni har so‘rovda bazadan o‘qiydi** (keshlangan), tokendan emas: rol tahriri, foydalanuvchiga
+  boshqa rol berish, hisobni faolsizlantirish — **keyingi so‘rovdanoq** kuchga kiradi ([6.5](#access-changed)).
+- **Frontend huquqni `user.permissions` dan oladi** (login, refresh, `GET /auth/me` javobida): menyu, sahifa
+  himoyasi, tugmalar — hammasi SHU ro‘yxat bo‘yicha. Rol nomiga (`role === 'sotuvchi'`) qarab qaror
+  qilmang — do‘kon rolida `role` `null`, tizim rolining ruxsatlari esa o‘zgargan bo‘lishi mumkin.
+  `role === 'admin'` tekshiruvi faqat [6.3](#admin-only) dagi amallar uchun.
 
-Resurslar ma’nosi: `finance` — kassa, smena, qarzlar, hisobotlar, ta’minotchiga to‘lov;
-`products` — katalog va ombor amallari; `suppliers` — ta’minotchilar va kirim buyurtmalari;
-`customers` — mijozlar va SMS; `users` — kirish hisoblari va audit jurnali.
+```jsonc
+"user": {
+  "id": "…", "name": "Otabek", "email": "kassa@dokon.uz", "position": "Kassir", "employeeId": "…",
+  "role": null,                       // tizim roli kaliti yoki null (do‘kon roli)
+  "roleId": "0199…",                  // rol id (GET /roles)
+  "roleName": "Katta kassir",         // ko‘rsatish uchun (tizim rolida — key bo‘yicha tarjima qiling)
+  "permissions": ["sales.view", "sales.create", "sales.return", "products.view", "customers.view", "customers.create"],
+  "tenant": { "id": "…", "name": "Qurilish Mollari", "status": "active" }
+}
+```
 
-Har endpointning aniq huquqi — [endpoints.md](endpoints.md) da («Huquq» qatori, qaysi rollarga
-ochiqligi bilan). Huquq yetmasa — **403 `PERMISSION_DENIED`**. UI huquqi yo‘q tugmani umuman
-ko‘rsatmasin, lekin server baribir tekshiradi.
+**Server ruxsatlarni normallashtiradi** (rol saqlanganda; javobda — saqlangan to‘liq ro‘yxat):
 
-**Faqat administrator** (servisda tekshiriladi): `GET/POST /tenants/current*`, `/billing/invoices`,
-`/backup/export`, `/migration/*`, shuningdek `users:*` (foydalanuvchilar, audit).
+| Qoida | Misol |
+|-------|-------|
+| Bo‘limning istalgan amali — uning `view` ini qo‘shadi | `sales.return` → + `sales.view` |
+| `sales.create`, `quotes.create`, `quotes.edit`, `stock.view` → `products.view` (kassa, smeta va ombor katalogsiz ishlamaydi) | `stock.operate` → + `stock.view`, `products.view` |
+| `purchases.view` → `suppliers.view`, `products.view` | `purchases.pay` → + `purchases.view`, `suppliers.view`, `products.view` |
+| `messages.view` → `customers.view` (auditoriya va bot holati mijozlar bo‘limida) | `messages.send` → + `messages.view`, `customers.view` |
+| `profit.view` → `cost.view` (foydadan tannarx tiklanadi) | — |
+| Takrorlar olib tashlanadi, tartib — katalog tartibi | — |
 
-**Muhim nozikliklar:**
+Rol oynasida ham shunday qiling (katakcha belgilansa — bog‘liqlari ham belgilanadi; `view` olib tashlansa —
+o‘sha bo‘limning qolgan amallari ham), shunda foydalanuvchi saqlangandan keyin «o‘zi qo‘shilgan» ruxsatni
+ko‘rib hayron bo‘lmaydi.
 
-- `GET /settings` — hamma rol o‘qiydi (kassaga QQS va chegirma chegarasi kerak); o‘zgartirish —
-  `settings:edit`.
-- `GET /dashboard`, `/reports/pnl`, `/analytics` — `finance:view`: omborchida yo‘q → omborchining
-  bosh sahifasi boshqa bo‘lsin (masalan katalog/ombor).
-- `GET /employees` — faqat admin/manager. Sotuvchi yetkazish yaratishi mumkin, lekin haydovchi
-  tanlash ro‘yxatini ololmaydi → unga haydovchi maydonini ko‘rsatmang (keyin manager biriktiradi).
-- Kirim buyurtmasi yaratish/qabul — `suppliers` (omborchi ham), to‘lov — `finance:create`
-  (omborchida yo‘q). Sotuvchida ham `finance:create` bor, lekin u xarid summalarini ko‘rmaydi
-  ([6.2](#hidden)) — to‘lov tugmasini unga ko‘rsatmang.
-- Sotuvchi `suppliers:view` bilan ta’minotchilar va kirim buyurtmalarini KO‘RADI (kim, nima, qachon
-  keladi), lekin pul maydonlarisiz — «Ta’minotchilar»/«Xaridlar» sahifasida pul ustunlari va kartalarini
-  `field in obj` bilan yashiring.
-- Yetkazish holati — `deliveries:view` bilan chaqiriladi: `edit` huquqisiz foydalanuvchi (haydovchi)
-  faqat O‘ZIGA biriktirilganini o‘zgartiradi.
-- Fayl huquqi fayl turiga bog‘liq; eksport huquqi ro‘yxatga bog‘liq (endpoints.md’da).
+<a id="permissions"></a>
 
-### <a id="hidden"></a>6.2 Yashirin maydonlar (rolga qarab)
+### 6.2 Ruxsatlar katalogi
 
-Server bu maydonlarni javobdan **butunlay olib tashlaydi** (`null` emas — kalit yo‘q). Barcha
-javoblarga, ichma-ich obyektlarga, 409 dagi `current` ga va eksport ustunlariga qo‘llanadi.
+M — `manager`, S — `sotuvchi`, O — `omborchi` (sukut; `admin` — hammasi). Ruxsat yetmasa —
+**403 `PERMISSION_DENIED`** (`detail`: «Rolingizda «sales.cancel» ruxsati yo‘q»). Nomlar — `GET /roles/catalog`
+dagi `label` (o‘zbekcha; uch tilga tarjimani frontend i18n’ida `permissions.<kalit>` sifatida qo‘shing,
+yo‘q bo‘lsa `label` ni ko‘rsating).
 
-| Rol | Yashirin maydonlar |
-|-----|--------------------|
-| sotuvchi | `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `wholesalePrice`\*, `salary`, `grossProfit`, `netProfit`, `profit`, `cogs`, `margin`, `payables` |
-| omborchi | `salary`, `grossProfit`, `netProfit`, `profit`, `cogs`, `margin` |
+| Ruxsat | Nima beradi | Endpointlar / maydonlar | M | S | O |
+|--------|-------------|-------------------------|:-:|:-:|:-:|
+| **Savdo** | | | | | |
+| `sales.view` | Sotuvlar: Sotuvlar tarixi va cheklar | `GET /sales`, `GET /sales/:id`, `GET /sales/:id/receipt`, `POST /sales/:id/receipt/telegram` | ✔ | ✔ | ✔ |
+| `sales.create` | Sotuvlar: Sotish (kassa) | `POST /quotes/:id/convert`, `POST /sales` | ✔ | ✔ |  |
+| `sales.return` | Sotuvlar: Qaytarish | `POST /sales/:id/return` | ✔ | ✔ |  |
+| `sales.cancel` | Sotuvlar: Chekni bekor qilish | `POST /sales/:id/cancel` | ✔ |  |  |
+| `quotes.view` | Takliflar (smeta): Ko‘rish | `GET /quotes`, `GET /quotes/summary`, `GET /quotes/:id` | ✔ | ✔ |  |
+| `quotes.create` | Takliflar (smeta): Yaratish | `POST /quotes` | ✔ | ✔ |  |
+| `quotes.edit` | Takliflar (smeta): Tahrirlash | `PATCH /quotes/:id` | ✔ | ✔ |  |
+| `quotes.delete` | Takliflar (smeta): O‘chirish | `DELETE /quotes/:id`, `POST /quotes/:id/restore` | ✔ |  |  |
+| `deliveries.view` | Yetkazib berish: Ko‘rish (haydovchi — o‘ziga biriktirilganlar holati) | `GET /deliveries`, `GET /deliveries/summary`, `GET /deliveries/my`, `GET /deliveries/route`, `GET /deliveries/:id`, `POST /deliveries/:id/status` (faqat o‘ziga biriktirilgan) | ✔ | ✔ | ✔ |
+| `deliveries.create` | Yetkazib berish: Yaratish | `POST /deliveries` | ✔ | ✔ |  |
+| `deliveries.edit` | Yetkazib berish: Tahrirlash va istalganining holati | `PATCH /deliveries/:id` (+ istalgan yetkazish holati) | ✔ | ✔ |  |
+| `deliveries.delete` | Yetkazib berish: O‘chirish | `DELETE /deliveries/:id`, `POST /deliveries/:id/restore` | ✔ |  |  |
+| **Ombor** | | | | | |
+| `products.view` | Mahsulotlar: Katalog, qoldiq va omborlar ro‘yxati | `GET /categories`, `GET /categories/:id`, `GET /products/summary`, `GET /products`, `GET /products/:id/stats`, `GET /products/:id`, `GET /warehouses`, `GET /warehouses/stock`, `GET /warehouses/:id` | ✔ | ✔ | ✔ |
+| `products.create` | Mahsulotlar: Qo‘shish va import | `POST /categories`, `POST /products`, `POST /products/import` | ✔ |  | ✔ |
+| `products.edit` | Mahsulotlar: Tahrirlash va narxlar | `PATCH /categories/:id`, `POST /products/bulk-price`, `PATCH /products/:id` | ✔ |  | ✔ |
+| `products.delete` | Mahsulotlar: Arxivlash | `DELETE /categories/:id`, `POST /categories/:id/restore`, `DELETE /products/:id`, `POST /products/:id/restore` | ✔ |  | ✔ |
+| `stock.view` | Ombor: Harakatlar jurnali va buyurtma tavsiyasi | `GET /stock/movements`, `GET /stock/reorder-suggestions` | ✔ | ✔ | ✔ |
+| `stock.operate` | Ombor: Kirim, hisobdan chiqarish, inventarizatsiya, ko‘chirish | `POST /stock/intake`, `POST /stock/writeoff`, `POST /stock/adjust`, `POST /stock/transfer` | ✔ |  | ✔ |
+| `stock.manage` | Ombor: Ombor qo‘shish, tahrirlash, arxivlash | `POST /warehouses`, `PATCH /warehouses/:id`, `POST /warehouses/:id/archive`, `POST /warehouses/:id/restore` | ✔ |  | ✔ |
+| `purchases.view` | Xaridlar (kirim buyurtmalari): Ko‘rish | `GET /purchase-orders`, `GET /purchase-orders/summary`, `GET /purchase-orders/:id` | ✔ | ✔ | ✔ |
+| `purchases.create` | Xaridlar (kirim buyurtmalari): Yaratish | `POST /purchase-orders` | ✔ |  | ✔ |
+| `purchases.edit` | Xaridlar (kirim buyurtmalari): Tahrirlash va bekor qilish | `PATCH /purchase-orders/:id`, `POST /purchase-orders/:id/cancel` | ✔ |  | ✔ |
+| `purchases.receive` | Xaridlar (kirim buyurtmalari): Qabul qilish (omborga kirim) | `POST /purchase-orders/:id/receive` | ✔ |  | ✔ |
+| `purchases.pay` | Xaridlar (kirim buyurtmalari): Ta’minotchiga to‘lash | `POST /purchase-orders/:id/pay` | ✔ | ✔ |  |
+| `purchases.delete` | Xaridlar (kirim buyurtmalari): O‘chirish | `DELETE /purchase-orders/:id`, `POST /purchase-orders/:id/restore` | ✔ |  | ✔ |
+| `suppliers.view` | Ta’minotchilar: Ko‘rish | `GET /suppliers`, `GET /suppliers/summary`, `GET /suppliers/:id` | ✔ | ✔ | ✔ |
+| `suppliers.create` | Ta’minotchilar: Qo‘shish | `POST /suppliers` | ✔ |  | ✔ |
+| `suppliers.edit` | Ta’minotchilar: Tahrirlash | `PATCH /suppliers/:id` | ✔ |  | ✔ |
+| `suppliers.delete` | Ta’minotchilar: O‘chirish | `DELETE /suppliers/:id`, `POST /suppliers/:id/restore` | ✔ |  | ✔ |
+| **Moliya** | | | | | |
+| `cash.view` | Kassa: Smenalar va kassa harakatlari | `GET /cash/shifts/current`, `GET /cash/shifts`, `GET /cash/shifts/:id/report`, `GET /cash/movements` | ✔ | ✔ |  |
+| `cash.operate` | Kassa: Smena ochish/yopish, naqd kirim-chiqim | `POST /cash/shifts/open`, `POST /cash/shifts/close`, `POST /cash/movements` | ✔ | ✔ |  |
+| `debts.view` | Qarzlar: Mijozlar qarzi va to‘lovlari | `GET /debts`, `GET /debts/payments` | ✔ | ✔ |  |
+| `debts.collect` | Qarzlar: Qarz to‘lovini qabul qilish | `POST /debts/payments` | ✔ | ✔ |  |
+| `expenses.view` | Xarajatlar: Ko‘rish | `GET /expenses`, `GET /expenses/summary`, `GET /expenses/:id`, `GET /expense-templates` | ✔ |  |  |
+| `expenses.create` | Xarajatlar: Qo‘shish | `POST /expenses`, `POST /expense-templates`, `POST /expense-templates/run-due` | ✔ |  |  |
+| `expenses.edit` | Xarajatlar: Tahrirlash | `PATCH /expenses/:id`, `PATCH /expense-templates/:id` | ✔ |  |  |
+| `expenses.delete` | Xarajatlar: O‘chirish | `DELETE /expenses/:id`, `POST /expenses/:id/restore`, `DELETE /expense-templates/:id` | ✔ |  |  |
+| `reports.view` | Hisobotlar: Boshqaruv paneli, hisobotlar va tahlil | `GET /dashboard`, `GET /reports/pnl`, `GET /analytics` | ✔ | ✔ |  |
+| **Mijozlar** | | | | | |
+| `customers.view` | Mijozlar: Ko‘rish | `GET /clients`, `GET /clients/:id/stats`, `GET /clients/:id`, `GET /telegram` | ✔ | ✔ | ✔ |
+| `customers.create` | Mijozlar: Qo‘shish | `POST /clients` | ✔ | ✔ |  |
+| `customers.edit` | Mijozlar: Tahrirlash va Telegram’ga ulash | `PATCH /clients/:id`, `POST /clients/:id/telegram-link` | ✔ | ✔ |  |
+| `customers.delete` | Mijozlar: O‘chirish | `DELETE /clients/:id`, `POST /clients/:id/restore` | ✔ | ✔ |  |
+| `messages.view` | Xabarlar (SMS, Telegram): Yuborilganlar jurnali | `GET /messages` | ✔ | ✔ | ✔ |
+| `messages.send` | Xabarlar (SMS, Telegram): Yuborish | `POST /messages/preview`, `POST /messages` | ✔ | ✔ |  |
+| **Boshqaruv** | | | | | |
+| `employees.view` | Xodimlar: Ko‘rish | `GET /employees`, `GET /employees/:id` | ✔ |  |  |
+| `employees.create` | Xodimlar: Qo‘shish | `POST /employees` | ✔ |  |  |
+| `employees.edit` | Xodimlar: Tahrirlash | `PATCH /employees/:id` | ✔ |  |  |
+| `employees.delete` | Xodimlar: O‘chirish | `DELETE /employees/:id`, `POST /employees/:id/restore` |  |  |  |
+| `users.view` | Foydalanuvchilar (kirish hisoblari): Ko‘rish va rollar ro‘yxati | `GET /roles`, `GET /roles/catalog`, `GET /roles/:id`, `GET /users`, `GET /users/:id` |  |  |  |
+| `users.create` | Foydalanuvchilar (kirish hisoblari): Qo‘shish | `POST /users` |  |  |  |
+| `users.edit` | Foydalanuvchilar (kirish hisoblari): Tahrirlash, rol berish, parolni tiklash | `PATCH /users/:id` |  |  |  |
+| `users.delete` | Foydalanuvchilar (kirish hisoblari): O‘chirish | `DELETE /users/:id`, `POST /users/:id/restore` |  |  |  |
+| `audit.view` | Amallar jurnali: Ko‘rish | `GET /audit` |  |  |  |
+| `settings.view` | Sozlamalar: Fayl saqlash hajmi | `GET /files/usage` | ✔ |  |  |
+| `settings.edit` | Sozlamalar: O‘zgartirish (brend, chek, QQS …) | `PATCH /settings` | ✔ |  |  |
+| **Maxfiy ma’lumotlar** | | | | | |
+| `cost.view` | Tannarx: Tannarx, ombor qiymati, xarid summalari, ta’minotchi qarzi | maydonlar: `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `payables` + xarid summalari ([6.6](#hidden)) | ✔ |  | ✔ |
+| `wholesale.view` | Ulgurji narx: Ulgurji narxni ko‘rish va shu narxda sotish | maydon `wholesalePrice`; `priceTier: "wholesale"` bilan sotish ([6.6](#hidden)) | ✔ |  | ✔ |
+| `profit.view` | Foyda: Yalpi va sof foyda, marja (tannarxsiz bo‘lmaydi) | maydonlar: `grossProfit`, `netProfit`, `profit`, `cogs`, `margin` | ✔ |  |  |
+| `salary.view` | Maosh: Xodimlar maoshi | maydon `salary` (xodimlar) | ✔ |  |  |
 
-\* **Ulgurji narx sotuvchiga do‘kon sozlamasi bilan ochiladi.** `wholesaleEnabled` va
-`sellerWholesaleEnabled` ikkalasi `true` bo‘lsa sotuvchi `wholesalePrice` ni ko‘radi (katalog, eksport)
-va `priceTier: "wholesale"` bilan sota oladi. Aks holda narx javobda yo‘q, `priceTier: "wholesale"`
-yuborsa — 403 `PERMISSION_DENIED` ([10.1](#pos)). Sozlama o‘zgargach sotuvchi katalogni qayta so‘rasin
-(kesh ≤ 1 daqiqa).
+`GET /settings` — ruxsatsiz, hamma rol o‘qiydi (kassaga QQS va chegirma chegarasi kerak). `GET /auth/me`,
+`/auth/*`, fayl va eksport endpointlari — o‘z qoidasi bilan (fayl turiga / ro‘yxatga qarab,
+[endpoints.md](endpoints.md)).
 
-**Xarid summalari — sotuvchida yo‘q.** Bitta qatorli kirim buyurtmasida summa ÷ miqdor = tannarx.
-Shuning uchun sotuvchi ta’minotchilar va buyurtmalarni ko‘radi, lekin pul maydonlarisiz. Bu kalitlar
+<a id="admin-only"></a>
+
+### 6.3 Faqat administrator
+
+Bu amallar katalogda YO‘Q — hech qaysi rolga berib bo‘lmaydi, faqat `role === 'admin'` (boshqasiga — 403):
+
+| Amal | Endpointlar | Nega rolga berilmaydi |
+|------|-------------|------------------------|
+| Rollarni yaratish, tahrirlash, o‘chirish | `POST /roles`, `PATCH /roles/:id`, `DELETE /roles/:id` | Egasi o‘ziga istalgan ruxsatni qo‘shib, administratorga aylanardi |
+| Tarif, to‘lov, do‘kon holati, do‘konni o‘chirish | `GET /tenants/current`, `POST /tenants/current/delete`, `/restore`, `GET/POST /billing/invoices` | Pul va do‘konning mavjudligi |
+| Zaxira | `GET /backup/export` | Butun do‘kon ma’lumoti bitta faylda |
+| Migratsiya | `POST /migration/validate`, `/import` | Ommaviy yozuv |
+
+Rollarni KO‘RISH (`GET /roles`, `/roles/catalog`) — `users.view` bilan (hisobga rol tanlash uchun).
+
+<a id="roles-api"></a>
+
+### 6.4 Rollarni boshqarish (API)
+
+| Amal | So‘rov | Javob va xatolar |
+|------|--------|------------------|
+| Ro‘yxat | `GET /roles` | `RoleDto[]` — sahifasiz, avval tizim rollari (`admin`, `manager`, `sotuvchi`, `omborchi`), keyin nom bo‘yicha |
+| Katalog | `GET /roles/catalog` | `{ groups: [{ key, label }], resources: [{ key, group, label, actions: [{ key, permission, label }] }] }` — statik, ilova versiyasi bilan keshlang |
+| Bitta rol | `GET /roles/:id` | `RoleDto`; yo‘q yoki boshqa do‘konniki — 404 |
+| Yaratish | `POST /roles { name, permissions }` | 201 `RoleDto`; nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`); noma’lum ruxsat — 400 (`field: permissions`); administrator emas — 403 |
+| Tahrirlash | `PATCH /roles/:id { name?, permissions? }` + `If-Match: <updatedAt>` | 200 `RoleDto`; `permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi); `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — 422 `ROLE_PROTECTED` (`field: name`); eskirgan versiya — 409 `VERSION_CONFLICT` (`current` bilan) |
+| O‘chirish | `DELETE /roles/:id` | 204; tizim roli — 422 `ROLE_PROTECTED`; rolda hisob bor — 409 `ROLE_IN_USE` (`errors[0].meta.users` — nechta) |
+| O‘chirish (hisoblarni ko‘chirib) | `DELETE /roles/:id?replaceWith=<roleId>` | 204 — rolning BARCHA hisoblari (o‘chirilganlari ham) shu rolga o‘tadi; `replaceWith` yo‘q/boshqa do‘konniki/o‘zi — 422 `REFERENCE_NOT_FOUND` (`field: replaceWith`) |
+
+`RoleDto`: `{ id, name, key, permissions, usersCount, updatedAt }` — `key`: tizim roli kaliti yoki `null`;
+`permissions`: `admin` da — katalogdagi hammasi; `usersCount` — o‘chirilmagan hisoblar.
+
+| | `admin` | `manager`, `sotuvchi`, `omborchi` | Do‘kon roli |
+|---|---|---|---|
+| Nomi | o‘zgarmaydi | o‘zgarmaydi (UI `key` bo‘yicha tarjima qiladi) | o‘zgaradi (1–50 belgi, do‘konda noyob) |
+| Ruxsatlari | o‘zgarmaydi — doim hammasi | o‘zgaradi | o‘zgaradi |
+| O‘chirish | yo‘q | yo‘q | ha |
+
+**Foydalanuvchiga rol berish** — `roleId`:
+
+- `POST /users { employeeId, email, password, roleId }`, `PATCH /users/:id { roleId }`, filtr `GET /users?roleId=`.
+- `UserDto`: `roleId`, `roleName`, `role` (tizim kaliti yoki `null`).
+- Rol topilmasa yoki boshqa do‘konniki — 422 `REFERENCE_NOT_FOUND` (`field: roleId`). O‘z rolini o‘zgartirish —
+  422 `SELF_ROLE_CHANGE`; oxirgi administratorni boshqa rolga o‘tkazish — 422 `LAST_ADMIN`.
+- **Eskirgan (o‘tish davri uchun qoldirilgan):** `role` kaliti (`"sotuvchi"`) bilan `POST/PATCH /users` va
+  `GET /users?role=` hali ishlaydi — shu kalitli tizim roli beriladi. Yangi kodda faqat `roleId`; frontend
+  o‘tgach `role` kiritmasi olib tashlanadi (javobdagi `role` maydoni qoladi).
+
+**Huquq oshirishdan himoya.** Administrator `users.*` ruxsatini boshqa rolga bersa (masalan menejerga), u
+foydalanuvchilarni boshqaradi, lekin **o‘zidan kengroq** rol bilan ishlay olmaydi: `admin` rolini yoki o‘zida
+yo‘q ruxsati bor rolni bera olmaydi, shunday roldagi hisobni tahrirlay/o‘chira/tiklay olmaydi (parolini ham
+tiklay olmaydi) — 403 `PERMISSION_DENIED`. UI’da: administrator bo‘lmagan foydalanuvchiga rol tanlovida faqat
+`role.permissions ⊆ user.permissions` bo‘lgan (va `admin` bo‘lmagan) rollarni ko‘rsating, kengroq roldagi
+hisoblarda tahrir tugmalarini yashiring.
+
+Rol amallari jurnalga tushadi (`GET /audit`): `role.create`, `role.update` (`diff`: `name: { from, to }`,
+`permissions: { added, removed }`), `role.delete` (`movedUsers`, `replaceWith`).
+
+<a id="access-changed"></a>
+
+### 6.5 Huquq qachon kuchga kiradi
+
+| Nima o‘zgardi | Serverda | Frontendda |
+|---------------|----------|------------|
+| Rol ruxsatlari (`PATCH /roles/:id`) yoki rol o‘chirildi | Shu rol egalarining KEYINGI so‘rovidanoq (token o‘sha) | `access.changed` hodisasi → `GET /auth/me` → store’dagi `user` (permissions) yangilanadi → menyu qayta chiziladi; joriy sahifa endi ruxsatsiz bo‘lsa — bosh sahifaga ([6.7](#permission-ui)) |
+| Foydalanuvchiga boshqa rol (`PATCH /users/:id { roleId }`) | Uning keyingi so‘rovidanoq | xuddi shu (`access.changed`) |
+| Hisob faolsizlantirildi yoki o‘chirildi | Uning keyingi so‘rovi — 401 `AUTH_INVALID_CREDENTIALS`; sessiyalari yopilgan → refresh ham 401 | Odatiy 401 oqimi: refresh → 401 → login sahifasi |
+| Xodim ishdan bo‘shatildi (`status: fired`) | Login/refresh — 423 `AUTH_ACCOUNT_LOCKED` | Access token muddati (≤ 15 daq) tugagach login sahifasi |
+
+- `access.changed` yuki bo‘sh (`{}`) va do‘konning barcha ulanishlariga keladi — kimniki o‘zgarganini
+  tekshirmang, shunchaki `GET /auth/me` ni qayta so‘rang (arzon so‘rov, kamdan-kam hodisa).
+- **Hodisada `POST /auth/refresh` CHAQIRMANG** — hamma tab bir vaqtda refresh qilsa, rotatsiya
+  `AUTH_TOKEN_REUSE` ga olib keladi ([5.3](#auth-refresh)). Token yangilash shart emas: huquq tokenda yo‘q.
+- Kutilmagan 403 `PERMISSION_DENIED` (UI ruxsat bor deb hisoblagan) — ruxsat shu orada o‘zgargan:
+  «Ruxsat yo‘q» toast + `GET /auth/me` ni qayta so‘rang.
+- Bir nechta server nusxasida boshqa nusxa o‘zgarishni ≤ 30 soniyada ko‘radi (hozir production — bitta nusxa).
+
+<a id="hidden"></a>
+
+### 6.6 Yashirin maydonlar (ruxsatga qarab)
+
+Server bu maydonlarni javobdan **butunlay olib tashlaydi** (`null` emas — kalit yo‘q). Barcha javoblarga,
+ichma-ich obyektlarga, 409 dagi `current` ga va eksport ustunlariga qo‘llanadi.
+
+| Ruxsat yo‘q bo‘lsa | Yashirin maydonlar | Sukut: kimda YO‘Q |
+|--------------------|--------------------|-------------------|
+| `cost.view` | `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `payables` + xarid summalari (pastda) | sotuvchi |
+| `wholesale.view` | `wholesalePrice`\* | sotuvchi |
+| `profit.view` | `grossProfit`, `netProfit`, `profit`, `cogs`, `margin` | sotuvchi, omborchi |
+| `salary.view` | `salary` | sotuvchi, omborchi |
+
+\* **Ulgurji narx do‘kon sozlamasi bilan ham ochiladi.** `wholesaleEnabled` va `sellerWholesaleEnabled`
+ikkalasi `true` bo‘lsa `wholesale.view` ruxsati bo‘lmagan rol ham `wholesalePrice` ni ko‘radi (katalog, eksport)
+va `priceTier: "wholesale"` bilan sota oladi. Aks holda narx javobda yo‘q, `priceTier: "wholesale"` yuborsa —
+403 `PERMISSION_DENIED` ([10.1](#pos)). Sozlama o‘zgargach katalogni qayta so‘rang (kesh ≤ 1 daqiqa).
+Shart frontendda: `can('wholesale.view') || (settings.wholesaleEnabled && settings.sellerWholesaleEnabled)`.
+
+**Xarid summalari — `cost.view` siz rolda yo‘q.** Bitta qatorli kirim buyurtmasida summa ÷ miqdor = tannarx.
+Shuning uchun bunday rol ta’minotchilar va buyurtmalarni ko‘radi, lekin pul maydonlarisiz. Bu kalitlar
 (`total`, `paid`, `debt` …) chek va mijoz qarzida ham bor — ular FAQAT quyidagi javoblardan olinadi:
 
-| Javob | Sotuvchida yo‘q |
+| Javob | `cost.view` siz rolda yo‘q |
 |-------|-----------------|
 | `GET /purchase-orders`, `/purchase-orders/:id` va buyurtma qaytaradigan amallar | `total`, `receivedValue`, `paid`, `outstanding`; `items[].cost` |
 | `GET /purchase-orders/summary` | `outstanding`, `monthTotal`, `receivedTotal` (faqat `openOrders`) |
@@ -595,8 +767,122 @@ Shuning uchun sotuvchi ta’minotchilar va buyurtmalarni ko‘radi, lekin pul ma
 | `GET /dashboard` | `payables` (ta’minotchilarga qarz) |
 | 422 `PAYMENT_EXCEEDS_DEBT` (`POST /purchase-orders/:id/pay`) | `meta.outstanding` (faqat `meta.requested`) |
 
-Frontend bu ustun/kartalarni `field in obj` tekshiruvi bilan ko‘rsatsin (yo‘q kalitni `0` deb
-ko‘rsatmang); alohida rol shartini yozish shart emas.
+Mavjud yozuvda ustun/kartani `field in obj` tekshiruvi bilan ko‘rsating (yo‘q kalitni `0` deb ko‘rsatmang).
+Yozuv hali YO‘Q paytda (yangi mahsulot formasi, ommaviy amal) — ruxsat bo‘yicha: tannarx maydoni
+`can('cost.view')` bo‘lsa.
+
+<a id="permission-ui"></a>
+
+### 6.7 Sahifa, menyu va tugmalar → ruxsat
+
+Menyu bandi va yo‘l himoyasi (`RequirePermission`) — «Sahifa» ustunidagi ruxsat; sahifa ichidagi tugma
+va bloklar — o‘ng ustundagi. Ruxsat yo‘q tugma umuman ko‘rsatilmaydi (server baribir tekshiradi).
+
+| Sahifa (yo‘l) | Sahifa / menyu | Tugmalar va bloklar |
+|---------------|----------------|---------------------|
+| Boshqaruv paneli (`/`) | `reports.view` (yo‘q bo‘lsa — bosh sahifa boshqa, pastda) | foyda kartalari — `profit.view`; ta’minotchiga qarz — `cost.view` |
+| Kassa — POS (`/pos`) | `sales.create` | smena ochish/yopish — `cash.operate`; mijoz tanlash/qo‘shish — `customers.view` / `customers.create`; ulgurji tugmasi — [6.6](#hidden); yetkazish — `deliveries.create`; «Telegram’ga» chek — `sales.view` |
+| Sotuvlar (`/sales`) | `sales.view` | «Qaytarish» — `sales.return`; «Bekor qilish» — `sales.cancel`; eksport — `sales.view` |
+| Takliflar (`/quotes`) | `quotes.view` | yaratish — `quotes.create`; tahrir/holat — `quotes.edit`; o‘chirish/tiklash — `quotes.delete`; «Sotuvga aylantirish» — `sales.create` |
+| Yetkazish (`/deliveries`) | `deliveries.view` | yaratish — `deliveries.create`; tahrir, haydovchi biriktirish — `deliveries.edit` (+ `employees.view` haydovchi ro‘yxati uchun; yo‘q bo‘lsa maydonni yashiring); holat — `deliveries.edit` (istalgani) yoki faqat o‘ziniki; o‘chirish — `deliveries.delete` |
+| Mahsulotlar (`/products`, `/products/:id`) | `products.view` | qo‘shish, import — `products.create`; tahrir, ommaviy narx — `products.edit`; arxiv/tiklash — `products.delete`; tannarx — `cost.view`; harakatlar tarixi — `stock.view`; audit tarixi — `audit.view`; eksport — `products.view` |
+| Ombor (`/warehouse`) | `stock.view` | kirim, hisobdan chiqarish, inventarizatsiya, ko‘chirish — `stock.operate`; ombor qo‘shish/tahrir/arxiv — `stock.manage`; qiymat — `cost.view`; eksport — `stock.view` |
+| Xaridlar (`/purchases`) | `purchases.view` | yaratish — `purchases.create`; tahrir, bekor — `purchases.edit`; «Qabul qilish» — `purchases.receive`; «To‘lash» — `purchases.pay` (+ summalar `cost.view` siz yo‘q — to‘lov oynasida qarzni ko‘rsatib bo‘lmaydi, shuning uchun `cost.view` siz rolda tugmani yashirish tavsiya etiladi); o‘chirish — `purchases.delete` |
+| Ta’minotchilar (`/suppliers`, `/suppliers/:id`) | `suppliers.view` | qo‘shish — `suppliers.create`; tahrir — `suppliers.edit`; o‘chirish — `suppliers.delete`; qarz va summalar — `cost.view` |
+| Kassa (`/cash`) | `cash.view` | smena ochish/yopish, naqd kirim/chiqim — `cash.operate` |
+| Qarzlar (`/debts`) | `debts.view` | to‘lov qabul qilish — `debts.collect`; eslatma xabar — `messages.send` |
+| Xarajatlar (`/expenses`) | `expenses.view` | qo‘shish, shablon, «Hozir yaratish» — `expenses.create`; tahrir — `expenses.edit`; o‘chirish — `expenses.delete` |
+| Hisobotlar (`/reports`), Analitika (`/analytics`) | `reports.view` | foyda, marja, tannarx — `profit.view` |
+| Mijozlar (`/clients`, `/clients/:id`) | `customers.view` | qo‘shish — `customers.create`; tahrir, «Telegram’ga ulash» — `customers.edit`; o‘chirish — `customers.delete`; xaridlar tarixi — `sales.view`; qarz va to‘lov — `debts.view` / `debts.collect`; xabar — `messages.send` |
+| Xabarlar (`/messages`) | `messages.view` | yuborish (preview ham) — `messages.send` |
+| Xodimlar (`/employees`) | `employees.view` | qo‘shish — `employees.create`; tahrir — `employees.edit`; o‘chirish — `employees.delete`; maosh — `salary.view` |
+| Foydalanuvchilar (`/users`) | `users.view` | qo‘shish — `users.create`; tahrir, rol, parol — `users.edit`; o‘chirish/tiklash — `users.delete`; «Rollar» — pastda |
+| Rollar (`/users/roles` yoki «Foydalanuvchilar» ichida tab) | `users.view` (ko‘rish) | yaratish, tahrir, o‘chirish — faqat `role === 'admin'`; boshqasiga — faqat o‘qish |
+| Audit (`/audit`) | `audit.view` | eksport — `users.view` |
+| Sozlamalar (`/settings`) | `settings.view` | saqlash — `settings.edit`; «Tarif va hisob», zaxira, do‘konni o‘chirish, migratsiya — `role === 'admin'` |
+| Bildirishnomalar | — | kam qolgan tovar — `products.view`; muddati o‘tgan qarz — `debts.view` |
+| Ctrl+K oynasi | — | menyu bandlari — menyudagi shart; mahsulot qidiruvi — `products.view`; mijoz — `customers.view` |
+
+**Bosh sahifa** (`/` ochilganda yoki ruxsatsiz sahifadan qaytarilganda) — birinchi mos:
+`reports.view` → `/`; `sales.create` → `/pos`; `sales.view` → `/sales`; `stock.view` → `/warehouse`;
+`products.view` → `/products`; `customers.view` → `/clients`; `deliveries.view` → `/deliveries/my`
+(haydovchi); hech biri — `/help`.
+
+<a id="roles-migration"></a>
+
+### 6.8 Frontendga o‘tish: qat’iy matritsadan ruxsatlarga
+
+Frontenddagi `src/lib/permissions.ts` (rol → resurs → amal matritsasining nusxasi) endi **ishlatilmaydi** —
+manba `user.permissions`. Qadamlar (fayllar — `crm-qurilish`):
+
+1. **Tiplar:** `npm run gen:api` → `components['schemas']['AuthUserDto']['permissions'][number]` — `Permission` tipi
+   (59 ta kalit birlashmasi). `RoleDto`, `PermissionCatalogDto` ham shu yerda.
+2. **`src/lib/permissions.ts`** — matritsa o‘rniga:
+
+   ```ts
+   import type { components } from '@/api/schema'
+   export type Permission = components['schemas']['AuthUserDto']['permissions'][number]
+   export type PermissionSet = ReadonlySet<Permission>
+   export const toPermissionSet = (user?: { permissions: Permission[] } | null): PermissionSet =>
+     new Set(user?.permissions ?? [])
+   ```
+
+3. **`src/store/useAuth`** — `user` o‘rnatilganda `permissions: PermissionSet` ni ham saqlang (har render’da
+   `new Set` qilinmasin). `GET /auth/me` ning javobi bilan yangilanadi ([6.5](#access-changed)).
+4. **`src/lib/useCan.ts`** — `const can = useCan(); can('sales.return')` (bitta argument — ruxsat kaliti).
+5. **`RequirePermission`** — `permission: Permission` prop; `navItems.ts` da `resource/action` o‘rniga
+   `permission` ([6.7](#permission-ui) jadvali); `homePath.ts` — yuqoridagi tartib.
+6. **`src/lib/hiddenFields.ts`** — rol emas, ruxsat: `hidesCost = !can('cost.view')`, `hidesProfit = !can('profit.view')`,
+   `hidesSalary = !can('salary.view')`, `hidesWholesalePrice = !can('wholesale.view') && !(wholesaleEnabled && sellerWholesaleEnabled)`.
+   Shu bilan `QuoteForm.tsx` (`user?.role !== 'sotuvchi' || …`), `ProductForm.tsx`, `BulkPriceModal.tsx` dagi rol
+   tekshiruvlari ham ruxsatga o‘tadi.
+7. **`role === 'admin'`** faqat [6.3](#admin-only) dagi joylarda qoladi (`AppLayout`, `StatusBanners`, Sozlamalar
+   ichidagi «Tarif va hisob», zaxira, migratsiya, rollarni tahrirlash).
+8. **Rol nomini ko‘rsatish** (`UserMenu`, foydalanuvchilar jadvali): `user.role ? t(\`enum.role.${user.role}\`) : user.roleName`.
+   `MigrationWizard` dagi eski nusxa rollari — tizim kalitlari, o‘zgarmaydi.
+9. **`UserForm`, `OnboardingWizard`** — rol tanlovi `GET /roles` dan (`value: roleId`, nomi — 8-banddagidek), so‘rovda
+   `roleId` yuboriladi (`role` emas). Administrator bo‘lmagan foydalanuvchida — faqat o‘zidan keng bo‘lmagan
+   rollar ([6.4](#roles-api)).
+10. **Realtime** — `access.changed` → `GET /auth/me` qayta; `roles` va `users` kesh kalitlari bekor ([12.2](#flow-query)).
+11. **Yangi sahifa «Rollar»** — pastdagi talablar.
+
+Eski kalit → yangi ruxsat (qidirib almashtirish uchun):
+
+| Eski (`hasPermission(role, resource, action)`) | Yangi |
+|-------|-------|
+| `products:view` | `products.view` (katalog, omborlar ro‘yxati, qoldiq); harakatlar jurnali va buyurtma tavsiyasi — `stock.view` |
+| `products:create/edit/delete` (mahsulot, kategoriya) | `products.create` / `products.edit` / `products.delete` |
+| `products:edit` (kirim, chiqim, inventarizatsiya, ko‘chirish) | `stock.operate` |
+| `products:create/edit/delete` (ombor qo‘shish, tahrir, arxiv) | `stock.manage` |
+| `suppliers:*` (ta’minotchilar) | `suppliers.*` |
+| `suppliers:*` (kirim buyurtmalari) | `purchases.view/create/edit/delete`; qabul — `purchases.receive` |
+| `finance:create` (ta’minotchiga to‘lov) | `purchases.pay` |
+| `finance:view` / `finance:create` (kassa, smena, naqd) | `cash.view` / `cash.operate` |
+| `finance:view` / `finance:create` (qarzlar, qarz to‘lovi) | `debts.view` / `debts.collect` |
+| `finance:view` (dashboard, hisobotlar, analitika) | `reports.view` |
+| `sales:create` (qaytarish) | `sales.return` |
+| `sales:delete` (chekni bekor qilish) | `sales.cancel` |
+| `customers:view` / `customers:create` (xabarlar) | `messages.view` / `messages.send` |
+| `users:view` (audit) | `audit.view` |
+| `role === 'sotuvchi'` / `'omborchi'` (maydonlar) | `cost.view`, `wholesale.view`, `profit.view`, `salary.view` |
+
+**«Rollar» sahifasi — talablar:**
+
+- Ro‘yxat (`GET /roles`): nom (tizim roli — tarjima), turi («Tizim» / «Do‘kon»), foydalanuvchilar soni
+  (`usersCount`), amallar. Administrator bo‘lmaganga — faqat ko‘rish.
+- «Yangi rol» / «Tahrirlash» oynasi: nom maydoni (tizim rolida — o‘chiq), ruxsatlar jadvali `GET /roles/catalog`
+  dan: `groups` tartibida bo‘limlar, har bo‘lim — qator, amallar — katakchalar (`label`/tarjima). Bo‘lim
+  qatorida «hammasi» katakchasi qulay. Bog‘liqliklar [6.1](#roles-model) dagidek avtomatik belgilanadi.
+  `admin` roli — hamma katakcha belgilangan va o‘chiq, «Saqlash» yo‘q.
+- Saqlash — `POST` / `PATCH` (`If-Match: role.updatedAt`); 409 `VERSION_CONFLICT` — «Rolni boshqa administrator
+  o‘zgartirdi» + `current` ni ko‘rsatib qayta tahrirlash. Javobdagi `permissions` ni ko‘rsating.
+- O‘chirish — faqat do‘kon rolida. `usersCount > 0` bo‘lsa oldindan «Foydalanuvchilarni qaysi rolga o‘tkazamiz?»
+  tanlovi (boshqa rollar) → `DELETE …?replaceWith=`. `usersCount` o‘chirilgan hisoblarni sanamaydi — 0 bo‘lsa ham
+  409 `ROLE_IN_USE` kelishi mumkin (o‘chirilgan hisob rolda): xatoda xuddi shu tanlovni ochib qayta yuboring.
+- Hisob formasida rol tanlovi yonida «Rollarni boshqarish» havolasi (administratorga).
+- Qabul mezoni: do‘kon roli yaratilib hisobga berilgach, o‘sha foydalanuvchida menyu va tugmalar FAQAT rol
+  ruxsatlari bo‘yicha ko‘rinadi; rol tahrirlansa ochiq ilovada sahifa yangilanmasdan o‘zgaradi
+  (`access.changed`); hech bir sahifa 403 bilan «bo‘sh» qolmaydi.
 
 ---
 
@@ -648,7 +934,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | 400 `VALIDATION_FAILED` | Forma xatosi — `detail`/`errors` ni ko‘rsating; qayta urinmang |
 | 401 | Auth yo‘lidan tashqari — refresh + bir marta qayta; auth yo‘lida — login xatosi |
 | 402 `PLAN_LIMIT_EXCEEDED` | «Tarif chegarasi: N ta» + «Tarifni oshirish» havolasi (`meta.limit`, `meta.used`) |
-| 403 `PERMISSION_DENIED` | «Ruxsat yo‘q»; menyu/tugma bu holatga yetkazmasligi kerak |
+| 403 `PERMISSION_DENIED` | «Ruxsat yo‘q»; menyu/tugma bu holatga yetkazmasligi kerak — kelsa, ruxsat shu orada o‘zgargan: `GET /auth/me` ni qayta so‘rang ([6.5](#access-changed)) |
 | 404 `NOT_FOUND` | Yozuv o‘chirilgan yoki boshqa do‘konniki — ro‘yxatga qaytish |
 | 409 | Holat to‘qnashuvi — `detail` ni ko‘rsating (`VERSION_CONFLICT` — [4.5](#ifmatch)) |
 | 413 | Hajm — `PAYLOAD_TOO_LARGE` yoki `STORAGE_QUOTA_EXCEEDED` |
@@ -664,11 +950,11 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | Kod | Status | Qachon | UI tavsiyasi |
 |-----|:-:|--------|-------------|
 | `VALIDATION_FAILED` | 400 | So‘rov shakli noto‘g‘ri (maydon, format, kuchsiz parol, `Idempotency-Key` yo‘q, kursor buzuq) | Forma xatolari |
-| `AUTH_INVALID_CREDENTIALS` | 401 | Login xato; token yo‘q/yaroqsiz/eskirgan; joriy parol xato | Login: «Email yoki parol xato»; boshqa joyda — refresh |
+| `AUTH_INVALID_CREDENTIALS` | 401 | Login xato; token yo‘q/yaroqsiz/eskirgan; hisob faolsizlantirilgan yoki o‘chirilgan (o‘sha token bilan keyingi so‘rov); joriy parol xato | Login: «Email yoki parol xato»; boshqa joyda — refresh (faolsiz hisobda refresh ham 401 → login) |
 | `AUTH_INVALID_REFRESH` | 401 | Refresh cookie yo‘q, noma’lum yoki muddati o‘tgan | Login sahifasi |
 | `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh cookie ishlatildi (parallel refresh, logout-all / parol almashishidan keyin boshqa qurilmada) — barcha sessiyalar yopildi | «Sessiya tugadi» → login sahifasi |
 | `PLAN_LIMIT_EXCEEDED` | 402 | Tarif chegarasi (foydalanuvchi, ombor): `meta.resource`, `plan`, `limit`, `used` | Tarifni oshirish taklifi |
-| `PERMISSION_DENIED` | 403 | Rol huquqi yetmaydi; sotuvchi `priceTier: "wholesale"` yubordi, lekin `sellerWholesaleEnabled` o‘chiq | «Ruxsat yo‘q» |
+| `PERMISSION_DENIED` | 403 | Rolda kerakli ruxsat yo‘q (`detail`: «Rolingizda «sales.cancel» ruxsati yo‘q»); faqat administrator amali ([6.3](#admin-only)); o‘zidan kengroq rol bilan ishlash ([6.4](#roles-api)); `wholesale.view` siz rol `priceTier: "wholesale"` yubordi, `sellerWholesaleEnabled` o‘chiq | «Ruxsat yo‘q» + `GET /auth/me` |
 | `NOT_FOUND` | 404 | Yo‘ldagi yozuv yo‘q / o‘chirilgan / boshqa do‘konniki | Ro‘yxatga qaytish |
 | `AUTH_TENANT_REQUIRED` | 409 | Email bir necha do‘konda — `errors[].meta.{tenantId, tenantName}` | Do‘kon tanlash |
 | `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field` | Maydon ostida |
@@ -681,6 +967,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `SALE_ALREADY_CANCELLED` | 409 | Chek allaqachon bekor | Ro‘yxatni yangilash |
 | `SALE_NOT_CANCELLABLE` | 409 | Chekda qaytarish (`meta.reason: "returns"`) yoki qarz to‘lovi (`"payments"`) bor | «Avval qaytarishni bekor qiling» / «qarz to‘langan» |
 | `EMPLOYEE_HAS_USER` | 409 | Xodimning kirish hisobi bor: xodimni o‘chirish yoki ikkinchi hisob. `POST /users` da `errors[0].meta: { userId, deleted }` | `deleted: true` — «Tiklash» (`POST /users/{userId}/restore`); aks holda avval hisobni o‘chirish |
+| `ROLE_IN_USE` | 409 | Rolni o‘chirish — unda hisoblar bor (o‘chirilganlari ham): `errors[0].meta.users`, `field: replaceWith` | «Qaysi rolga o‘tkazamiz?» → `DELETE /roles/:id?replaceWith=` |
 | `CATEGORY_IN_USE` | 409 | Kategoriyada mahsulot bor | — |
 | `CLIENT_HAS_DEBT` | 409 | Mijozda to‘lanmagan nasiya (`meta.debt`) | — |
 | `SUPPLIER_HAS_OPEN_ORDERS` | 409 | `ordered`/`partial` buyurtma bor | — |
@@ -695,7 +982,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `CREDIT_REQUIRES_CUSTOMER` | 422 | Nasiya, lekin mijoz tanlanmagan | Mijoz tanlash |
 | `CREDIT_OVERDUE` | 422 | Mijozda muddati o‘tgan qarz (`meta.overdue`) | «Avval qarzni yopsin» |
 | `CREDIT_LIMIT_EXCEEDED` | 422 | `meta.limit`, `current`, `extra` | Limitni ko‘rsatish |
-| `PAYMENT_EXCEEDS_DEBT` | 422 | To‘lov qarzdan (mijoz yoki ta’minotchi) ko‘p: `meta.outstanding` (sotuvchida ta’minotchi qarzi yo‘q), `requested` | Qolgan qarzni taklif qilish |
+| `PAYMENT_EXCEEDS_DEBT` | 422 | To‘lov qarzdan (mijoz yoki ta’minotchi) ko‘p: `meta.outstanding` (`cost.view` siz rolda ta’minotchi qarzi yo‘q), `requested` | Qolgan qarzni taklif qilish |
 | `PAYMENT_EXCEEDS_TOTAL` | 422 | Karta + o‘tkazma chekdan ko‘p (qaytim faqat naqddan) | — |
 | `DISCOUNT_LIMIT` | 422 | Chegirma `maxDiscountPct` dan ko‘p yoki qator chegirmasi qator summasidan katta (`meta.max`, `requested`) | Maksimumni ko‘rsatish |
 | `TOTAL_MISMATCH` | 422 | Ekrandagi jami ≠ server hisobi (`meta.client`, `server`) — chek YOZILMAGAN | Qayta hisoblab, yangi jamini ko‘rsatish |
@@ -705,9 +992,10 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `RETURN_EXCEEDS_SOLD` | 422 | Qaytarish sotilgandan ko‘p (`meta.sold`, `returned`, `requested`) | — |
 | `LAST_ADMIN` | 422 | Oxirgi administratorni o‘chirish/bo‘shatish/rolini olish | — |
 | `SELF_DELETE` / `SELF_ROLE_CHANGE` | 422 | O‘zini o‘chirish / o‘z rolini o‘zgartirish | Tugmani yashiring |
+| `ROLE_PROTECTED` | 422 | Tizim rolini o‘zgartirib bo‘lmaydigan qilib tahrir: `admin` rolining har qanday tahriri; boshqa tizim rolining nomi (`field: name`); tizim rolini o‘chirish | `admin` — faqat ko‘rish; tizim rolida nom maydoni o‘chiq, «O‘chirish» yo‘q |
 | `FILE_REJECTED` | 422 | Fayl tarkibi e’lon qilingan MIME/xeshga mos emas — karantinda (`meta.id`) | «Fayl buzilgan yoki turi noto‘g‘ri» |
 | `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati orqaga (`meta.from/to`); do‘kon o‘chirish muhlatida emas | — |
-| `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot…) yo‘q yoki boshqa do‘konniki — `errors[].field`; xodimi o‘chirilgan hisobni tiklash (`field: employeeId`) | Tanlovni yangilash |
+| `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot, rol `roleId`, `replaceWith`…) yo‘q yoki boshqa do‘konniki — `errors[].field`; xodimi o‘chirilgan hisobni tiklash (`field: employeeId`) | Tanlovni yangilash |
 | `SHIFT_REQUIRED` | 423 | Smena ochilmagan (sotuv, qaytarish, naqd amal) | Smena ochish oynasi |
 | `TENANT_READ_ONLY` | 423 | Do‘kon `suspended`/`deleting` — yozish yopiq (`meta.status`) | Banner + to‘lov/qaytarish tugmasi |
 | `AUTH_ACCOUNT_LOCKED` | 423 | Xodim ishdan bo‘shatilgan (login/refresh) | Login sahifasida xabar |
@@ -823,7 +1111,7 @@ socket.io.on('reconnect', () => queryClient.invalidateQueries())   // uzilishdag
 
 ### 9.2 Hodisalar
 
-Yukda FAQAT identifikatorlar (tannarx kabi maydonlar rol huquqini chetlab o‘tmasligi uchun). Mijoz
+Yukda FAQAT identifikatorlar (tannarx kabi maydonlar rol ruxsatini chetlab o‘tmasligi uchun). Mijoz
 tegishli keshni bekor qiladi va ma’lumotni o‘z huquqi bilan qayta so‘raydi. Hodisa tranzaksiya
 COMMIT’dan keyin, do‘konning BARCHA ulanishlariga (amalni qilgan foydalanuvchiga ham) yuboriladi.
 
@@ -838,6 +1126,7 @@ COMMIT’dan keyin, do‘konning BARCHA ulanishlariga (amalni qilgan foydalanuvc
 | `delivery.status` | `{ deliveryId, status }` | Yetkazish holati | yetkazishlar (ro‘yxat, summary, `/my`, `/route`), shu yetkazish |
 | `po.received` | `{ orderId, productIds }` | Kirim buyurtmasini qabul qilish | buyurtmalar (ro‘yxat, summary, karta), mahsulotlar (`productIds`), ta’minotchilar (qarz), harakatlar |
 | `settings.updated` | `{}` | `PATCH /settings` (rang, logotip, nom …), logotip faylini o‘chirish | `GET /settings` (brend rangi va logotip sahifa yangilanmasdan o‘zgaradi) |
+| `access.changed` | `{}` | Rol ruxsatlari tahriri (`PATCH /roles/:id`), rolni o‘chirish, foydalanuvchiga boshqa rol (`PATCH /users/:id`) | `GET /auth/me` (o‘z `permissions` i — menyu va tugmalar), `GET /roles`, `GET /users`. Refresh CHAQIRILMAYDI ([6.5](#access-changed)) |
 
 Hodisa kelmaydigan amallar (masalan spravochnik tahriri, xarajat, naqd harakat, SMS, migratsiya)
 — o‘z mutatsiyasidan keyin kesh bekor qilinadi; boshqa foydalanuvchilarda ma’lumot sahifa
@@ -860,15 +1149,15 @@ paytda bir nechta kassir — so‘rovlar yomg‘iri bo‘lmasin). Mutatsiya va h
 **Oqim:** savat brauzerda (mahsulot, birlik, miqdor, qator chegirmasi, narx) → «To‘lash» → bitta
 `POST /sales` (+ `Idempotency-Key`) → javob — yozilgan chek → chop etish.
 
-**Oldingi shartlar:** ochiq smena (aks holda 423 `SHIFT_REQUIRED`); `sales:create`.
+**Oldingi shartlar:** ochiq smena (aks holda 423 `SHIFT_REQUIRED`); `sales.create`.
 
 **Summa hisobi** (`@crm/shared` → `lineTotal`, `saleTotals`; server AYNAN shunday hisoblaydi):
 
 1. Qator narxi: berilmasa — `priceTier` bo‘yicha (`retail` → `price`, `wholesale` → `wholesalePrice`;
    `wholesaleEnabled=false` bo‘lsa har doim `retail`), tanlangan birlikka o‘giriladi
-   (`priceForUnit`). Sotuvchi ulgurji narxda faqat `sellerWholesaleEnabled` bilan sotadi: o‘chiq bo‘lsa
-   `wholesalePrice` unga kelmaydi va `priceTier: "wholesale"` — 403 `PERMISSION_DENIED` (ulgurji tugmasini
-   yashiring, [6.2](#hidden)). `price` berilsa — savdolashilgan narx: server uni SO‘ZSIZ qabul qiladi (eski
+   (`priceForUnit`). `wholesale.view` siz rol (sukut — sotuvchi) ulgurji narxda faqat `sellerWholesaleEnabled`
+   bilan sotadi: o‘chiq bo‘lsa `wholesalePrice` unga kelmaydi va `priceTier: "wholesale"` — 403 `PERMISSION_DENIED` (ulgurji tugmasini
+   yashiring, [6.6](#hidden)). `price` berilsa — savdolashilgan narx: server uni SO‘ZSIZ qabul qiladi (eski
    narx bo‘lsa ham, `TOTAL_MISMATCH` ushlamaydi; cheklanmagan — [14.1](#muammolar)). Shuning uchun `price`
    ni FAQAT kassir narxni qo‘lda o‘zgartirganda yuboring.
 2. `qator jami = round(narx × miqdor) − qator chegirmasi` (qator chegirmasi qator summasidan oshmaydi).
@@ -944,7 +1233,7 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
   **Summani brauzerda hisoblamang** — javobdagi `total`, `paid.cash`, `debtPaid` ni ko‘rsating.
 - Hodisa: `sale.created` (qaytarish hujjati bilan).
 
-**Bekor qilish** — `POST /sales/:id/cancel` (`sales:delete` — admin, manager):
+**Bekor qilish** — `POST /sales/:id/cancel` (`sales.cancel`; sukut — admin, manager). Qaytarish — `sales.return`:
 
 - Tovar AYNAN sotilgan omborga qaytadi, naqd kassadan qaytariladi (naqd bo‘lsa ochiq smena shart),
   bonus: ishlatilgani qaytadi, berilgani olinadi; faol yetkazish (`pending`/`on_way`) bekor bo‘ladi.
@@ -1062,7 +1351,7 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 - Ta’minotchiga qarzimiz — faqat kelgan tovar bo‘yicha: `GET /suppliers` (qatorda), `/suppliers/summary`,
   `/suppliers/:id` (buyurtmalar, to‘lovlar).
 - Sotuvchi buyurtma va ta’minotchilarni summalarsiz oladi (qarz, buyurtma summasi, to‘lov miqdori yo‘q —
-  [6.2](#hidden)); pul ustunlarini `field in obj` bilan yashiring.
+  [6.6](#hidden)); pul ustunlarini `field in obj` bilan yashiring.
 
 ### 10.8 Takliflar (smeta)
 
@@ -1091,8 +1380,8 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
   `cancelled`. Orqaga — 422 `INVALID_STATUS_TRANSITION`. Chek bekor qilinsa faol yetkazish avtomatik bekor.
 - Haydovchi — xodim (`driverId`). Alohida haydovchi roli yo‘q: haydovchi odatda `sotuvchi` yoki
   `omborchi` rolidagi foydalanuvchi; `GET /deliveries/my` — unga biriktirilgan faol yetkazishlar.
-  Holatni o‘zgartirish: `deliveries:edit` bor rollar (admin, manager, **sotuvchi**) — HAR QANDAY
-  yetkazishni; `edit` siz omborchi — faqat o‘ziga biriktirilganini (aks holda 403).
+  Holatni o‘zgartirish: `deliveries.edit` bor rol (sukut — admin, manager, **sotuvchi**) — HAR QANDAY
+  yetkazishni; `edit` siz rol (haydovchi, omborchi) — faqat o‘ziga biriktirilganini (aks holda 403).
 - `GET /deliveries/route?date&driverId` — marshrut varaqasi (olinadigan pul bilan).
 - `overdue: true` — `scheduledDate` o‘tgan faol yetkazish. Tahrir — faqat faol holatda.
 
@@ -1117,11 +1406,11 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 
 ### 10.12 Xodimlar va foydalanuvchilar
 
-- **Xodim** (`/employees`) — shaxs: ism, lavozim, telefon, maosh (`salary` — faqat admin/manager
-  ko‘radi), holat `active | on_leave | fired`, ishga kirgan sana. `fired` — tizimga kira olmaydi.
-- **Foydalanuvchi** (`/users`) — kirish hisobi: email, parol, rol, `isActive`; mavjud xodimga 1:1
+- **Xodim** (`/employees`) — shaxs: ism, lavozim, telefon, maosh (`salary` — `salary.view` bilan,
+  sukut — admin, manager), holat `active | on_leave | fired`, ishga kirgan sana. `fired` — tizimga kira olmaydi.
+- **Foydalanuvchi** (`/users`) — kirish hisobi: email, parol, rol (`roleId`), `isActive`; mavjud xodimga 1:1
   bog‘lanadi. Ism va lavozim xodimdan keladi (foydalanuvchida takrorlanmaydi). Hisob ochish: avval xodim,
-  keyin `POST /users { employeeId, email, password, role }`. Hisobsiz xodim — `EmployeeDto.userId === null`
+  keyin `POST /users { employeeId, email, password, roleId }` (rollar — `GET /roles`, [6.4](#roles-api)). Hisobsiz xodim — `EmployeeDto.userId === null`
   (hisobi O‘CHIRILGAN xodim ham `null` ko‘rinadi — unga yangi hisob ochilmaydi: 409 `EMPLOYEE_HAS_USER`,
   `errors[0].meta: { userId, deleted: true }` → yangisi o‘rniga «Tiklash» taklif qiling).
 - **O‘chirilgan hisoblar:** `GET /users?deleted=true` — faqat o‘chirilganlar (`deletedAt` bilan; qidiruv,
@@ -1130,7 +1419,8 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
   o‘chirilgan bo‘lsa — 422 `REFERENCE_NOT_FOUND` (`field: employeeId`): avval `POST /employees/:id/restore`.
 - Email do‘kon ichida noyob; bir email bir necha do‘konda bo‘lishi mumkin (login’da do‘kon tanlanadi).
 - Himoya: oxirgi admin (422 `LAST_ADMIN`), o‘zini o‘chirish (`SELF_DELETE`), o‘z rolini o‘zgartirish
-  (`SELF_ROLE_CHANGE`); tarif chegarasi (402).
+  (`SELF_ROLE_CHANGE`), o‘zidan kengroq rol (403, [6.4](#roles-api)); tarif chegarasi (402).
+- Yangi rol va faolsizlantirish o‘sha foydalanuvchining keyingi so‘rovidanoq kuchga kiradi ([6.5](#access-changed)).
 
 ### 10.13 Xabarlar (SMS va Telegram)
 
@@ -1169,7 +1459,7 @@ Frontendda:
 - **Ulash (QR):** `POST /clients/:id/telegram-link` → `{ link, expiresAt }` — QR’ni brauzerda chizing
   (masalan `qrcode` kutubxonasi). Havola **bir martalik**, 7 kun amal qiladi; har chaqiruv yangisini
   beradi (eskisi bekor) — QR oynasi ochilganda so‘rang, keshlamang. Havolani mijozga boshqa yo‘l bilan
-  (masalan boshqa messenjer) ham yuborish mumkin. Huquq: `customers:edit`.
+  (masalan boshqa messenjer) ham yuborish mumkin. Huquq: `customers.edit`.
 - **Mijoz holati:** `ClientDto.telegramStatus` — `linked` (Telegram belgisi), `none`, `blocked`
   («botni bloklagan» — mijozga ayting). Ulanmaganlar ro‘yxati: `GET /clients?telegramStatus=none`.
 - **Xabar oynasi:** `POST /messages/preview` → `{ recipients, telegram, unreachable, label }`:
@@ -1180,7 +1470,7 @@ Frontendda:
 - **Chek:** chek ko‘rinishi/POS’da «Telegram’ga yuborish» → `POST /sales/:id/receipt/telegram` (204).
   Mijozga PDF chek (chop etiladigan bilan bir xil, fiskal QR bilan) va izoh boradi. 422
   `RECIPIENT_UNREACHABLE` — `meta.reason`: `no_customer` (chekda mijoz yo‘q), `not_linked`, `blocked`,
-  `no_channel`; 503 — Telegram javob bermadi (qayta urinish). Huquq: `sales:view`.
+  `no_channel`; 503 — Telegram javob bermadi (qayta urinish). Huquq: `sales.view`.
 
 Mijoz Telegram’da ko‘radigan xabar (HTML; o‘zgaruvchi qiymatlari qalin, aloqa — sozlamadagi
 chek telefoni va manzili, bo‘sh bo‘lsa chiqmaydi):
@@ -1220,14 +1510,14 @@ Qoidalar:
   da bir xil. P&L `trend`, top ro‘yxatlar va `/analytics` — YALPI sotuv (qaytarishsiz); `trend` faqat
   sotuv bo‘lgan kunlarni o‘z ichiga oladi (bo‘sh kunlarni grafikda 0 bilan to‘ldiring).
 - `GET /dashboard?days=7|30|90` — bugun/kecha, debitor (`receivables`, `debtors`), kreditor
-  (`payables` — sotuvchida yo‘q), kam qolganlar, trend, top mahsulot/qarzdor, oxirgi cheklar.
+  (`payables` — `cost.view` siz yo‘q), kam qolganlar, trend, top mahsulot/qarzdor, oxirgi cheklar.
 - `GET /reports/pnl?from&to&limit` — davr ≤ ~3 yil («butun davr» = so‘nggi 3 yil); oldingi teng davr
   bilan solishtirish (`change`), `granularity` (kun/oy), to‘lov turlari, xarajat kategoriyalari, top
   mahsulotlar, sotuvchilar (`sellers`) va sotilmayotgan tovar (`deadStock`) — uchalasining uzunligi `limit`
   bilan (sukut 20, ≤ 100; tushum bo‘yicha kamayish tartibida).
 - `GET /analytics?from&to` — ABC (80/95 %) — sotilgan BARCHA mahsulot (jadvalni brauzerda sahifalang),
   kategoriya va to‘lov taqsimoti, trend. `limit` parametri yo‘q (yuborilsa 400).
-- Foyda/tannarx maydonlari rolga qarab yo‘q ([6.2](#roles)). Tugagan davrlar keshlanadi, bugun — jonli.
+- Foyda/tannarx maydonlari `profit.view` / `cost.view` siz rolda yo‘q ([6.6](#hidden)). Tugagan davrlar keshlanadi, bugun — jonli.
 
 ### 10.15 Audit jurnali
 
@@ -1300,7 +1590,7 @@ berishi kerak (lokal MinIO — ochiq; production — `infra/r2-cors.json`).
   (`<a href>` bilan ochib bo‘lmaydi); `fetch` bilan faqat API frontend bilan BIR manbada bo‘lganda
   ishlaydi — API alohida domenda bo‘lsa brauzer yo‘naltirilgan so‘rovga `Origin: null` qo‘yadi va S3/R2
   CORS uni rad etadi. Shuning uchun `url` afzal.
-- Ustunlar rolga qarab (tannarx sotuvchiga chiqmaydi); qiymatlar xom (so‘m — butun, miqdor — son).
+- Ustunlar rol ruxsatiga qarab (tannarx `cost.view` siz chiqmaydi); qiymatlar xom (so‘m — butun, miqdor — son).
 - Kichik jurnallar (smenalar, qarzlar, takliflar va h.k.) uchun server eksporti yo‘q — sahifalarni
   ketma-ket olib (`pageSize=200`), brauzerda `csvLine`/`CSV_BOM` (`@crm/shared`) bilan yig‘ish mumkin.
 
@@ -1391,7 +1681,7 @@ nomini ham o‘zgartiradi (kirishdagi do‘kon tanlovi, `/auth/me` dagi `tenant.
   do‘kon nomi ustida, oq-qora; `ReceiptDto.store.logoFileId`.
 - Ikkala kalit `GET /settings` javobida DOIM bor (sozlanmagan bo‘lsa `null`).
 `sellerWholesaleEnabled` (sukut `false`) — «Sotuvchiga ulgurji narxda sotishga ruxsat»: yoqilsa sotuvchi
-`wholesalePrice` ni ko‘radi va ulgurji chek qila oladi ([6.2](#hidden)); faqat `wholesaleEnabled` bilan
+`wholesalePrice` ni ko‘radi va ulgurji chek qila oladi ([6.6](#hidden)); faqat `wholesaleEnabled` bilan
 ma’noga ega.
 Ro‘yxatdan o‘tgan yangi do‘konda `onboarded: false` → sehrgar (do‘kon ma’lumoti, QQS, ombor,
 kategoriyalar, birinchi mahsulotlar, xodimlar) → oxirida `PATCH /settings { onboarded: true }`.
@@ -1402,43 +1692,44 @@ kategoriyalar, birinchi mahsulotlar, xodimlar) → oxirida `PATCH /settings { on
 
 ## 11. Ekran → endpoint xaritasi
 
-Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. «Hodisa» — sahifa qaysi
-realtime hodisada yangilanadi.
+Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. Qavsdagi ruxsat — sahifaning o‘zi
+(tugmalar — [6.7](#permission-ui)). «Hodisa» — sahifa qaysi realtime hodisada yangilanadi.
 
 | Sahifa (yo‘l, huquq) | Ochilganda | Amallar | Hodisa |
 |---|---|---|---|
 | **Login** (`/login`) | — | `POST /auth/login` (+ do‘kon tanlash), keyin `GET /settings` | — |
 | **Ro‘yxatdan o‘tish** (yangi) | — | `POST /tenants/register` → sehrgar: `PATCH /settings`, `POST /warehouses`, `/categories`, `/products`, `/employees`, `/users` | — |
-| **Ilova qobig‘i** (Header, UserMenu, Sidebar) | `POST /auth/refresh` (token yo‘q bo‘lsa), `GET /settings`, socket ulanishi; admin — `GET /tenants/current` (banner) | `POST /auth/logout`, `/auth/logout-all`, `/auth/change-password` | — |
-| **Dashboard** (`/`, finance) | `GET /dashboard?days=30` | davr 7/30/90 | `sale.*`, `debt.paid`, `po.received`, `stock.changed` |
-| **POS** (`/pos`, sales) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` (yoki `?format=pdf`); mijoz botga ulangan bo‘lsa — «Telegram’ga» (`POST /sales/:id/receipt/telegram`) | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
-| **Cheklar** (`/sales`, sales) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id` (`returnedQty`), `GET /sales?relatedSaleId=` (qaytarishlar), `GET /sales/:id/receipt` (JSON yoki `?format=pdf`), `POST /sales/:id/receipt/telegram`, `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
-| **Mahsulotlar** (`/products`, products) | `GET /products` (server sahifa/saralash), `GET /products/summary`, `GET /categories`, `GET /suppliers` (filtr), `GET /files/urls` | CRUD, `.../restore`, `POST /products/import`, `/products/bulk-price`, rasm (`/files/*`), `GET /exports/products` | `stock.changed`, `sale.*`, `po.received` |
-| **Mahsulot kartasi** (`/products/:id`) | `GET /products/:id`, `/products/:id/stats`, `GET /stock/movements?productId=`, admin: `GET /audit?entityId=` | tahrir, rasm | `stock.changed` (shu id) |
-| **Ombor** (`/warehouse`, products) | `GET /warehouses`, `GET /warehouses/stock`, `GET /stock/movements`, `GET /stock/reorder-suggestions` | `POST /stock/intake`, `/writeoff`, `/adjust`, `/transfer`, ombor CRUD/arxiv, `GET /exports/stock-movements` | `stock.changed`, `sale.*`, `po.received` |
-| **Yetkazish** (`/deliveries`, deliveries) | `GET /deliveries`, `/deliveries/summary`; haydovchi: `GET /deliveries/my`; admin/manager: `GET /employees?status=active` | `POST/PATCH/DELETE /deliveries`, `.../status`, `.../restore`, `GET /deliveries/route` | `delivery.status`, `sale.*` |
-| **Takliflar** (`/quotes`, quotes) | `GET /quotes`, `/quotes/summary` | CRUD, `.../restore`, `POST /quotes/:id/convert` (`warehouseId` — tanlangan ombor), chop etish (`GET /quotes/:id` + `GET /settings`) | `sale.created` |
-| **Ta’minotchilar** (`/suppliers`, suppliers) | `GET /suppliers`, `/suppliers/summary` (sotuvchida qarz yo‘q) | CRUD, `.../restore` | `po.received` |
-| **Ta’minotchi kartasi** (`/suppliers/:id`) | `GET /suppliers/:id` | tahrir, buyurtma yaratish | `po.received` |
-| **Xaridlar** (`/purchases`, suppliers) | `GET /purchase-orders`, `/purchase-orders/summary` (sotuvchida summalar yo‘q), `GET /suppliers`, `GET /stock/reorder-suggestions` (to‘ldirish) | CRUD, `.../cancel`, `.../receive`, `.../pay` (finance), `.../restore` | `po.received` |
-| **Kassa** (`/cash`, finance) | `GET /cash/shifts/current`, `GET /cash/shifts`, `GET /cash/movements` | `POST /cash/shifts/open`, `/close`, `POST /cash/movements`, `GET /cash/shifts/:id/report` | `shift.*`, `sale.*`, `debt.paid` |
-| **Qarzlar** (`/debts`, finance) | `GET /debts?view=customers` (+ `summary`) | `view=receipts`, `aging`, `overdue`; `POST /debts/payments`, `GET /debts/payments`; eslatma SMS → Xabarlar | `debt.paid`, `sale.*` |
-| **Xarajatlar** (`/expenses`, expenses) | `GET /expenses`, `/expenses/summary`, `GET /expense-templates` | CRUD, `.../restore`, shablon CRUD, `POST /expense-templates/run-due`, `GET /exports/expenses` | — |
-| **Hisobotlar** (`/reports`, finance) | `GET /reports/pnl?from&to` | davr tanlash | — (focus’da yangilash) |
-| **Analitika** (`/analytics`, finance) | `GET /analytics?from&to` | davr tanlash | — |
-| **Mijozlar** (`/clients`, customers) | `GET /clients` (`telegramStatus` — belgi va filtr) | CRUD, `.../restore`, `GET /exports/clients` | `sale.*`, `debt.paid` |
-| **Mijoz kartasi** (`/clients/:id`) | `GET /clients/:id`, `/clients/:id/stats`, `GET /sales?customerId=`, `GET /debts?view=receipts&customerId=`, `GET /debts/payments?customerId=` | tahrir, qarz to‘lovi, xabar, «Telegram’ga ulash» (`POST /clients/:id/telegram-link` → QR) | `sale.*`, `debt.paid` |
-| **Xabarlar** (`/messages`, customers) | `GET /messages`, `GET /telegram` (bot holati) | `POST /messages/preview` (kanal bo‘yicha son), `POST /messages`; ulanmaganlar — `GET /clients?telegramStatus=none` | — |
-| **Xodimlar** (`/employees`, employees) | `GET /employees` | CRUD, `.../restore` | — |
-| **Foydalanuvchilar** (`/users`, users) | `GET /users`, `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD, «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | — |
-| **Sozlamalar** (`/settings`, settings) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
-| **Audit** (`/audit`, users) | `GET /audit` (kursor) | filtrlar, `GET /exports/audit` | — |
+| **Ilova qobig‘i** (Header, UserMenu, Sidebar) | `POST /auth/refresh` (token yo‘q bo‘lsa), `GET /settings`, socket ulanishi; admin — `GET /tenants/current` (banner); menyu — `user.permissions` | `POST /auth/logout`, `/auth/logout-all`, `/auth/change-password` | `access.changed` → `GET /auth/me`; `settings.updated` → `GET /settings` |
+| **Dashboard** (`/`, `reports.view`) | `GET /dashboard?days=30` | davr 7/30/90 | `sale.*`, `debt.paid`, `po.received`, `stock.changed` |
+| **POS** (`/pos`, `sales.create`) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` (yoki `?format=pdf`); mijoz botga ulangan bo‘lsa — «Telegram’ga» (`POST /sales/:id/receipt/telegram`) | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
+| **Cheklar** (`/sales`, `sales.view`) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id` (`returnedQty`), `GET /sales?relatedSaleId=` (qaytarishlar), `GET /sales/:id/receipt` (JSON yoki `?format=pdf`), `POST /sales/:id/receipt/telegram`, `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
+| **Mahsulotlar** (`/products`, `products.view`) | `GET /products` (server sahifa/saralash), `GET /products/summary`, `GET /categories`, `GET /suppliers` (filtr), `GET /files/urls` | CRUD, `.../restore`, `POST /products/import`, `/products/bulk-price`, rasm (`/files/*`), `GET /exports/products` | `stock.changed`, `sale.*`, `po.received` |
+| **Mahsulot kartasi** (`/products/:id`, `products.view`) | `GET /products/:id`, `/products/:id/stats`, `GET /stock/movements?productId=`, `audit.view`: `GET /audit?entityId=` | tahrir, rasm | `stock.changed` (shu id) |
+| **Ombor** (`/warehouse`, `stock.view`) | `GET /warehouses`, `GET /warehouses/stock`, `GET /stock/movements`, `GET /stock/reorder-suggestions` | `POST /stock/intake`, `/writeoff`, `/adjust`, `/transfer`, ombor CRUD/arxiv, `GET /exports/stock-movements` | `stock.changed`, `sale.*`, `po.received` |
+| **Yetkazish** (`/deliveries`, `deliveries.view`) | `GET /deliveries`, `/deliveries/summary`; haydovchi: `GET /deliveries/my`; `employees.view`: `GET /employees?status=active` | `POST/PATCH/DELETE /deliveries`, `.../status`, `.../restore`, `GET /deliveries/route` | `delivery.status`, `sale.*` |
+| **Takliflar** (`/quotes`, `quotes.view`) | `GET /quotes`, `/quotes/summary` | CRUD, `.../restore`, `POST /quotes/:id/convert` (`warehouseId` — tanlangan ombor), chop etish (`GET /quotes/:id` + `GET /settings`) | `sale.created` |
+| **Ta’minotchilar** (`/suppliers`, `suppliers.view`) | `GET /suppliers`, `/suppliers/summary` (`cost.view` siz qarz yo‘q) | CRUD, `.../restore` | `po.received` |
+| **Ta’minotchi kartasi** (`/suppliers/:id`, `suppliers.view`) | `GET /suppliers/:id` | tahrir, buyurtma yaratish | `po.received` |
+| **Xaridlar** (`/purchases`, `purchases.view`) | `GET /purchase-orders`, `/purchase-orders/summary` (`cost.view` siz summalar yo‘q), `GET /suppliers`, `GET /stock/reorder-suggestions` (to‘ldirish) | CRUD, `.../cancel`, `.../receive` (`purchases.receive`), `.../pay` (`purchases.pay`), `.../restore` | `po.received` |
+| **Kassa** (`/cash`, `cash.view`) | `GET /cash/shifts/current`, `GET /cash/shifts`, `GET /cash/movements` | `POST /cash/shifts/open`, `/close`, `POST /cash/movements`, `GET /cash/shifts/:id/report` | `shift.*`, `sale.*`, `debt.paid` |
+| **Qarzlar** (`/debts`, `debts.view`) | `GET /debts?view=customers` (+ `summary`) | `view=receipts`, `aging`, `overdue`; `POST /debts/payments`, `GET /debts/payments`; eslatma SMS → Xabarlar | `debt.paid`, `sale.*` |
+| **Xarajatlar** (`/expenses`, `expenses.view`) | `GET /expenses`, `/expenses/summary`, `GET /expense-templates` | CRUD, `.../restore`, shablon CRUD, `POST /expense-templates/run-due`, `GET /exports/expenses` | — |
+| **Hisobotlar** (`/reports`, `reports.view`) | `GET /reports/pnl?from&to` | davr tanlash | — (focus’da yangilash) |
+| **Analitika** (`/analytics`, `reports.view`) | `GET /analytics?from&to` | davr tanlash | — |
+| **Mijozlar** (`/clients`, `customers.view`) | `GET /clients` (`telegramStatus` — belgi va filtr) | CRUD, `.../restore`, `GET /exports/clients` | `sale.*`, `debt.paid` |
+| **Mijoz kartasi** (`/clients/:id`, `customers.view`) | `GET /clients/:id`, `/clients/:id/stats`, `GET /sales?customerId=`, `GET /debts?view=receipts&customerId=`, `GET /debts/payments?customerId=` | tahrir, qarz to‘lovi, xabar, «Telegram’ga ulash» (`POST /clients/:id/telegram-link` → QR) | `sale.*`, `debt.paid` |
+| **Xabarlar** (`/messages`, `messages.view`) | `GET /messages`, `GET /telegram` (bot holati) | `POST /messages/preview` (kanal bo‘yicha son), `POST /messages`; ulanmaganlar — `GET /clients?telegramStatus=none` | — |
+| **Xodimlar** (`/employees`, `employees.view`) | `GET /employees` | CRUD, `.../restore` | — |
+| **Foydalanuvchilar** (`/users`, `users.view`) | `GET /users`, `GET /roles` (rol tanlovi va nomi), `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD (`roleId`), «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | `access.changed` |
+| **Rollar** (yangi; `/users/roles` yoki tab, `users.view`) | `GET /roles`, `GET /roles/catalog` | admin: `POST /roles`, `PATCH /roles/:id` (`If-Match`), `DELETE /roles/:id?replaceWith=` ([6.8](#roles-migration)) | `access.changed` |
+| **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
+| **Audit** (`/audit`, `audit.view`) | `GET /audit` (kursor) | filtrlar, `GET /exports/audit` | — |
 | **Migratsiya sehrgari** (yangi, admin) | brauzer `localStorage` | `POST /migration/validate`, `POST /migration/import` | — |
-| **Bildirishnomalar** (Notifications) | `GET /products?lowStock=true&pageSize=5`, `GET /debts?overdue=true&pageSize=5` (finance) | — | `stock.changed`, `sale.*`, `debt.paid` |
+| **Bildirishnomalar** (Notifications) | `GET /products?lowStock=true&pageSize=5`, `GET /debts?overdue=true&pageSize=5` (`debts.view`) | — | `stock.changed`, `sale.*`, `debt.paid` |
 | **Buyruqlar paneli** (CommandPalette) | — | `GET /products?q=`, `GET /clients?q=` (debounce 250 ms) | — |
 
 «Tez-tez sotiladigan» tugmalari uchun alohida endpoint yo‘q — POS to‘ri server qidiruvi bilan
-(kategoriya + `q`), top mahsulotlar `/dashboard` da (moliya huquqi bilan).
+(kategoriya + `q`), top mahsulotlar `/dashboard` da (`reports.view` bilan).
 
 ---
 
@@ -1544,6 +1835,8 @@ const AFFECTS: Record<string, string[]> = {
   'debt.paid':      ['debts', 'sales', 'clients', 'cash', 'dashboard'],
   'delivery.status':['deliveries', 'sales'],
   'po.received':    ['purchase-orders', 'products', 'suppliers', 'stock', 'dashboard'],
+  'settings.updated': ['settings'],
+  'access.changed': ['auth-me', 'roles', 'users'],   // auth-me → store'dagi user.permissions yangilanadi
 }
 ```
 
@@ -1720,14 +2013,15 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 | T-099 | API mijozi va tiplar | `openapi-typescript` bilan tiplar generatsiya qilinadi; token yangilash **bir vaqtda bitta** (parallel 401’lar bitta refresh’ni kutadi) — [3.3](#connect), [12.1](#flow-client) |
 | T-100 | Auth oqimini serverga o‘tkazish | Auth store serverdan ishlaydi; demo foydalanuvchilar va parollar **o‘chiriladi**; parol brauzerda saqlanmaydi (formalar parolni faqat serverga yuboradi) — [5](#auth) |
 | T-101 | So‘rov qatlami (TanStack Query) | Kalitlar konvensiyasi; xato ko‘rsatish bir joyda; yozuvchi amal qayta urinilmaydi — [12.2](#flow-query) |
-| T-102 | Spravochnik sahifalari | Mahsulotlar, Mijozlar, Ta’minotchilar, Xodimlar, Foydalanuvchilar (+ «O‘chirilganlar» va tiklash), Omborlar — serverdan; sahifalash/saralash **serverda**; ko‘rinish o‘zgarmaydi; sotuvchida yashirin maydonlar ko‘rinmaydi — [4.3](#lists), [6.2](#hidden) |
-| T-103 | Kassa (POS) | Savat lokal; `checkout` — bitta `POST /sales`; server xatosi (qoldiq, limit) kassada aniq ko‘rsatiladi; F9/F2 yorliqlari va skaner ishlaydi; ulgurji tugmasi sotuvchida `sellerWholesaleEnabled` ga qarab; chek chop etish (JSON shablon yoki `?format=pdf`) — [10.1](#pos), [12.3](#flows) |
+| T-102 | Spravochnik sahifalari | Mahsulotlar, Mijozlar, Ta’minotchilar, Xodimlar, Foydalanuvchilar (+ «O‘chirilganlar» va tiklash), Omborlar — serverdan; sahifalash/saralash **serverda**; ko‘rinish o‘zgarmaydi; ruxsatsiz rolda yashirin maydonlar ko‘rinmaydi — [4.3](#lists), [6.6](#hidden) |
+| T-103 | Kassa (POS) | Savat lokal; `checkout` — bitta `POST /sales`; server xatosi (qoldiq, limit) kassada aniq ko‘rsatiladi; F9/F2 yorliqlari va skaner ishlaydi; ulgurji tugmasi `wholesale.view` yoki `sellerWholesaleEnabled` ga qarab; chek chop etish (JSON shablon yoki `?format=pdf`) — [10.1](#pos), [12.3](#flows) |
 | T-104 | Ombor, kassa, qarz, ta’minot sahifalari | Barcha amallar server orqali; optimistik yangilash xatoda orqaga qaytariladi |
 | T-105 | Hisobot va analitika | Hisob **serverdan**; brauzerdagi `reduce` hisoblari olib tashlanadi; grafiklar o‘zgarmaydi — [10.14](#rules) |
 | T-106 | Rasm yuklash S3’ga | `resizeImage` maksimal o‘lchami 1600; presign → PUT → confirm; `dataURL` **umuman ishlatilmaydi**; offline’da IndexedDB navbati — [10.16](#files) |
 | T-107 | Realtime va uzilishga chidamlilik | Boshqa kassir sotgan tovar qoldig‘i darhol yangilanadi; internet uzilganda ogohlantirish va navbat; tiklanganda avtomatik yuborish — [9](#realtime), [12.4](#flow-offline) |
 | T-112 | Migratsiya sehrgari (UI) | 4 qadam (hisob → tekshirish → yuborish → natija); jarayon ko‘rsatkichi; xato bo‘lsa localStorage **o‘chirilmaydi** — [10.19](#migration) |
 | T-113 | Orqaga qaytish yo‘li | Migratsiyadan keyin ham localStorage nusxasi 30 kun saqlanadi; JSON zaxira yuklab olinadi — [10.19](#migration) |
+| T-134 | Ruxsatlar va «Rollar» sahifasi | Menyu, yo‘l himoyasi, tugmalar va yashirin maydonlar FAQAT `user.permissions` bo‘yicha (rol nomiga qarab shart yo‘q, `role === 'admin'` — faqat [6.3](#admin-only)); hisob formasida rol — `GET /roles` dan, `roleId` yuboriladi; «Rollar» sahifasi (yaratish, ruxsatlar jadvali katalogdan, tahrir `If-Match` bilan, o‘chirishda hisoblarni ko‘chirish); `access.changed` → `GET /auth/me`, ochiq ilovada menyu sahifa yangilanmasdan o‘zgaradi; ruxsatsiz sahifadan bosh sahifaga — [6](#roles), [6.8](#roles-migration) |
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
 sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
@@ -1752,6 +2046,19 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
 
+**2026-10-16** — do‘kon rollari va ruxsatlar (T-134), frontendga ta’sir qiladi ([6](#roles)):
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| 4 ta qat’iy rol, matritsa kodda (`packages/shared` va frontend nusxasi), administrator o‘zgartira olmasdi | Ruxsatlar rolga beriladi: 59 ta `bo‘lim.amal` ruxsati, 4 ta tizim roli (sukut — avvalgi matritsa bilan aynan bir xil) + administrator yaratadigan rollar; `GET/POST/PATCH/DELETE /roles`, `GET /roles/catalog` | Yangi «Rollar» sahifasi ([6.8](#roles-migration)) |
+| Huquq — `user.role` + frontenddagi matritsa nusxasi | `user.permissions` (login, refresh, `/auth/me`), `roleId`, `roleName`; `role` — tizim kaliti yoki `null` | `src/lib/permissions.ts` matritsasi o‘rniga `user.permissions`; `useCan('sales.return')` ([6.8](#roles-migration)) |
+| Bo‘limlar: `finance`, `products` ichida ombor, `suppliers` ichida xaridlar, `customers` ichida xabarlar, `users` ichida audit | Alohida: `cash`, `debts`, `reports`, `stock`, `purchases` (`receive`, `pay`), `messages`, `audit`; `sales.return`, `sales.cancel` | Eski kalit → yangi jadvali ([6.8](#roles-migration)) |
+| Yashirin maydonlar rol nomiga bog‘liq edi | `cost.view`, `wholesale.view`, `profit.view`, `salary.view` ruxsatlari ([6.6](#hidden)) | `hiddenFields.ts` — ruxsat bo‘yicha |
+| `POST/PATCH /users { role }`, `GET /users?role=` | `roleId`, `?roleId=`; `role` kaliti hali qabul qilinadi (eskirgan) | Rol tanlovi `GET /roles` dan |
+| Rol o‘zgarishi ≤ 15 daqiqada (token muddati), faolsizlantirilgan hisobning tokeni ham shuncha ishlardi | Huquq tokenda yo‘q — keyingi so‘rovdanoq; faolsiz hisob — darhol 401; `access.changed` hodisasi | Hodisada `GET /auth/me` (refresh EMAS) ([6.5](#access-changed)) |
+| — | Yangi xato kodlari `ROLE_PROTECTED` (422), `ROLE_IN_USE` (409); `users.*` berilgan rol o‘zidan kengroq rol bilan ishlay olmaydi (403) | [7.3](#errors) |
+| Zaxirada `users[].role` — rol kaliti | `role` — tizim kaliti yoki `null` (do‘kon roli), `roleName`; import do‘kon rolidagi hisobni o‘tkazib yuboradi (`CUSTOM_ROLE` ogohlantirishi) | — |
+
 **2026-09-29** — frontendga ta’sir qiladi:
 
 | Avval | Endi | Frontendda |
@@ -1770,7 +2077,7 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 | Avval | Endi | Frontendda |
 |-------|------|-----------|
-| Sotuvchi kirim buyurtmasi va ta’minotchi summalarini ko‘rardi (bitta qatorli buyurtmadan tannarx tiklanardi) | Sotuvchi javobida xarid summalari yo‘q; dashboard’da `payables` yo‘q ([6.2](#hidden)) | Pul ustunlari va kartalarini `field in obj` bilan yashirish |
+| Sotuvchi kirim buyurtmasi va ta’minotchi summalarini ko‘rardi (bitta qatorli buyurtmadan tannarx tiklanardi) | Sotuvchi javobida xarid summalari yo‘q; dashboard’da `payables` yo‘q ([6.6](#hidden)) | Pul ustunlari va kartalarini `field in obj` bilan yashirish |
 | PDF chek yo‘q edi (501 yoki JSON) | `GET /sales/:id/receipt?format=pdf` — 80 mm termal chek (fiskal QR bilan); `PDF_ENABLED` va `FEATURE_DISABLED` olib tashlandi | «PDF» / «Chop etish»: `fetch` → `blob` → yangi oyna ([12.3](#flows)) |
 | Chek qatorida qaytarilgan miqdor ko‘rinmasdi | `items[].returnedQty`; `GET /sales?relatedSaleId=` — chekning qaytarishlari | Qaytarish oynasida maksimum `qty − returnedQty` |
 | O‘chirilgan hisobni topib, tiklab bo‘lmasdi | `GET /users?deleted=true` (+ `deletedAt`); 409 `EMPLOYEE_HAS_USER` da `meta.userId`, `meta.deleted`; xodimi o‘chirilgan hisobni tiklash — 422 | «O‘chirilganlar» ro‘yxati va «Tiklash» tugmasi |
@@ -1791,12 +2098,12 @@ tanlangan ombor, til, mavzu, offline navbat.
 ### 14.3 E’tibor bering (xato emas, qoida)
 
 - Refresh rotatsiyasida «imtiyoz oynasi» yo‘q — parallel refresh barcha sessiyalarni yopadi ([5.3](#auth-refresh)).
-- Rol o‘zgarishi ≤ 15 daqiqada kuchga kiradi (access token muddati).
+- Rol va ruxsat o‘zgarishi keyingi so‘rovdanoq kuchga kiradi — huquq tokenda yo‘q ([6.5](#access-changed)).
 - 429 (rate limit) javobida `code: "INTERNAL"` — `status` bo‘yicha aniqlang.
 - DTO validatsiyasi (400) xatolarida `errors[].field` yo‘q — `meta.message` / `detail`.
-- Sotuvchi javoblarida ba’zi kalitlar umuman yo‘q ([6.2](#hidden)) — `undefined` ni `0` deb ko‘rsatmang.
+- Sotuvchi javoblarida ba’zi kalitlar umuman yo‘q ([6.6](#hidden)) — `undefined` ni `0` deb ko‘rsatmang.
 - `GET /files/:id/raw` token talab qiladi — `<img src>` uchun `/files/urls`.
-- `GET /employees` faqat admin/manager — sotuvchi/omborchi xodim tanlay olmaydi.
+- `GET /employees` — `employees.view` (sukut: admin, manager); ruxsatsiz rol xodim (haydovchi) tanlay olmaydi.
 - `sale.cancelled` hodisasida mahsulot id’lari yo‘q — barcha mahsulot/qoldiq keshini yangilang.
 - Tarif to‘lovi tasdig‘i haqida realtime hodisa yo‘q — so‘rov bilan tekshiring.
 - «Tez-tez sotiladigan» mahsulotlar uchun endpoint yo‘q.

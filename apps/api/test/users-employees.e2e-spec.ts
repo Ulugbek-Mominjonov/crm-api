@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common'
-import type { Role } from '@prisma/client'
+import type { SystemRole } from '@prisma/client'
 import request from 'supertest'
 import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer, type TokenSubject } from './helpers/auth'
@@ -44,7 +44,7 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
   /** Xodim + kirish hisobi; token uchun subyekt ham qaytadi */
   const createUser = async (
     name: string,
-    role: Role,
+    role: SystemRole,
     email = `${name.toLowerCase()}@crm.uz`,
   ): Promise<TokenSubject & { id: string }> => {
     const employeeId = await createEmployee(name)
@@ -165,10 +165,11 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
     })
 
     it('oxirgi faol administratorni o‘chirib/pasaytirib bo‘lmaydi → 422 LAST_ADMIN', async () => {
-      // B admin edi, keyin faolsizlantirildi — lekin eski tokeni hali amal qiladi
+      // B — admin, lekin xodimi bo'shatilgan: hisobi hali faol (tokeni amal qiladi),
+      // biroq faol administrator sanalmaydi
       const b = await createUser('Bek', 'admin')
       const bAuth = await bearer(app, b, 'admin')
-      await testDb.user.update({ where: { id: b.id }, data: { isActive: false } })
+      await testDb.employee.update({ where: { id: b.employeeId }, data: { status: 'fired' } })
 
       const demote = await http().patch(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).send({ role: 'manager' }).expect(422)
       expect(demote.body.code).toBe('LAST_ADMIN')
@@ -177,7 +178,7 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
       await http().patch(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).send({ isActive: false }).expect(422)
 
       // Ikkinchi FAOL admin bo'lsa — ruxsat
-      await testDb.user.update({ where: { id: b.id }, data: { isActive: true } })
+      await testDb.employee.update({ where: { id: b.employeeId }, data: { status: 'active' } })
       await http().patch(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).send({ role: 'manager' }).expect(200)
     })
 
@@ -216,7 +217,7 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
       const [x, y] = await requests
       expect([x.status, y.status].sort()).toEqual([200, 422])
       expect([x.body.code, y.body.code]).toContain('LAST_ADMIN')
-      expect(await testDb.user.count({ where: { tenantId: a.tenantId, role: 'admin' } })).toBe(1)
+      expect(await testDb.user.count({ where: { tenantId: a.tenantId, role: { key: 'admin' } } })).toBe(1)
     })
 
     it('oxirgi administratorning xodimini bo‘shatib bo‘lmaydi (menejer ham)', async () => {

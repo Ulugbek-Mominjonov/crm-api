@@ -84,6 +84,8 @@ describe('So‘rov byudjeti', () => {
 
   it('har bir ro‘yxat byudjetdan oshmaydi va qatorlar soniga bog‘liq emas', async () => {
     const anyProduct = await testDb.product.findFirstOrThrow({ where: { tenantId: ctx.tenantId } })
+    // Rol ruxsatlari (T-134) keshda — har so'rovda kerak, kamdan-kam o'zgaradi; barqaror holat o'lchanadi
+    await request(app.getHttpServer()).get('/api/v1/auth/me').set('Authorization', auth).expect(200)
 
     for (const [route, max] of Object.entries(budget())) {
       const url = route.replace('{id}', anyProduct.id)

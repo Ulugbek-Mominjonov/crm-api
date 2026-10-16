@@ -112,8 +112,8 @@ describe('Do‘kon zaxirasi (GET /backup/export)', () => {
     // Foydalanuvchilar — parolsiz (migratsiya importi `users` shakli)
     expect(snapshot.users).toHaveLength(2)
     expect(snapshot.users).toEqual(expect.arrayContaining([
-      { name: 'Test Admin', email: expect.stringMatching(/^admin\+/), role: 'admin' },
-      { name: 'Vali Kassir', email: 'kassir@dokon.uz', role: 'sotuvchi' },
+      { name: 'Test Admin', email: expect.stringMatching(/^admin\+/), role: 'admin', roleName: 'Administrator' },
+      { name: 'Vali Kassir', email: 'kassir@dokon.uz', role: 'sotuvchi', roleName: 'Sotuvchi' },
     ]))
     expect(text).not.toMatch(/password/i)
     expect(text).not.toContain('B-MAXFIY')

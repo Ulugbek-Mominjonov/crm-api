@@ -169,10 +169,14 @@ function lists(tx: TenantTx): Record<string, () => AsyncGenerator<string>> {
       id: t.id, name: t.name, category: t.category, amount: moneyFromDb(t.amount), method: t.method, period: t.period,
       dayOfPeriod: t.dayOfPeriod, active: t.active, lastRunKey: t.lastRunKey, note: t.note,
     })),
-    // Parolsiz: migratsiya importi ularga vaqtinchalik parol beradi (`MigrationDto.users` shakli)
+    // Parolsiz: migratsiya importi ularga vaqtinchalik parol beradi (`MigrationDto.users` shakli).
+    // `role` — tizim roli kaliti; do'kon yaratgan rolda `null` (import uni o'tkazib yuboradi)
     users: () => jsonList(
-      (after) => tx.user.findMany({ ...page(after, LIVE), select: { id: true, email: true, role: true, employee: { select: { name: true } } } }),
-      (u) => ({ name: u.employee.name, email: u.email, role: u.role }),
+      (after) => tx.user.findMany({
+        ...page(after, LIVE),
+        select: { id: true, email: true, role: { select: { key: true, name: true } }, employee: { select: { name: true } } },
+      }),
+      (u) => ({ name: u.employee.name, email: u.email, role: u.role.key, roleName: u.role.name }),
     ),
   }
 }

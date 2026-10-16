@@ -65,7 +65,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
     const body = this.toBody(exception, req.originalUrl, traceId)
     // Joriy yozuv xato javobida ham rol bo'yicha tozalanadi (interceptor bu yerga yetmaydi)
     if (exception instanceof VersionConflictError && req.auth) {
-      body.current = stripHidden(exception.current, hiddenFieldsFor(req.auth.role))
+      body.current = stripHidden(exception.current, hiddenFieldsFor(req.auth.permissions))
     }
 
     if (body.status >= 500) {

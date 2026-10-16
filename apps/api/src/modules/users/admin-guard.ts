@@ -30,8 +30,9 @@ export async function assertAdminRemains(
     SELECT u.id
       FROM users u
       JOIN employees e ON e.id = u.employee_id
+      JOIN roles r ON r.tenant_id = u.tenant_id AND r.id = u.role_id
      WHERE u.tenant_id = ${tenantId}::uuid
-       AND u.role = 'admin' AND u.is_active AND u.deleted_at IS NULL
+       AND r.key = 'admin' AND u.is_active AND u.deleted_at IS NULL
        AND e.status <> 'fired' AND e.deleted_at IS NULL`
 
   const isActiveAdmin = admins.some((a) => a.id === leavingUserId)

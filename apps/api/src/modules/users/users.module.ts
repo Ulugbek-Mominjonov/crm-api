@@ -1,12 +1,13 @@
 import { Module } from '@nestjs/common'
 import { AuthModule } from '@/modules/auth/auth.module'
+import { RolesModule } from '@/modules/roles/roles.module'
 import { TenantsModule } from '@/modules/tenants/tenant.module'
 import { UsersController } from './users.controller'
 import { UsersService } from './users.service'
 
 @Module({
-  // Parol siyosati va sessiyalarni yopish — auth modulining servislari orqali
-  imports: [AuthModule, TenantsModule],
+  // Parol siyosati va sessiyalarni yopish — auth modulining servislari orqali; rol berish — rollar moduli
+  imports: [AuthModule, TenantsModule, RolesModule],
   controllers: [UsersController],
   providers: [UsersService],
 })
