@@ -137,7 +137,7 @@ export class SalesController {
   }
 
   @Post(':id/return')
-  @RequirePermission('sales', 'create')
+  @RequirePermission('sales', 'return')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({
@@ -159,7 +159,7 @@ export class SalesController {
 
   @Post(':id/cancel')
   @HttpCode(200)
-  @RequirePermission('sales', 'delete')
+  @RequirePermission('sales', 'cancel')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({

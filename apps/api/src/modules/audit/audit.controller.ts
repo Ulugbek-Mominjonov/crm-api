@@ -11,7 +11,7 @@ export class AuditController {
   constructor(private readonly log: AuditLogService) {}
 
   @Get()
-  @RequirePermission('users', 'view')
+  @RequirePermission('audit', 'view')
   @ApiOperation({ summary: 'Amallar jurnali', description: 'Yangisi birinchi; kalitli sahifa (`nextCursor`). Diff’da maxfiy maydonlar yo‘q.' })
   @ApiOkResponse({ type: AuditPageDto })
   list(@Query() query: AuditQueryDto): Promise<AuditPageDto> {

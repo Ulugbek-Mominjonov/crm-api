@@ -214,7 +214,7 @@ export class DeliveriesService {
    */
   async setStatus(id: string, dto: DeliveryStatusDto, user: AuthContext): Promise<DeliveryDto> {
     const current = await this.lock(id)
-    if (!hasPermission(user.role, 'deliveries', 'edit') && current.driverId !== user.employeeId) {
+    if (!hasPermission(user.permissions, 'deliveries', 'edit') && current.driverId !== user.employeeId) {
       throw new PermissionDeniedError('Faqat o‘zingizga biriktirilgan yetkazish holatini o‘zgartira olasiz')
     }
     if (!TRANSITIONS[current.status].includes(dto.status)) {

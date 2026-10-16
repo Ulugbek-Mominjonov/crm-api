@@ -5,6 +5,7 @@ import { DomainError } from '@/common/errors/domain.error'
 import { enrichContext } from '@/common/context/request-context'
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator'
 import type { AuthContext } from '../decorators/current-user.decorator'
+import { AccessService } from '@/modules/roles/access.service'
 import { TokenService } from '../token.service'
 
 /**
@@ -17,6 +18,7 @@ import { TokenService } from '../token.service'
 export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly tokens: TokenService,
+    private readonly access: AccessService,
     private readonly reflector: Reflector,
   ) {}
 
@@ -39,15 +41,19 @@ export class JwtAuthGuard implements CanActivate {
       throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Token yaroqsiz yoki muddati tugagan')
     }
 
+    // Rol — tokendan emas: faolsizlantirilgan yoki o'chirilgan hisob darhol yopiladi
+    const access = await this.access.forUser(payload.tid, payload.sub)
+    if (!access) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Hisob faol emas yoki o‘chirilgan')
+
     req.auth = {
       userId: payload.sub,
       // tenantId FAQAT tokendan — so'rovdan hech qachon olinmaydi
       tenantId: payload.tid,
-      role: payload.role,
       employeeId: payload.eid,
       jti: payload.jti,
+      ...access,
     }
-    enrichContext({ tenantId: payload.tid, userId: payload.sub, role: payload.role })
+    enrichContext({ tenantId: payload.tid, userId: payload.sub, role: access.role, permissions: access.permissions })
     return true
   }
 }

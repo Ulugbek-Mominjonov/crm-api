@@ -9,7 +9,7 @@ import { collectRoutes, type RouteInfo } from './helpers/routes'
 /**
  * Har bir endpoint ATAYLAB tasniflangan bo'lishi kerak:
  *  · `@Public()` — autentifikatsiyasiz
- *  · `@RequirePermission(...)` — rol tekshiruvi bilan
+ *  · `@RequirePermission(...)` — rol ruxsati tekshiruvi bilan
  *  · quyidagi oq ro'yxatda — faqat autentifikatsiya yetarli
  *
  * Yangi endpoint qo'shilib, hech biriga kirmasa — SHU TEST yiqiladi.
@@ -36,7 +36,7 @@ const AUTH_ONLY = new Set([
   'GET /api/v1/exports/:resource',
   'GET /api/v1/exports/jobs/:id',
   'GET /api/v1/exports/jobs/:id/download',
-  // Migratsiya — faqat administrator (matritsada "faqat admin" resursi yo'q) — MigrationService tekshiradi
+  // Migratsiya — faqat administrator (katalogda "faqat admin" ruxsati yo'q) — MigrationService tekshiradi
   'POST /api/v1/migration/validate',
   'POST /api/v1/migration/import',
   // Obuna va do'kon hisobi — faqat administrator (Billing/AccountService tekshiradi)

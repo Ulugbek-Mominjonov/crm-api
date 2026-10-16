@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
+import { effectivePermissions } from '@crm/shared'
 import { PrismaService } from '@/prisma/prisma.service'
 import { DomainError } from '@/common/errors/domain.error'
 import { TenantProvisioningService } from '@/modules/tenants/tenant-provisioning.service'
@@ -25,6 +26,7 @@ const MAX_TENANT_CANDIDATES = 5
 const userInclude = {
   employee: { select: { id: true, name: true, position: true, status: true } },
   tenant: { select: { id: true, name: true, status: true } },
+  role: { select: { id: true, key: true, name: true, permissions: true } },
 } satisfies Prisma.UserInclude
 
 type UserWithRelations = Prisma.UserGetPayload<{ include: typeof userInclude }>
@@ -150,7 +152,6 @@ export class AuthService {
     const access = await this.tokens.signAccess({
       sub: user.id,
       tid: user.tenantId,
-      role: user.role,
       eid: user.employeeId,
     })
     return {
@@ -243,7 +244,6 @@ export class AuthService {
     const access = await this.tokens.signAccess({
       sub: user.id,
       tid: user.tenantId,
-      role: user.role,
       eid: user.employeeId,
     })
     const refreshToken = await this.refresh.issue(user.id, meta)
@@ -264,7 +264,10 @@ export function toAuthUser(user: UserWithRelations): AuthUserDto {
     id: user.id,
     name: user.employee.name,
     email: user.email,
-    role: user.role,
+    role: user.role.key,
+    roleId: user.role.id,
+    roleName: user.role.name,
+    permissions: effectivePermissions(user.role.key, user.role.permissions),
     position: user.employee.position,
     employeeId: user.employeeId,
     tenant: { id: user.tenant.id, name: user.tenant.name, status: user.tenant.status },

@@ -1,6 +1,5 @@
 import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
-import { hasPermission } from '@crm/shared'
 import type { Request } from 'express'
 import { DomainError } from '@/common/errors/domain.error'
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator'
@@ -8,7 +7,8 @@ import { PERMISSION_KEY, type PermissionRule } from '../decorators/require-permi
 import type { AuthContext } from '../decorators/current-user.decorator'
 
 /**
- * Rol tekshiruvi.
+ * Ruxsat tekshiruvi: foydalanuvchi rolida endpoint talab qilgan
+ * `bo'lim.amal` bormi (ro'yxat — `@crm/shared` katalogi).
  *
  * `@RequirePermission` bo'lmagan (va `@Public` ham emas) endpoint —
  * faqat autentifikatsiya talab qiladi. Bunday endpointlar ataylab kam
@@ -32,11 +32,8 @@ export class PermissionsGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<Request & { auth?: AuthContext }>()
     if (!req.auth) throw new DomainError('AUTH_INVALID_CREDENTIALS')
 
-    if (!hasPermission(req.auth.role, rule.resource, rule.action)) {
-      throw new DomainError(
-        'PERMISSION_DENIED',
-        `"${req.auth.role}" roli uchun ${rule.resource}.${rule.action} amali yopiq`,
-      )
+    if (!req.auth.permissions.has(rule.permission)) {
+      throw new DomainError('PERMISSION_DENIED', `Rolingizda «${rule.permission}» ruxsati yo‘q`)
     }
     return true
   }

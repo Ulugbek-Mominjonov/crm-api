@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
-import type { Role } from '@prisma/client'
+import { SystemRole } from '@prisma/client'
+import { PERMISSIONS, type Permission } from '@crm/shared'
 
 export class TenantSummaryDto {
   @ApiProperty() id!: string
@@ -20,7 +21,17 @@ export class AuthUserDto {
   @ApiProperty() id!: string
   @ApiProperty({ example: 'Bobur Toshmatov' }) name!: string
   @ApiProperty({ example: 'admin@crm.uz' }) email!: string
-  @ApiProperty({ enum: ['admin', 'manager', 'sotuvchi', 'omborchi'] }) role!: Role
+  @ApiProperty({ enum: SystemRole, nullable: true, description: 'Tizim roli kaliti; do‘kon yaratgan rolda — `null`' })
+  role!: SystemRole | null
+  @ApiProperty() roleId!: string
+  @ApiProperty({ example: 'Sotuvchi', description: 'Rol nomi (tizim rolida — `role` kaliti bo‘yicha tarjima qiling)' })
+  roleName!: string
+  @ApiProperty({
+    enum: PERMISSIONS,
+    isArray: true,
+    description: 'Rol ruxsatlari (administrator — katalogdagi hammasi). Menyu, sahifa va tugmalar SHU ro‘yxatdan',
+  })
+  permissions!: Permission[]
   @ApiProperty({ example: 'Direktor' }) position!: string
   @ApiProperty() employeeId!: string
   @ApiProperty({ type: TenantSummaryDto }) tenant!: TenantSummaryDto

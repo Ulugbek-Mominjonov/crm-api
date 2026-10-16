@@ -100,8 +100,8 @@ describe('Migratsiya importi (POST /migration/import)', () => {
     const { email, password } = res.body.users[0]
     expect(email).toBe('kassir@dokon.uz')
     expect(password).toMatch(/^[A-Za-z2-9]{12}$/)
-    const user = await testDb.user.findFirstOrThrow({ where: { tenantId: a.tenantId, email }, include: { employee: true } })
-    expect(user).toMatchObject({ role: 'sotuvchi', isActive: true })
+    const user = await testDb.user.findFirstOrThrow({ where: { tenantId: a.tenantId, email }, include: { employee: true, role: true } })
+    expect(user).toMatchObject({ role: { key: 'sotuvchi' }, isActive: true })
     expect(user.passwordHash).not.toContain(password)
     await api().post('/api/v1/auth/login').send({ email, password }).expect(201)
   })

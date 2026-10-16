@@ -50,7 +50,7 @@ def collect(api_dir: Path) -> list[dict]:
                     method=method,
                     path='/api/v1/' + '/'.join(p for p in [prefix, sub] if p),
                     handler=name,
-                    perm=f'{perm.group(1)}:{perm.group(2)}' if perm else None,
+                    perm=f'{perm.group(1)}.{perm.group(2)}' if perm else None,
                     public=cls_public or '@Public()' in block,
                     idem='@Idempotent()' in block,
                     ifmatch='@ApiIfMatch()' in block,

@@ -1,5 +1,5 @@
 import type { FileKind } from '@prisma/client'
-import type { Resource } from '@crm/shared'
+import type { Permission } from '@crm/shared'
 
 const MB = 1024 * 1024
 
@@ -19,9 +19,9 @@ export interface FileRule {
   maxBytes: number
   /** Kalitdagi bo'lim: `t/{tenant}/{prefix}/{fileId}/orig.{ext}` */
   prefix: string
-  /** Huquq resursi: yuklash — `create`, o'qish — `view` */
-  resource: Resource
-  /** O'qish — do'konning barcha rollariga (`resource` ning `view` huquqisiz) */
+  /** Kerakli ruxsat: o'qish, yuklash, o'chirish */
+  access: FileAccess
+  /** O'qish — do'konning barcha rollariga (`access.view` ruxsatisiz) */
   readableByAll?: true
   /** Yuklab olishda `Content-Disposition: attachment` (09 §9.16) */
   attachment: boolean
@@ -30,21 +30,30 @@ export interface FileRule {
   variants?: VariantProfile
 }
 
+export type FileAction = 'view' | 'create' | 'delete'
+export type FileAccess = Readonly<Record<FileAction, Permission>>
+
 const IMAGES = ['image/jpeg', 'image/png', 'image/webp'] as const
+
+/** Bo'lim ruxsatlari: o'qish — `view`, yuklash — `create`, o'chirish — `delete` */
+const crud = (resource: 'products' | 'employees'): FileAccess => ({
+  view: `${resource}.view`, create: `${resource}.create`, delete: `${resource}.delete`,
+})
+const SETTINGS: FileAccess = { view: 'settings.view', create: 'settings.edit', delete: 'settings.edit' }
 
 export const FILE_RULES: Readonly<Record<FileKind, FileRule>> = {
   product_image: {
-    mimes: IMAGES, maxBytes: 5 * MB, prefix: 'products', resource: 'products', attachment: false, bucket: 'media',
+    mimes: IMAGES, maxBytes: 5 * MB, prefix: 'products', access: crud('products'), attachment: false, bucket: 'media',
     variants: { fit: 'width', quality: 78 },
   },
-  avatar: { mimes: IMAGES, maxBytes: 5 * MB, prefix: 'avatars', resource: 'employees', attachment: false, bucket: 'media' },
-  document: { mimes: ['application/pdf'], maxBytes: 10 * MB, prefix: 'docs', resource: 'sales', attachment: true, bucket: 'media' },
-  import: { mimes: ['text/csv'], maxBytes: 10 * MB, prefix: 'imports', resource: 'products', attachment: true, bucket: 'media' },
-  export: { mimes: ['text/csv', 'application/json'], maxBytes: 50 * MB, prefix: 'exports', resource: 'finance', attachment: true, bucket: 'media' },
-  tenant_backup: { mimes: ['application/gzip'], maxBytes: 200 * MB, prefix: 'backups', resource: 'settings', attachment: true, bucket: 'backup' },
+  avatar: { mimes: IMAGES, maxBytes: 5 * MB, prefix: 'avatars', access: crud('employees'), attachment: false, bucket: 'media' },
+  document: { mimes: ['application/pdf'], maxBytes: 10 * MB, prefix: 'docs', access: { view: 'sales.view', create: 'sales.create', delete: 'sales.cancel' }, attachment: true, bucket: 'media' },
+  import: { mimes: ['text/csv'], maxBytes: 10 * MB, prefix: 'imports', access: crud('products'), attachment: true, bucket: 'media' },
+  export: { mimes: ['text/csv', 'application/json'], maxBytes: 50 * MB, prefix: 'exports', access: { view: 'reports.view', create: 'reports.view', delete: 'reports.view' }, attachment: true, bucket: 'media' },
+  tenant_backup: { mimes: ['application/gzip'], maxBytes: 200 * MB, prefix: 'backups', access: SETTINGS, attachment: true, bucket: 'backup' },
   // Logotip: yon menyu va chekda — sotuvchi va omborchi ham ko'radi; brauzer ≤ 512 px qilib yuboradi
   store_logo: {
-    mimes: IMAGES, maxBytes: 1 * MB, prefix: 'logos', resource: 'settings', readableByAll: true, attachment: false, bucket: 'media',
+    mimes: IMAGES, maxBytes: 1 * MB, prefix: 'logos', access: SETTINGS, readableByAll: true, attachment: false, bucket: 'media',
     variants: { fit: 'box', quality: 90 },
   },
 }

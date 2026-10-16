@@ -26,9 +26,14 @@ export class MigrationUserDto {
   @MaxLength(254)
   email!: string
 
-  @ApiProperty({ enum: ROLES })
+  @ApiPropertyOptional({
+    enum: ROLES,
+    nullable: true,
+    description: 'Tizim roli kaliti. Yo‘q yoki `null` — do‘kon roli (zaxiradan, T-134): foydalanuvchi ko‘chirilmaydi',
+  })
+  @IsOptional()
   @IsIn(ROLES)
-  role!: (typeof ROLES)[number]
+  role?: (typeof ROLES)[number] | null
 }
 
 /**

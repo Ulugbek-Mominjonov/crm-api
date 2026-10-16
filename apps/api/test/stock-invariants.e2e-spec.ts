@@ -144,8 +144,9 @@ describe('Ombor invariantlari (stock.invariants)', () => {
       expect(result.status).toBe(201)
       return queries.length
     }
-    // Do'kon holati keshda (T-127) — birinchi yozuvchi so'rov uni o'qimasin
+    // Do'kon holati (T-127) va rol ruxsatlari (T-134) keshda — birinchi yozuvchi so'rov ularni o'qimasin
     await app.get(TenantStatusService).status(a.tenantId)
+    await request(app.getHttpServer()).get('/api/v1/auth/me').set('Authorization', auth).expect(200)
     const few = await count(products.slice(0, 3))
     const many = await count(products.slice(3))
     expect(many).toBe(few)

@@ -2,7 +2,7 @@ import {
   Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query,
 } from '@nestjs/common'
 import {
-  ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse,
+  ApiBadRequestResponse, ApiBearerAuth, ApiConflictResponse, ApiCreatedResponse, ApiForbiddenResponse,
   ApiNoContentResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiTags,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger'
@@ -16,7 +16,10 @@ import { ApiPlanLimit } from '@/modules/tenants/api-plan-limit.decorator'
 import { UsersService } from './users.service'
 import { CreateUserDto, UpdateUserDto, UserDto, UserListQueryDto } from './dto/user.dto'
 
-/** Foydalanuvchilarni faqat `users` huquqi bor rol boshqaradi (matritsada — admin) */
+/**
+ * Foydalanuvchilarni `users` ruxsati bor rol boshqaradi (sukut — faqat
+ * administrator); o'zidan kengroq rolga tegolmaydi (UsersService)
+ */
 @ApiTags('users')
 @ApiBearerAuth()
 @Controller('users')
@@ -48,16 +51,17 @@ export class UsersController {
   @AuditAction('user.create')
   @ApiOperation({
     summary: 'Kirish hisobi yaratish',
-    description: 'Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1).',
+    description: 'Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1). Rol — `roleId` (`GET /roles`).',
   })
   @ApiCreatedResponse({ type: UserDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — o‘zingizdan kengroq huquqli rol (administrator emas)', type: ApiErrorDto })
   @ApiBadRequestResponse({ description: 'VALIDATION_FAILED — masalan kuchsiz parol', type: ApiErrorDto })
   @ApiConflictResponse({
     description:
       'EMPLOYEE_HAS_USER (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) | ALREADY_EXISTS (email)',
     type: ApiErrorDto,
   })
-  @ApiUnprocessableEntityResponse({ description: 'REFERENCE_NOT_FOUND — xodim yo‘q', type: ApiErrorDto })
+  @ApiUnprocessableEntityResponse({ description: 'REFERENCE_NOT_FOUND — xodim (`employeeId`) yoki rol (`roleId`) yo‘q', type: ApiErrorDto })
   @ApiPlanLimit()
   create(@Body() dto: CreateUserDto): Promise<UserDto> {
     return this.users.create(dto)
@@ -68,13 +72,16 @@ export class UsersController {
   @AuditAction('user.update')
   @ApiOperation({
     summary: 'Foydalanuvchini tahrirlash',
-    description: 'Parol almashsa yoki hisob faolsizlantirilsa — barcha sessiyalari yopiladi.',
+    description:
+      'Parol almashsa yoki hisob faolsizlantirilsa — barcha sessiyalari yopiladi. Yangi rol va faolsizlantirish ' +
+      'keyingi so‘rovdanoq kuchga kiradi; rol o‘zgarsa do‘konga `access.changed` hodisasi.',
   })
   @ApiIfMatch()
   @ApiOkResponse({ type: UserDto })
   @ApiNotFoundResponse({ type: ApiErrorDto })
   @ApiConflictResponse({ description: 'ALREADY_EXISTS (email)', type: ApiErrorDto })
-  @ApiUnprocessableEntityResponse({ description: 'LAST_ADMIN | SELF_ROLE_CHANGE | SELF_DELETE', type: ApiErrorDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — o‘zingizdan kengroq huquqli rol (administrator emas)', type: ApiErrorDto })
+  @ApiUnprocessableEntityResponse({ description: 'LAST_ADMIN | SELF_ROLE_CHANGE | SELF_DELETE | REFERENCE_NOT_FOUND (`roleId`)', type: ApiErrorDto })
   @ApiPlanLimit()
   update(
     @Param('id', ParseUUIDPipe) id: string,

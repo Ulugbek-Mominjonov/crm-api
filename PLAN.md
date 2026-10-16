@@ -716,6 +716,12 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Qabul: `GET /settings` da `brandColor` va `logoFileId` kalitlari doim bor (`null` — sozlanmagan); rang `#RRGGBB`, katta harfda saqlanadi; logotip — shu do'konning tasdiqlangan `store_logo` fayli (aks holda 400, `field: logoFileId`), almashtirilsa/olib tashlansa eski fayl o'chiriladi; `store_logo`: PNG/JPEG/WebP (SVG yo'q), ≤ 1 MB, yuklash — `settings`, o'qish — barcha rollar, 128/512 variantlar shaffofligi bilan; `storeName` → `tenants.name`; `settings.updated` hodisasi faqat shu do'konga; chek PDF (va Telegram cheki) — logotip oq-qora, nom ustida, fayl buzuq bo'lsa chek logotipsiz
   - Tekshirish: `npm run test:e2e -- store-brand` va `npm test -w apps/api -- receipt-pdf validation-errors`
 
+- [x] **T-134 · Do'kon rollari: ruxsatlar rolga beriladi**
+  - Bog'liq: T-029 (rollar va guard), T-030 (maydon himoyasi), T-041 (foydalanuvchilar)
+  - Manba: egasi so'rovi (2026-10-16) — modullarni ko'rish va amallarni bajarishni do'kon o'zi boshqarsin; ruxsat foydalanuvchiga emas, ROLGA; Q118
+  - Qabul: ruxsatlar katalogi `@crm/shared` da (`bo'lim.amal`, guruhlar, o'zbekcha nomlar, bog'liqliklar); har do'konda 4 tizim roli — sukut ruxsatlari avvalgi matritsa bilan aynan bir xil (test solishtiradi), mavjud foydalanuvchilar o'z rolida; rollarni boshqarishning o'zi ham ruxsat (`roles.*`, sukut — admin), administrator bo'lmagan egasi faqat o'zida bor ruxsatlarni beradi; rol yaratiladi/tahrirlanadi/o'chiriladi (foydalanuvchilarni boshqa rolga ko'chirib), `admin` o'zgarmaydi, tizim rollari o'chmaydi; huquq tokenda emas — har so'rovda (kesh), tahrir/rol almashtirish/faolsizlantirish keyingi so'rovdanoq, `access.changed` hodisasi; `users`/`roles` ruxsati berilgan rol o'zidan kengroq rolga va o'zida yo'q ruxsatga tegolmaydi; yashirin maydonlar ruxsatga bog'liq; boshqa do'kon roli ko'rinmaydi va berilmaydi; frontend uchun hujjat (`docs/api/README.md` §6)
+  - Tekshirish: `npm run test:e2e -- roles isolation users-employees field-visibility` va `npm test -w packages/shared -- permissions`, `npm test -w apps/api -- system-roles field-visibility`
+
 ---
 
 ## E12 — Realtime va offline (B5)

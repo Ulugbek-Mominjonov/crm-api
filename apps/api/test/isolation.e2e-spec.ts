@@ -108,6 +108,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
     const quote = await testDb.quote.create({
       data: { tenantId, number: 'TKLF-9001', subtotal: 60_000n, total: 60_000n, date: new Date(), items: { create: [line] } },
     })
+    const role = await testDb.role.create({ data: { tenantId, name: 'B roli', permissions: ['sales.view'] } })
     const file = await seedFileRow(tenantId)
     const exported = await testDb.export.create({
       data: { id: randomUUID(), tenantId, userId: t.userId, resource: 'products', format: 'csv', status: 'ready', fileId: file.id },
@@ -139,6 +140,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       },
       files: { id: file.id, patch: {}, noList: true },
       exports: { id: exported.id, patch: {}, noList: true },
+      roles: { id: role.id, patch: renamed, listQuery: '' },
     }
   }
 
@@ -161,6 +163,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       testDb.delivery.findUnique({ where: { id: s.deliveries!.id } }),
       testDb.file.findUnique({ where: { id: s.files!.id } }),
       testDb.export.findUnique({ where: { id: s.exports!.id } }),
+      testDb.role.findUnique({ where: { id: s.roles!.id } }),
     ])
   }
 

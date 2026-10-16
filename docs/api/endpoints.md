@@ -2,7 +2,7 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **154** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **160** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
@@ -20,6 +20,7 @@ Jami **154** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Ta’minotchilar](#suppliers) — 7 ta
 - [Xodimlar](#employees) — 6 ta
 - [Foydalanuvchilar (kirish hisoblari)](#users) — 6 ta
+- [Rollar va ruxsatlar](#roles) — 6 ta
 - [Sotuvlar (chek, qaytarish, bekor qilish)](#sales) — 7 ta
 - [Kassa: smena va naqd harakatlar](#cash) — 7 ta
 - [Qarzlar (nasiya)](#debts) — 3 ta
@@ -149,7 +150,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 ### `GET /auth/me` — Joriy foydalanuvchi
 
-**Qachon / qanday:** Joriy foydalanuvchi (ism, lavozim, rol, do‘kon). Login/refresh javobida ham xuddi shu `user` bor — ilova ochilganda alohida chaqirish shart emas. Huquqlar `role` dan hisoblanadi (README → Rollar).
+**Qachon / qanday:** Joriy foydalanuvchi (ism, lavozim, rol, do‘kon). Login/refresh javobida ham xuddi shu `user` bor — ilova ochilganda alohida chaqirish shart emas. Menyu, sahifa va tugmalar — `permissions` ro‘yxatidan (README → Rollar). `access.changed` hodisasida qayta so‘rang — rol yoki uning ruxsatlari o‘zgargan.
 
 | | |
 |---|---|
@@ -237,9 +238,9 @@ Sozlamalar → «Tarif va hisob» sahifasi. Faqat administrator. Holatlar va che
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/tenants/current`](#get-tenants-current) | Tarif, holat, chegaralar va ishlatilgan hajm | servisda / hamma |
-| `POST` | [`/tenants/current/delete`](#post-tenants-current-delete) | Do‘konni o‘chirish (30 kun muhlat) | servisda / hamma |
-| `POST` | [`/tenants/current/restore`](#post-tenants-current-restore) | O‘chirish so‘rovini bekor qilish | servisda / hamma |
+| `GET` | [`/tenants/current`](#get-tenants-current) | Tarif, holat, chegaralar va ishlatilgan hajm | faqat `admin` |
+| `POST` | [`/tenants/current/delete`](#post-tenants-current-delete) | Do‘konni o‘chirish (30 kun muhlat) | faqat `admin` |
+| `POST` | [`/tenants/current/restore`](#post-tenants-current-restore) | O‘chirish so‘rovini bekor qilish | faqat `admin` |
 
 <a id="get-tenants-current"></a>
 
@@ -249,7 +250,7 @@ Sozlamalar → «Tarif va hisob» sahifasi. Faqat administrator. Holatlar va che
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`TenantAccountDto`](schemas.md#tenantaccountdto) |
 
@@ -267,7 +268,7 @@ Sozlamalar → «Tarif va hisob» sahifasi. Faqat administrator. Holatlar va che
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`TenantAccountDto`](schemas.md#tenantaccountdto) |
 | Audit jurnali | ha |
@@ -299,7 +300,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`TenantAccountDto`](schemas.md#tenantaccountdto) |
 | Audit jurnali | ha |
@@ -317,8 +318,8 @@ Tarifni to‘lash: hisob-faktura yaratiladi, foydalanuvchi Payme/Click sahifasid
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `POST` | [`/billing/invoices`](#post-billing-invoices) | Hisob-faktura (tarif × oy) | servisda / hamma |
-| `GET` | [`/billing/invoices`](#get-billing-invoices) | Hisob-fakturalar tarixi | servisda / hamma |
+| `POST` | [`/billing/invoices`](#post-billing-invoices) | Hisob-faktura (tarif × oy) | faqat `admin` |
+| `GET` | [`/billing/invoices`](#get-billing-invoices) | Hisob-fakturalar tarixi | faqat `admin` |
 | `POST` | [`/billing/payme`](#post-billing-payme) 🔓 | Payme Merchant API (JSON-RPC) | ochiq |
 | `POST` | [`/billing/click/prepare`](#post-billing-click-prepare) 🔓 | Click SHOP API — prepare | ochiq |
 | `POST` | [`/billing/click/complete`](#post-billing-click-complete) 🔓 | Click SHOP API — complete | ochiq |
@@ -333,7 +334,7 @@ Tarifni to‘lash: hisob-faktura yaratiladi, foydalanuvchi Payme/Click sahifasid
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`CheckoutDto`](schemas.md#checkoutdto) |
 | Audit jurnali | ha |
@@ -364,7 +365,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`InvoiceDto`](schemas.md#invoicedto)[] |
 
@@ -485,7 +486,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
 | `GET` | [`/settings`](#get-settings) | Do‘kon sozlamalari | servisda / hamma |
-| `PATCH` | [`/settings`](#patch-settings) | Sozlamalarni o‘zgartirish | `settings:edit` |
+| `PATCH` | [`/settings`](#patch-settings) 📡 | Sozlamalarni o‘zgartirish | `settings.edit` |
 
 <a id="get-settings"></a>
 
@@ -515,9 +516,10 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 
 | | |
 |---|---|
-| Huquq | `settings:edit` — admin, manager |
+| Huquq | `settings.edit` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SettingsDto`](schemas.md#settingsdto) |
+| Realtime | `settings.updated` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
 | Audit jurnali | ha |
 
 **So‘rov tanasi** — [`UpdateSettingsDto`](schemas.md#updatesettingsdto)
@@ -561,13 +563,13 @@ Omborlar ro‘yxati va kartalari. O‘chirish yo‘q — arxivlash. Sukut (`isDe
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/warehouses`](#get-warehouses) | Omborlar ro‘yxati | `products:view` |
-| `POST` | [`/warehouses`](#post-warehouses) 💳 | Ombor qo‘shish | `products:create` |
-| `GET` | [`/warehouses/stock`](#get-warehouses-stock) | Omborlar bo‘yicha tovar | `products:view` |
-| `GET` | [`/warehouses/:id`](#get-warehouses-id) | Bitta ombor | `products:view` |
-| `PATCH` | [`/warehouses/:id`](#patch-warehouses-id) 🔒 | Omborni tahrirlash | `products:edit` |
-| `POST` | [`/warehouses/:id/archive`](#post-warehouses-id-archive) | Omborni arxivlash | `products:delete` |
-| `POST` | [`/warehouses/:id/restore`](#post-warehouses-id-restore) 💳 | Omborni arxivdan qaytarish | `products:delete` |
+| `GET` | [`/warehouses`](#get-warehouses) | Omborlar ro‘yxati | `products.view` |
+| `POST` | [`/warehouses`](#post-warehouses) 💳 | Ombor qo‘shish | `stock.manage` |
+| `GET` | [`/warehouses/stock`](#get-warehouses-stock) | Omborlar bo‘yicha tovar | `products.view` |
+| `GET` | [`/warehouses/:id`](#get-warehouses-id) | Bitta ombor | `products.view` |
+| `PATCH` | [`/warehouses/:id`](#patch-warehouses-id) 🔒 | Omborni tahrirlash | `stock.manage` |
+| `POST` | [`/warehouses/:id/archive`](#post-warehouses-id-archive) | Omborni arxivlash | `stock.manage` |
+| `POST` | [`/warehouses/:id/restore`](#post-warehouses-id-restore) 💳 | Omborni arxivdan qaytarish | `stock.manage` |
 
 <a id="get-warehouses"></a>
 
@@ -579,7 +581,7 @@ Omborlar ro‘yxati va kartalari. O‘chirish yo‘q — arxivlash. Sukut (`isDe
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -611,7 +613,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:create` — admin, manager, omborchi |
+| Huquq | `stock.manage` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`WarehouseDto`](schemas.md#warehousedto) |
 | Audit jurnali | ha — `warehouse.create` |
@@ -646,7 +648,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`WarehouseStockDto`](schemas.md#warehousestockdto)[] |
 
@@ -666,7 +668,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`WarehouseDto`](schemas.md#warehousedto) |
 
@@ -696,7 +698,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `stock.manage` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`WarehouseDto`](schemas.md#warehousedto) |
 | Audit jurnali | ha — `warehouse.update` |
@@ -737,7 +739,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `products:delete` — admin, manager, omborchi |
+| Huquq | `stock.manage` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ArchivedWarehouseDto`](schemas.md#archivedwarehousedto) |
 | Audit jurnali | ha — `warehouse.archive` |
@@ -769,7 +771,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `products:delete` — admin, manager, omborchi |
+| Huquq | `stock.manage` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`WarehouseDto`](schemas.md#warehousedto) |
 | Audit jurnali | ha — `warehouse.restore` |
@@ -801,12 +803,12 @@ Katalog filtri va mahsulot formasidagi tanlov. `sortOrder` — ko‘rsatish tart
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/categories`](#get-categories) | Kategoriyalar ro‘yxati | `products:view` |
-| `POST` | [`/categories`](#post-categories) | Kategoriya qo‘shish | `products:create` |
-| `GET` | [`/categories/:id`](#get-categories-id) | Bitta kategoriya | `products:view` |
-| `PATCH` | [`/categories/:id`](#patch-categories-id) 🔒 | Kategoriyani tahrirlash | `products:edit` |
-| `DELETE` | [`/categories/:id`](#delete-categories-id) | Kategoriyani o‘chirish (yumshoq) | `products:delete` |
-| `POST` | [`/categories/:id/restore`](#post-categories-id-restore) | O‘chirilgan kategoriyani tiklash (undo) | `products:delete` |
+| `GET` | [`/categories`](#get-categories) | Kategoriyalar ro‘yxati | `products.view` |
+| `POST` | [`/categories`](#post-categories) | Kategoriya qo‘shish | `products.create` |
+| `GET` | [`/categories/:id`](#get-categories-id) | Bitta kategoriya | `products.view` |
+| `PATCH` | [`/categories/:id`](#patch-categories-id) 🔒 | Kategoriyani tahrirlash | `products.edit` |
+| `DELETE` | [`/categories/:id`](#delete-categories-id) | Kategoriyani o‘chirish (yumshoq) | `products.delete` |
+| `POST` | [`/categories/:id/restore`](#post-categories-id-restore) | O‘chirilgan kategoriyani tiklash (undo) | `products.delete` |
 
 <a id="get-categories"></a>
 
@@ -818,7 +820,7 @@ Katalog filtri va mahsulot formasidagi tanlov. `sortOrder` — ko‘rsatish tart
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -849,7 +851,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:create` — admin, manager, omborchi |
+| Huquq | `products.create` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`CategoryDto`](schemas.md#categorydto) |
 | Audit jurnali | ha — `category.create` |
@@ -881,7 +883,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`CategoryDto`](schemas.md#categorydto) |
 
@@ -913,7 +915,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `products.edit` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`CategoryDto`](schemas.md#categorydto) |
 | Audit jurnali | ha — `category.update` |
@@ -952,7 +954,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `products:delete` — admin, manager, omborchi |
+| Huquq | `products.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha — `category.delete` |
@@ -984,7 +986,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `products:delete` — admin, manager, omborchi |
+| Huquq | `products.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`CategoryDto`](schemas.md#categorydto) |
 | Audit jurnali | ha — `category.restore` |
@@ -1015,16 +1017,16 @@ Katalog, mahsulot kartasi, POS qidiruvi, CSV import, ommaviy narx. Qoldiq mahsul
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/products/summary`](#get-products-summary) | Katalog xulosasi | `products:view` |
-| `GET` | [`/products`](#get-products) | Mahsulotlar katalogi | `products:view` |
-| `POST` | [`/products`](#post-products) | Mahsulot qo‘shish | `products:create` |
-| `GET` | [`/products/:id/stats`](#get-products-id-stats) | Mahsulot kartasi raqamlari | `products:view` |
-| `GET` | [`/products/:id`](#get-products-id) | Bitta mahsulot (ombor qoldiqlari bilan) | `products:view` |
-| `PATCH` | [`/products/:id`](#patch-products-id) 🔒 | Mahsulotni tahrirlash | `products:edit` |
-| `DELETE` | [`/products/:id`](#delete-products-id) | Mahsulotni o‘chirish (yumshoq) | `products:delete` |
-| `POST` | [`/products/import`](#post-products-import) | Mahsulotlarni import qilish | `products:create` |
-| `POST` | [`/products/bulk-price`](#post-products-bulk-price) | Narxni ommaviy o‘zgartirish | `products:edit` |
-| `POST` | [`/products/:id/restore`](#post-products-id-restore) | O‘chirilgan mahsulotni tiklash (undo) | `products:delete` |
+| `GET` | [`/products/summary`](#get-products-summary) | Katalog xulosasi | `products.view` |
+| `GET` | [`/products`](#get-products) | Mahsulotlar katalogi | `products.view` |
+| `POST` | [`/products`](#post-products) | Mahsulot qo‘shish | `products.create` |
+| `GET` | [`/products/:id/stats`](#get-products-id-stats) | Mahsulot kartasi raqamlari | `products.view` |
+| `GET` | [`/products/:id`](#get-products-id) | Bitta mahsulot (ombor qoldiqlari bilan) | `products.view` |
+| `PATCH` | [`/products/:id`](#patch-products-id) 🔒 | Mahsulotni tahrirlash | `products.edit` |
+| `DELETE` | [`/products/:id`](#delete-products-id) | Mahsulotni o‘chirish (yumshoq) | `products.delete` |
+| `POST` | [`/products/import`](#post-products-import) | Mahsulotlarni import qilish | `products.create` |
+| `POST` | [`/products/bulk-price`](#post-products-bulk-price) | Narxni ommaviy o‘zgartirish | `products.edit` |
+| `POST` | [`/products/:id/restore`](#post-products-id-restore) | O‘chirilgan mahsulotni tiklash (undo) | `products.delete` |
 
 <a id="get-products-summary"></a>
 
@@ -1036,7 +1038,7 @@ Katalog, mahsulot kartasi, POS qidiruvi, CSV import, ommaviy narx. Qoldiq mahsul
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ProductSummaryDto`](schemas.md#productsummarydto) |
 
@@ -1058,7 +1060,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -1094,7 +1096,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:create` — admin, manager, omborchi |
+| Huquq | `products.create` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`ProductDto`](schemas.md#productdto) |
 | Audit jurnali | ha — `product.create` |
@@ -1141,7 +1143,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ProductStatsDto`](schemas.md#productstatsdto) |
 
@@ -1171,7 +1173,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `products.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ProductDto`](schemas.md#productdto) |
 
@@ -1203,7 +1205,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `products.edit` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`ProductDto`](schemas.md#productdto) |
 | Audit jurnali | ha — `product.update` |
@@ -1255,7 +1257,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `products:delete` — admin, manager, omborchi |
+| Huquq | `products.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha — `product.delete` |
@@ -1288,7 +1290,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `products:create` — admin, manager, omborchi |
+| Huquq | `products.create` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ImportResultDto`](schemas.md#importresultdto) |
 | Audit jurnali | ha |
@@ -1322,7 +1324,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `products.edit` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`BulkPriceResultDto`](schemas.md#bulkpriceresultdto) |
 | Audit jurnali | ha |
@@ -1356,7 +1358,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `products:delete` — admin, manager, omborchi |
+| Huquq | `products.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ProductDto`](schemas.md#productdto) |
 | Audit jurnali | ha — `product.restore` |
@@ -1388,12 +1390,12 @@ Kirim, hisobdan chiqarish, inventarizatsiya, omborlar orasida ko‘chirish, hara
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `POST` | [`/stock/intake`](#post-stock-intake) 🔁 📡 | Kirim | `products:edit` |
-| `POST` | [`/stock/writeoff`](#post-stock-writeoff) 🔁 📡 | Chiqim (hisobdan chiqarish) | `products:edit` |
-| `POST` | [`/stock/adjust`](#post-stock-adjust) 🔁 📡 | Inventarizatsiya | `products:edit` |
-| `POST` | [`/stock/transfer`](#post-stock-transfer) 🔁 📡 | Omborlar orasida ko‘chirish | `products:edit` |
-| `GET` | [`/stock/movements`](#get-stock-movements) | Harakatlar jurnali | `products:view` |
-| `GET` | [`/stock/reorder-suggestions`](#get-stock-reorder-suggestions) | Buyurtma taklifi | `products:view` |
+| `POST` | [`/stock/intake`](#post-stock-intake) 🔁 📡 | Kirim | `stock.operate` |
+| `POST` | [`/stock/writeoff`](#post-stock-writeoff) 🔁 📡 | Chiqim (hisobdan chiqarish) | `stock.operate` |
+| `POST` | [`/stock/adjust`](#post-stock-adjust) 🔁 📡 | Inventarizatsiya | `stock.operate` |
+| `POST` | [`/stock/transfer`](#post-stock-transfer) 🔁 📡 | Omborlar orasida ko‘chirish | `stock.operate` |
+| `GET` | [`/stock/movements`](#get-stock-movements) | Harakatlar jurnali | `stock.view` |
+| `GET` | [`/stock/reorder-suggestions`](#get-stock-reorder-suggestions) | Buyurtma taklifi | `stock.view` |
 
 <a id="post-stock-intake"></a>
 
@@ -1405,7 +1407,7 @@ Kirim, hisobdan chiqarish, inventarizatsiya, omborlar orasida ko‘chirish, hara
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `stock.operate` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`StockOperationResultDto`](schemas.md#stockoperationresultdto) |
 | Realtime | `stock.changed` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -1445,7 +1447,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `stock.operate` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`StockOperationResultDto`](schemas.md#stockoperationresultdto) |
 | Realtime | `stock.changed` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -1482,7 +1484,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `stock.operate` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`AdjustResultDto`](schemas.md#adjustresultdto) |
 | Realtime | `stock.changed` (farq bo‘lsa) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -1518,7 +1520,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana b
 
 | | |
 |---|---|
-| Huquq | `products:edit` — admin, manager, omborchi |
+| Huquq | `stock.operate` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`TransferResultDto`](schemas.md#transferresultdto) |
 | Realtime | `stock.changed` — har ombor uchun alohida (2 ta) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -1556,7 +1558,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `stock.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`MovementPageDto`](schemas.md#movementpagedto) |
 
@@ -1591,7 +1593,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `products:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `stock.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ReorderGroupDto`](schemas.md#reordergroupdto)[] |
 
@@ -1611,14 +1613,14 @@ Mijozlar sahifasi, mijoz kartasi, POS’da mijoz tanlash (bonus, nasiya). Telefo
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/clients`](#get-clients) | Mijozlar ro‘yxati | `customers:view` |
-| `POST` | [`/clients`](#post-clients) | Mijoz qo‘shish | `customers:create` |
-| `GET` | [`/clients/:id/stats`](#get-clients-id-stats) | Mijoz kartasi raqamlari | `customers:view` |
-| `GET` | [`/clients/:id`](#get-clients-id) | Bitta mijoz | `customers:view` |
-| `PATCH` | [`/clients/:id`](#patch-clients-id) 🔒 | Mijozni tahrirlash | `customers:edit` |
-| `DELETE` | [`/clients/:id`](#delete-clients-id) | Mijozni o‘chirish (yumshoq) | `customers:delete` |
-| `POST` | [`/clients/:id/restore`](#post-clients-id-restore) | O‘chirilgan mijozni tiklash (undo) | `customers:delete` |
-| `POST` | [`/clients/:id/telegram-link`](#post-clients-id-telegram-link) | Telegram’ga ulash — shaxsiy havola (QR uchun) | `customers:edit` |
+| `GET` | [`/clients`](#get-clients) | Mijozlar ro‘yxati | `customers.view` |
+| `POST` | [`/clients`](#post-clients) | Mijoz qo‘shish | `customers.create` |
+| `GET` | [`/clients/:id/stats`](#get-clients-id-stats) | Mijoz kartasi raqamlari | `customers.view` |
+| `GET` | [`/clients/:id`](#get-clients-id) | Bitta mijoz | `customers.view` |
+| `PATCH` | [`/clients/:id`](#patch-clients-id) 🔒 | Mijozni tahrirlash | `customers.edit` |
+| `DELETE` | [`/clients/:id`](#delete-clients-id) | Mijozni o‘chirish (yumshoq) | `customers.delete` |
+| `POST` | [`/clients/:id/restore`](#post-clients-id-restore) | O‘chirilgan mijozni tiklash (undo) | `customers.delete` |
+| `POST` | [`/clients/:id/telegram-link`](#post-clients-id-telegram-link) | Telegram’ga ulash — shaxsiy havola (QR uchun) | `customers.edit` |
 
 <a id="get-clients"></a>
 
@@ -1630,7 +1632,7 @@ Mijozlar sahifasi, mijoz kartasi, POS’da mijoz tanlash (bonus, nasiya). Telefo
 
 | | |
 |---|---|
-| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `customers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -1664,7 +1666,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `customers:create` — admin, manager, sotuvchi |
+| Huquq | `customers.create` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`ClientDto`](schemas.md#clientdto) |
 | Audit jurnali | ha — `client.create` |
@@ -1703,7 +1705,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `customers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ClientStatsDto`](schemas.md#clientstatsdto) |
 
@@ -1733,7 +1735,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `customers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ClientDto`](schemas.md#clientdto) |
 
@@ -1765,7 +1767,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `customers:edit` — admin, manager, sotuvchi |
+| Huquq | `customers.edit` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`ClientDto`](schemas.md#clientdto) |
 | Audit jurnali | ha — `client.update` |
@@ -1812,7 +1814,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `customers:delete` — admin, manager, sotuvchi |
+| Huquq | `customers.delete` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha — `client.delete` |
@@ -1844,7 +1846,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `customers:delete` — admin, manager, sotuvchi |
+| Huquq | `customers.delete` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ClientDto`](schemas.md#clientdto) |
 | Audit jurnali | ha — `client.restore` |
@@ -1877,7 +1879,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `customers:edit` — admin, manager, sotuvchi |
+| Huquq | `customers.edit` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`TelegramLinkDto`](schemas.md#telegramlinkdto) |
 | Audit jurnali | ha — `client.telegramLinkIssued` |
@@ -1909,13 +1911,13 @@ Ta’minotchilar ro‘yxati va kartasi (buyurtmalar, qarzimiz, to‘lovlar). Kre
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/suppliers`](#get-suppliers) | Ta’minotchilar ro‘yxati | `suppliers:view` |
-| `POST` | [`/suppliers`](#post-suppliers) | Ta’minotchi qo‘shish | `suppliers:create` |
-| `GET` | [`/suppliers/summary`](#get-suppliers-summary) | Kreditorlik xulosasi | `suppliers:view` |
-| `GET` | [`/suppliers/:id`](#get-suppliers-id) | Ta’minotchi kartasi | `suppliers:view` |
-| `PATCH` | [`/suppliers/:id`](#patch-suppliers-id) 🔒 | Ta’minotchini tahrirlash | `suppliers:edit` |
-| `DELETE` | [`/suppliers/:id`](#delete-suppliers-id) | Ta’minotchini o‘chirish (yumshoq) | `suppliers:delete` |
-| `POST` | [`/suppliers/:id/restore`](#post-suppliers-id-restore) | O‘chirilgan ta’minotchini tiklash (undo) | `suppliers:delete` |
+| `GET` | [`/suppliers`](#get-suppliers) | Ta’minotchilar ro‘yxati | `suppliers.view` |
+| `POST` | [`/suppliers`](#post-suppliers) | Ta’minotchi qo‘shish | `suppliers.create` |
+| `GET` | [`/suppliers/summary`](#get-suppliers-summary) | Kreditorlik xulosasi | `suppliers.view` |
+| `GET` | [`/suppliers/:id`](#get-suppliers-id) | Ta’minotchi kartasi | `suppliers.view` |
+| `PATCH` | [`/suppliers/:id`](#patch-suppliers-id) 🔒 | Ta’minotchini tahrirlash | `suppliers.edit` |
+| `DELETE` | [`/suppliers/:id`](#delete-suppliers-id) | Ta’minotchini o‘chirish (yumshoq) | `suppliers.delete` |
+| `POST` | [`/suppliers/:id/restore`](#post-suppliers-id-restore) | O‘chirilgan ta’minotchini tiklash (undo) | `suppliers.delete` |
 
 <a id="get-suppliers"></a>
 
@@ -1927,7 +1929,7 @@ Ta’minotchilar ro‘yxati va kartasi (buyurtmalar, qarzimiz, to‘lovlar). Kre
 
 | | |
 |---|---|
-| Huquq | `suppliers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `suppliers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -1957,7 +1959,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `suppliers:create` — admin, manager, omborchi |
+| Huquq | `suppliers.create` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`SupplierDto`](schemas.md#supplierdto) |
 | Audit jurnali | ha — `supplier.create` |
@@ -1997,7 +1999,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `suppliers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `suppliers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SupplierSummaryDto`](schemas.md#suppliersummarydto) |
 
@@ -2019,7 +2021,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `suppliers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `suppliers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SupplierCardDto`](schemas.md#suppliercarddto) |
 
@@ -2049,7 +2051,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `suppliers:edit` — admin, manager, omborchi |
+| Huquq | `suppliers.edit` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`SupplierDto`](schemas.md#supplierdto) |
 | Audit jurnali | ha — `supplier.update` |
@@ -2093,7 +2095,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `suppliers:delete` — admin, manager, omborchi |
+| Huquq | `suppliers.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha — `supplier.delete` |
@@ -2125,7 +2127,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `suppliers:delete` — admin, manager, omborchi |
+| Huquq | `suppliers.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SupplierDto`](schemas.md#supplierdto) |
 | Audit jurnali | ha — `supplier.restore` |
@@ -2156,22 +2158,22 @@ Xodim — shaxs (ism, lavozim, telefon, maosh, holat). Tizimga kirish hisobi alo
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/employees`](#get-employees) | Xodimlar ro‘yxati | `employees:view` |
-| `POST` | [`/employees`](#post-employees) | Xodim qo‘shish | `employees:create` |
-| `GET` | [`/employees/:id`](#get-employees-id) | Bitta xodim | `employees:view` |
-| `PATCH` | [`/employees/:id`](#patch-employees-id) 🔒 | Xodimni tahrirlash | `employees:edit` |
-| `DELETE` | [`/employees/:id`](#delete-employees-id) | Xodimni o‘chirish (yumshoq) | `employees:delete` |
-| `POST` | [`/employees/:id/restore`](#post-employees-id-restore) | O‘chirilgan xodimni tiklash (undo) | `employees:delete` |
+| `GET` | [`/employees`](#get-employees) | Xodimlar ro‘yxati | `employees.view` |
+| `POST` | [`/employees`](#post-employees) | Xodim qo‘shish | `employees.create` |
+| `GET` | [`/employees/:id`](#get-employees-id) | Bitta xodim | `employees.view` |
+| `PATCH` | [`/employees/:id`](#patch-employees-id) 🔒 | Xodimni tahrirlash | `employees.edit` |
+| `DELETE` | [`/employees/:id`](#delete-employees-id) | Xodimni o‘chirish (yumshoq) | `employees.delete` |
+| `POST` | [`/employees/:id/restore`](#post-employees-id-restore) | O‘chirilgan xodimni tiklash (undo) | `employees.delete` |
 
 <a id="get-employees"></a>
 
 ### `GET /employees` — Xodimlar ro‘yxati
 
-**Qachon / qanday:** Xodimlar sahifasi va xodim tanlash ro‘yxatlari (haydovchi, sotuvchi; `status=active`). Faqat admin/manager (`employees:view`) — sotuvchi va omborchida bu ro‘yxat yo‘q (403), ularga xodim tanlash maydonini ko‘rsatmang.
+**Qachon / qanday:** Xodimlar sahifasi va xodim tanlash ro‘yxatlari (haydovchi, sotuvchi; `status=active`). `employees.view` kerak (sukut — admin, manager): ruxsatsiz rolda ro‘yxat yo‘q (403) — xodim tanlash maydonini ko‘rsatmang.
 
 | | |
 |---|---|
-| Huquq | `employees:view` — admin, manager |
+| Huquq | `employees.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -2201,7 +2203,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `employees:create` — admin, manager |
+| Huquq | `employees.create` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`EmployeeDto`](schemas.md#employeedto) |
 | Audit jurnali | ha — `employee.create` |
@@ -2233,7 +2235,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `employees:view` — admin, manager |
+| Huquq | `employees.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`EmployeeDto`](schemas.md#employeedto) |
 
@@ -2265,7 +2267,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `employees:edit` — admin, manager |
+| Huquq | `employees.edit` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`EmployeeDto`](schemas.md#employeedto) |
 | Audit jurnali | ha — `employee.update` |
@@ -2308,7 +2310,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `employees:delete` — admin |
+| Huquq | `employees.delete` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha — `employee.delete` |
@@ -2340,7 +2342,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `employees:delete` — admin |
+| Huquq | `employees.delete` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`EmployeeDto`](schemas.md#employeedto) |
 | Audit jurnali | ha — `employee.restore` |
@@ -2367,16 +2369,16 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 ## Foydalanuvchilar (kirish hisoblari)
 
-Faqat administrator (`users:*`). Email + parol + rol, mavjud xodimga bog‘lanadi. Tarif foydalanuvchi sonini cheklaydi (402).
+`users.*` ruxsati (sukut — faqat administrator). Email + parol + rol (`roleId`), mavjud xodimga bog‘lanadi. Administrator bo‘lmagan boshqaruvchi o‘zidan kengroq rolga tegolmaydi (403). Tarif foydalanuvchi sonini cheklaydi (402).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/users`](#get-users) | Foydalanuvchilar ro‘yxati | `users:view` |
-| `POST` | [`/users`](#post-users) 💳 | Kirish hisobi yaratish | `users:create` |
-| `GET` | [`/users/:id`](#get-users-id) | Bitta foydalanuvchi | `users:view` |
-| `PATCH` | [`/users/:id`](#patch-users-id) 🔒 💳 | Foydalanuvchini tahrirlash | `users:edit` |
-| `DELETE` | [`/users/:id`](#delete-users-id) | Foydalanuvchini o‘chirish (yumshoq) | `users:delete` |
-| `POST` | [`/users/:id/restore`](#post-users-id-restore) 💳 | O‘chirilgan foydalanuvchini tiklash | `users:delete` |
+| `GET` | [`/users`](#get-users) | Foydalanuvchilar ro‘yxati | `users.view` |
+| `POST` | [`/users`](#post-users) 💳 | Kirish hisobi yaratish | `users.create` |
+| `GET` | [`/users/:id`](#get-users-id) | Bitta foydalanuvchi | `users.view` |
+| `PATCH` | [`/users/:id`](#patch-users-id) 🔒 💳 📡 | Foydalanuvchini tahrirlash | `users.edit` |
+| `DELETE` | [`/users/:id`](#delete-users-id) | Foydalanuvchini o‘chirish (yumshoq) | `users.delete` |
+| `POST` | [`/users/:id/restore`](#post-users-id-restore) 💳 | O‘chirilgan foydalanuvchini tiklash | `users.delete` |
 
 <a id="get-users"></a>
 
@@ -2384,11 +2386,11 @@ Faqat administrator (`users:*`). Email + parol + rol, mavjud xodimga bog‘lanad
 
 > Ism va lavozim xodim yozuvidan (D1). `deleted=true` — o‘chirilganlar (tiklash uchun).
 
-**Qachon / qanday:** Foydalanuvchilar sahifasi (admin). Ism va lavozim xodim yozuvidan. `lastLoginAt` bor. `deleted=true` — «O‘chirilganlar» (faqat o‘chirilgan hisoblar, `deletedAt` bilan) → «Tiklash» tugmasi.
+**Qachon / qanday:** Foydalanuvchilar sahifasi. Ism va lavozim xodim yozuvidan, rol — `roleId`/`roleName`/`role`. `lastLoginAt` bor. `roleId=` — shu roldagilar. `deleted=true` — «O‘chirilganlar» (faqat o‘chirilgan hisoblar, `deletedAt` bilan) → «Tiklash» tugmasi.
 
 | | |
 |---|---|
-| Huquq | `users:view` — admin |
+| Huquq | `users.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → `application/json` |
 
@@ -2400,7 +2402,8 @@ Faqat administrator (`users:*`). Email + parol + rol, mavjud xodimga bog‘lanad
 | `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
 | `q` | query | `string` |  | Matn qidiruvi — maks. uzunlik `100` |
 | `sort` | query | `id` \| `-id` \| `name` \| `-name` \| `email` \| `-email` \| `createdAt` \| `-createdAt` \| `lastLoginAt` \| `-lastLoginAt` |  | sukut `"name"` |
-| `role` | query | `admin` \| `manager` \| `sotuvchi` \| `omborchi` |  |  |
+| `roleId` | query | `string` |  | Shu roldagilar |
+| `role` | query | `admin` \| `manager` \| `sotuvchi` \| `omborchi` |  | ESKIRGAN — `roleId` ishlating. Tizim roli kaliti |
 | `isActive` | query | `boolean` |  |  |
 | `deleted` | query | `boolean` |  | `true` — faqat o‘chirilgan hisoblar (tiklash uchun) |
 
@@ -2416,13 +2419,13 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 ### `POST /users` — Kirish hisobi yaratish
 
-> Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1).
+> Mavjud xodimga bog‘lanadi — ism va lavozim alohida kiritilmaydi (D1). Rol — `roleId` (`GET /roles`).
 
-**Qachon / qanday:** Kirish hisobi: mavjud `employeeId` (hisobi yo‘q xodim), email, parol, rol. Xodimda allaqachon hisob bor — 409 `EMPLOYEE_HAS_USER` — `errors[0].meta: { userId, deleted }`; `deleted: true` bo‘lsa yangisi o‘rniga «Tiklash» taklif qiling (`POST /users/{userId}/restore`); email band — 409 `ALREADY_EXISTS`; tarif to‘lgan — 402.
+**Qachon / qanday:** Kirish hisobi: mavjud `employeeId` (hisobi yo‘q xodim), email, parol, `roleId` (`GET /roles`; eski `role` kaliti ham qabul qilinadi). Xodimda allaqachon hisob bor — 409 `EMPLOYEE_HAS_USER` — `errors[0].meta: { userId, deleted }`; `deleted: true` bo‘lsa yangisi o‘rniga «Tiklash» taklif qiling (`POST /users/{userId}/restore`); email band — 409 `ALREADY_EXISTS`; tarif to‘lgan — 402.
 
 | | |
 |---|---|
-| Huquq | `users:create` — admin |
+| Huquq | `users.create` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`UserDto`](schemas.md#userdto) |
 | Audit jurnali | ha — `user.create` |
@@ -2434,7 +2437,8 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `employeeId` | `string` | ✔ | Mavjud xodim — kirish hisobi DOIM xodimga tegishli (D1) |
 | `email` | `string` | ✔ | misol `kassir@crm.uz` |
 | `password` | `string` | ✔ | Kamida 8 belgi; ommabop parollar rad etiladi |
-| `role` | `admin` \| `manager` \| `sotuvchi` \| `omborchi` | ✔ |  |
+| `roleId` | `string` |  | Rol (`GET /roles`). `role` berilmasa — SHART |
+| `role` | `admin` \| `manager` \| `sotuvchi` \| `omborchi` |  | ESKIRGAN — `roleId` ishlating. Tizim roli kaliti: shu kalitli rol beriladi |
 
 **Xatolar**
 
@@ -2442,10 +2446,11 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `400` | `VALIDATION_FAILED` — masalan kuchsiz parol |
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
+| `403` | `PERMISSION_DENIED` — o‘zingizdan kengroq huquqli rol (administrator emas) |
 | `409` | `EMPLOYEE_HAS_USER` (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) \| `ALREADY_EXISTS` (email) |
-| `422` | `REFERENCE_NOT_FOUND` — xodim yo‘q |
+| `422` | `REFERENCE_NOT_FOUND` — xodim (`employeeId`) yoki rol (`roleId`) yo‘q |
 
-Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#users)
 
@@ -2459,7 +2464,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `users:view` — admin |
+| Huquq | `users.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`UserDto`](schemas.md#userdto) |
 
@@ -2485,15 +2490,16 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 ### `PATCH /users/:id` — Foydalanuvchini tahrirlash
 
-> Parol almashsa yoki hisob faolsizlantirilsa — barcha sessiyalari yopiladi.
+> Parol almashsa yoki hisob faolsizlantirilsa — barcha sessiyalari yopiladi. Yangi rol va faolsizlantirish keyingi so‘rovdanoq kuchga kiradi; rol o‘zgarsa do‘konga `access.changed` hodisasi.
 
-**Qachon / qanday:** Rol, email, faollik, parolni tiklash (admin). Parol yoki `isActive: false` — shu foydalanuvchining barcha sessiyalari yopiladi. Rol o‘zgarishi uning joriy access tokeniga ≤ 15 daqiqada yetib boradi. O‘z rolini/o‘zini o‘chirish — 422; oxirgi admin — 422 `LAST_ADMIN`.
+**Qachon / qanday:** Rol (`roleId`), email, faollik, parolni tiklash. Parol yoki `isActive: false` — shu foydalanuvchining barcha sessiyalari yopiladi. Yangi rol va faolsizlantirish uning KEYINGI so‘rovidanoq kuchga kiradi (token o‘sha); rol o‘zgarsa — `access.changed`. O‘z rolini/o‘zini o‘chirish — 422; oxirgi admin — 422 `LAST_ADMIN`; o‘zidan kengroq rol — 403.
 
 | | |
 |---|---|
-| Huquq | `users:edit` — admin |
+| Huquq | `users.edit` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`UserDto`](schemas.md#userdto) |
+| Realtime | `access.changed` (rol o‘zgarsa) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
 | Audit jurnali | ha — `user.update` |
 
 **Parametrlar**
@@ -2507,7 +2513,8 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `email` | `string` |  | misol `kassir@crm.uz` |
-| `role` | `admin` \| `manager` \| `sotuvchi` \| `omborchi` |  | O‘z rolingizni o‘zgartirib bo‘lmaydi |
+| `roleId` | `string` |  | Boshqa rol (`GET /roles`). O‘z rolingizni o‘zgartirib bo‘lmaydi |
+| `role` | `admin` \| `manager` \| `sotuvchi` \| `omborchi` |  | ESKIRGAN — `roleId` ishlating. Tizim roli kaliti: shu kalitli rol beriladi |
 | `isActive` | `boolean` |  | `false` — kira olmaydi, sessiyalari yopiladi |
 | `password` | `string` |  | Parolni tiklash (administrator). Barcha sessiyalar yopiladi |
 
@@ -2516,11 +2523,12 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | Status | Kod — qachon |
 |---|---|
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
+| `403` | `PERMISSION_DENIED` — o‘zingizdan kengroq huquqli rol (administrator emas) |
 | `404` | `NOT_FOUND` |
 | `409` | `ALREADY_EXISTS` (email) |
-| `422` | `LAST_ADMIN` \| `SELF_ROLE_CHANGE` \| `SELF_DELETE` |
+| `422` | `LAST_ADMIN` \| `SELF_ROLE_CHANGE` \| `SELF_DELETE` \| `REFERENCE_NOT_FOUND` (`roleId`) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#users)
 
@@ -2534,7 +2542,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 
 | | |
 |---|---|
-| Huquq | `users:delete` — admin |
+| Huquq | `users.delete` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha — `user.delete` |
@@ -2568,7 +2576,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `users:delete` — admin |
+| Huquq | `users.delete` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`UserDto`](schemas.md#userdto) |
 | Audit jurnali | ha — `user.restore` |
@@ -2593,6 +2601,212 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 ---
 
+<a id="roles"></a>
+
+## Rollar va ruxsatlar
+
+Ruxsatlar ROLGA beriladi (foydalanuvchiga emas), foydalanuvchi — bitta rolda. Har do‘konda 4 ta tizim roli (`admin`, `manager`, `sotuvchi`, `omborchi`) + do‘kon yaratgan rollar. Boshqarish — `roles.*` ruxsatlari (sukut — faqat administrator); administrator bo‘lmagan egasi faqat o‘zida bor ruxsatlarni beradi (403). Katalog, qoidalar va frontend oqimi — [README → Rollar](README.md#roles).
+
+| Amal | Yo‘l | Nima uchun | Huquq |
+|---|---|---|---|
+| `GET` | [`/roles`](#get-roles) | Do‘kon rollari | `roles.view` |
+| `POST` | [`/roles`](#post-roles) | Rol yaratish | `roles.create` |
+| `GET` | [`/roles/catalog`](#get-roles-catalog) | Ruxsatlar katalogi | `roles.view` |
+| `GET` | [`/roles/:id`](#get-roles-id) | Bitta rol | `roles.view` |
+| `PATCH` | [`/roles/:id`](#patch-roles-id) 🔒 📡 | Rolni tahrirlash: ruxsat berish va olib tashlash | `roles.edit` |
+| `DELETE` | [`/roles/:id`](#delete-roles-id) 📡 | Rolni o‘chirish | `roles.delete` |
+
+<a id="get-roles"></a>
+
+### `GET /roles` — Do‘kon rollari
+
+> Hammasi, sahifasiz: avval tizim rollari (admin, manager, sotuvchi, omborchi), keyin nom bo‘yicha.
+
+**Qachon / qanday:** Foydalanuvchilar → «Rollar» sahifasi va hisob formasidagi rol tanlovi. Hammasi, sahifasiz: avval tizim rollari, keyin nom bo‘yicha. `usersCount` — o‘chirilmagan hisoblar. Tizim rolini `key` bo‘yicha tarjima qiling, do‘kon rolini — `name`.
+
+| | |
+|---|---|
+| Huquq | `roles.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`RoleDto`](schemas.md#roledto)[] |
+
+**Xatolar**
+
+Umumiy: 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#roles)
+
+---
+
+<a id="post-roles"></a>
+
+### `POST /roles` — Rol yaratish
+
+> Administrator bo‘lmagan — faqat o‘zida bor ruxsatlardan.
+
+**Qachon / qanday:** «Yangi rol». `permissions` — katalog kalitlari; server normallashtiradi (bo‘lim amali → uning `view` i, `profit.view` → `cost.view`), javobdagi ro‘yxatni ko‘rsating. Nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`).
+
+| | |
+|---|---|
+| Huquq | `roles.create` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `201` → [`RoleDto`](schemas.md#roledto) |
+| Audit jurnali | ha |
+
+**So‘rov tanasi** — [`CreateRoleDto`](schemas.md#createroledto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `name` | `string` | ✔ | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
+| `409` | `ALREADY_EXISTS` (`name`) |
+
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#roles)
+
+---
+
+<a id="get-roles-catalog"></a>
+
+### `GET /roles/catalog` — Ruxsatlar katalogi
+
+> Rol oynasi shundan quriladi: guruhlar → bo‘limlar (modullar) → amallar. Statik — keshlash mumkin.
+
+**Qachon / qanday:** Rol oynasidagi ruxsatlar jadvali shundan quriladi: guruh → bo‘lim → amallar (birinchisi doim `view`). Statik — ilova versiyasi bilan keshlang (`staleTime: Infinity`).
+
+| | |
+|---|---|
+| Huquq | `roles.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`PermissionCatalogDto`](schemas.md#permissioncatalogdto) |
+
+**Xatolar**
+
+Umumiy: 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#roles)
+
+---
+
+<a id="get-roles-id"></a>
+
+### `GET /roles/:id` — Bitta rol
+
+**Qachon / qanday:** Rol oynasini ochishda (tahrir oldidan) — `updatedAt` ni `If-Match` uchun oling.
+
+| | |
+|---|---|
+| Huquq | `roles.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`RoleDto`](schemas.md#roledto) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#roles)
+
+---
+
+<a id="patch-roles-id"></a>
+
+### `PATCH /roles/:id` — Rolni tahrirlash: ruxsat berish va olib tashlash
+
+> `permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi. Administrator bo‘lmagan — faqat o‘zidan keng bo‘lmagan rolni va faqat o‘zida bor ruxsatlar bilan.
+
+**Qachon / qanday:** Ruxsat berish va olib tashlash: `permissions` — TO‘LIQ ro‘yxat (almashtiriladi — berish uchun kalitni qo‘shing, olish uchun chiqaring). O‘zida yo‘q ruxsat yoki o‘zidan kengroq rol (administrator bo‘lmaganda) — 403. `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — 422 (`field: name`), ruxsatlari o‘zgaradi. `If-Match` qo‘llanadi. Shu rol egalariga keyingi so‘rovdanoq kuchga kiradi.
+
+| | |
+|---|---|
+| Huquq | `roles.edit` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
+| Javob | `200` → [`RoleDto`](schemas.md#roledto) |
+| Realtime | `access.changed` (ruxsatlar o‘zgarsa) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`UpdateRoleDto`](schemas.md#updateroledto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `name` | `string` |  | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
+| `404` | `NOT_FOUND` |
+| `409` | `ALREADY_EXISTS` (`name`) \| `VERSION_CONFLICT` |
+| `422` | `ROLE_PROTECTED` — `admin` roli yoki tizim rolining nomi |
+
+Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#roles)
+
+---
+
+<a id="delete-roles-id"></a>
+
+### `DELETE /roles/:id` — Rolni o‘chirish
+
+> Faqat do‘kon yaratgan rol. Foydalanuvchilari bo‘lsa — `replaceWith` rolga o‘tkaziladi (o‘chirilgan hisoblar ham).
+
+**Qachon / qanday:** Faqat do‘kon yaratgan rol (tizim roli — 422 `ROLE_PROTECTED`). Rolda hisob bo‘lsa — 409 `ROLE_IN_USE` (`errors[0].meta.users`) → «Qaysi rolga o‘tkazamiz?» tanlovi → `?replaceWith=<roleId>` bilan qayta.
+
+| | |
+|---|---|
+| Huquq | `roles.delete` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `204` — tana yo‘q |
+| Realtime | `access.changed` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+| `replaceWith` | query | `string` |  | Rolda foydalanuvchi bo‘lsa — SHART: ular shu rolga o‘tkaziladi (o‘chirilgan hisoblar ham) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
+| `404` | `NOT_FOUND` |
+| `409` | `ROLE_IN_USE` — `replaceWith` berilmagan (`meta.users` — nechta) |
+| `422` | `ROLE_PROTECTED` — tizim roli \| `REFERENCE_NOT_FOUND` (`replaceWith`) |
+
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#roles)
+
+---
+
 <a id="sales"></a>
 
 ## Sotuvlar (chek, qaytarish, bekor qilish)
@@ -2601,13 +2815,13 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `POST` | [`/sales`](#post-sales) 🔁 📡 | Sotuv (chek) | `sales:create` |
-| `GET` | [`/sales`](#get-sales) | Cheklar ro‘yxati | `sales:view` |
-| `GET` | [`/sales/:id`](#get-sales-id) | Chek (qatorlari bilan) | `sales:view` |
-| `GET` | [`/sales/:id/receipt`](#get-sales-id-receipt) | Chop etish uchun chek | `sales:view` |
-| `POST` | [`/sales/:id/receipt/telegram`](#post-sales-id-receipt-telegram) | Chekni mijozga Telegram’da yuborish | `sales:view` |
-| `POST` | [`/sales/:id/return`](#post-sales-id-return) 🔁 📡 | Qaytarish | `sales:create` |
-| `POST` | [`/sales/:id/cancel`](#post-sales-id-cancel) 🔁 📡 | Bekor qilish | `sales:delete` |
+| `POST` | [`/sales`](#post-sales) 🔁 📡 | Sotuv (chek) | `sales.create` |
+| `GET` | [`/sales`](#get-sales) | Cheklar ro‘yxati | `sales.view` |
+| `GET` | [`/sales/:id`](#get-sales-id) | Chek (qatorlari bilan) | `sales.view` |
+| `GET` | [`/sales/:id/receipt`](#get-sales-id-receipt) | Chop etish uchun chek | `sales.view` |
+| `POST` | [`/sales/:id/receipt/telegram`](#post-sales-id-receipt-telegram) | Chekni mijozga Telegram’da yuborish | `sales.view` |
+| `POST` | [`/sales/:id/return`](#post-sales-id-return) 🔁 📡 | Qaytarish | `sales.return` |
+| `POST` | [`/sales/:id/cancel`](#post-sales-id-cancel) 🔁 📡 | Bekor qilish | `sales.cancel` |
 
 <a id="post-sales"></a>
 
@@ -2619,7 +2833,7 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 
 | | |
 |---|---|
-| Huquq | `sales:create` — admin, manager, sotuvchi |
+| Huquq | `sales.create` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`SaleDto`](schemas.md#saledto) |
 | Realtime | `sale.created` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -2667,7 +2881,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana b
 
 | | |
 |---|---|
-| Huquq | `sales:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `sales.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SalePageDto`](schemas.md#salepagedto) |
 
@@ -2703,7 +2917,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `sales:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `sales.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`SaleDto`](schemas.md#saledto) |
 
@@ -2735,7 +2949,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `sales:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `sales.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ReceiptDto`](schemas.md#receiptdto) yoki `application/pdf` — `format=json` (sukut) — chek ma’lumoti; `format=pdf` — PDF fayl |
 
@@ -2768,7 +2982,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `sales:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `sales.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — Yuborildi |
 | Audit jurnali | ha |
@@ -2803,7 +3017,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `sales:create` — admin, manager, sotuvchi |
+| Huquq | `sales.return` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`SaleDto`](schemas.md#saledto) — Qaytarish hujjati (`QAYT-…`) |
 | Realtime | `sale.created` (qaytarish hujjati) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -2841,11 +3055,11 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `
 
 > Tovar AYNAN sotilgan omborga qaytadi (I24), naqd kassadan qaytariladi, bonus olib qo‘yiladi (I17).
 
-**Qachon / qanday:** Chekni bekor qilish (`sales:delete` — admin, manager). Qaytarish yoki qarz to‘lovi bor chek — 409 `SALE_NOT_CANCELLABLE` (`meta.reason`). Naqd qaytarilsa ochiq smena kerak. Chekni o‘chirish yo‘q — faqat bekor qilish.
+**Qachon / qanday:** Chekni bekor qilish (`sales.cancel`). Qaytarish yoki qarz to‘lovi bor chek — 409 `SALE_NOT_CANCELLABLE` (`meta.reason`). Naqd qaytarilsa ochiq smena kerak. Chekni o‘chirish yo‘q — faqat bekor qilish.
 
 | | |
 |---|---|
-| Huquq | `sales:delete` — admin, manager |
+| Huquq | `sales.cancel` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `200` → [`SaleDto`](schemas.md#saledto) |
 | Realtime | `sale.cancelled` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -2877,13 +3091,13 @@ Smena ochish/yopish, joriy kassa balansi, naqd kirim/chiqim, X/Z hisobot. Sotuv,
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/cash/shifts/current`](#get-cash-shifts-current) | Joriy smena va kassa balansi | `finance:view` |
-| `GET` | [`/cash/shifts`](#get-cash-shifts) | Smenalar tarixi | `finance:view` |
-| `POST` | [`/cash/shifts/open`](#post-cash-shifts-open) 🔁 📡 | Smena ochish | `finance:create` |
-| `POST` | [`/cash/shifts/close`](#post-cash-shifts-close) 🔁 📡 | Smena yopish | `finance:create` |
-| `GET` | [`/cash/shifts/:id/report`](#get-cash-shifts-id-report) | X/Z hisobot | `finance:view` |
-| `POST` | [`/cash/movements`](#post-cash-movements) 🔁 | Naqd kirim/chiqim | `finance:create` |
-| `GET` | [`/cash/movements`](#get-cash-movements) | Smenadagi naqd harakatlar | `finance:view` |
+| `GET` | [`/cash/shifts/current`](#get-cash-shifts-current) | Joriy smena va kassa balansi | `cash.view` |
+| `GET` | [`/cash/shifts`](#get-cash-shifts) | Smenalar tarixi | `cash.view` |
+| `POST` | [`/cash/shifts/open`](#post-cash-shifts-open) 🔁 📡 | Smena ochish | `cash.operate` |
+| `POST` | [`/cash/shifts/close`](#post-cash-shifts-close) 🔁 📡 | Smena yopish | `cash.operate` |
+| `GET` | [`/cash/shifts/:id/report`](#get-cash-shifts-id-report) | X/Z hisobot | `cash.view` |
+| `POST` | [`/cash/movements`](#post-cash-movements) 🔁 | Naqd kirim/chiqim | `cash.operate` |
+| `GET` | [`/cash/movements`](#get-cash-movements) | Smenadagi naqd harakatlar | `cash.view` |
 
 <a id="get-cash-shifts-current"></a>
 
@@ -2895,7 +3109,7 @@ Smena ochish/yopish, joriy kassa balansi, naqd kirim/chiqim, X/Z hisobot. Sotuv,
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `cash.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`CurrentShiftDto`](schemas.md#currentshiftdto) |
 
@@ -2915,7 +3129,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `cash.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ShiftPageDto`](schemas.md#shiftpagedto) |
 
@@ -2948,7 +3162,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:create` — admin, manager, sotuvchi |
+| Huquq | `cash.operate` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`ShiftDto`](schemas.md#shiftdto) |
 | Realtime | `shift.opened` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -2982,7 +3196,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `finance:create` — admin, manager, sotuvchi |
+| Huquq | `cash.operate` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `200` → [`ShiftDto`](schemas.md#shiftdto) |
 | Realtime | `shift.closed` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -3018,7 +3232,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `cash.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ShiftReportDto`](schemas.md#shiftreportdto) |
 
@@ -3050,7 +3264,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:create` — admin, manager, sotuvchi |
+| Huquq | `cash.operate` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`CashMovementDto`](schemas.md#cashmovementdto) |
 | Audit jurnali | ha |
@@ -3085,7 +3299,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `cash.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`CashMovementPageDto`](schemas.md#cashmovementpagedto) |
 
@@ -3114,9 +3328,9 @@ Qarzdorlar (mijoz yoki chek bo‘yicha), eskirish (30/60/60+), qarz to‘lovlari
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/debts`](#get-debts) | Qarzdorlar | `finance:view` |
-| `GET` | [`/debts/payments`](#get-debts-payments) | Qarz to‘lovlari tarixi | `finance:view` |
-| `POST` | [`/debts/payments`](#post-debts-payments) 🔁 📡 | Qarz to‘lovi | `finance:create` |
+| `GET` | [`/debts`](#get-debts) | Qarzdorlar | `debts.view` |
+| `GET` | [`/debts/payments`](#get-debts-payments) | Qarz to‘lovlari tarixi | `debts.view` |
+| `POST` | [`/debts/payments`](#post-debts-payments) 🔁 📡 | Qarz to‘lovi | `debts.collect` |
 
 <a id="get-debts"></a>
 
@@ -3128,7 +3342,7 @@ Qarzdorlar (mijoz yoki chek bo‘yicha), eskirish (30/60/60+), qarz to‘lovlari
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `debts.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DebtPageDto`](schemas.md#debtpagedto) |
 
@@ -3160,7 +3374,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `debts.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DebtPaymentPageDto`](schemas.md#debtpaymentpagedto) |
 
@@ -3192,7 +3406,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:create` — admin, manager, sotuvchi |
+| Huquq | `debts.collect` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`DebtPaymentResultDto`](schemas.md#debtpaymentresultdto) |
 | Realtime | `debt.paid` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -3227,14 +3441,14 @@ Mijozga narx taklifi: qoldiq band qilinmaydi, kassaga ta’sir yo‘q. Qabul qil
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/quotes`](#get-quotes) | Takliflar ro‘yxati | `quotes:view` |
-| `POST` | [`/quotes`](#post-quotes) | Taklif yaratish | `quotes:create` |
-| `GET` | [`/quotes/summary`](#get-quotes-summary) | Takliflar xulosasi | `quotes:view` |
-| `GET` | [`/quotes/:id`](#get-quotes-id) | Taklif (qatorlari bilan) | `quotes:view` |
-| `PATCH` | [`/quotes/:id`](#patch-quotes-id) | Taklifni tahrirlash | `quotes:edit` |
-| `DELETE` | [`/quotes/:id`](#delete-quotes-id) | Taklifni o‘chirish (yumshoq) | `quotes:delete` |
-| `POST` | [`/quotes/:id/restore`](#post-quotes-id-restore) | O‘chirilgan taklifni tiklash (undo) | `quotes:delete` |
-| `POST` | [`/quotes/:id/convert`](#post-quotes-id-convert) 🔁 📡 | Taklifni sotuvga aylantirish | `sales:create` |
+| `GET` | [`/quotes`](#get-quotes) | Takliflar ro‘yxati | `quotes.view` |
+| `POST` | [`/quotes`](#post-quotes) | Taklif yaratish | `quotes.create` |
+| `GET` | [`/quotes/summary`](#get-quotes-summary) | Takliflar xulosasi | `quotes.view` |
+| `GET` | [`/quotes/:id`](#get-quotes-id) | Taklif (qatorlari bilan) | `quotes.view` |
+| `PATCH` | [`/quotes/:id`](#patch-quotes-id) | Taklifni tahrirlash | `quotes.edit` |
+| `DELETE` | [`/quotes/:id`](#delete-quotes-id) | Taklifni o‘chirish (yumshoq) | `quotes.delete` |
+| `POST` | [`/quotes/:id/restore`](#post-quotes-id-restore) | O‘chirilgan taklifni tiklash (undo) | `quotes.delete` |
+| `POST` | [`/quotes/:id/convert`](#post-quotes-id-convert) 🔁 📡 | Taklifni sotuvga aylantirish | `sales.create` |
 
 <a id="get-quotes"></a>
 
@@ -3246,7 +3460,7 @@ Mijozga narx taklifi: qoldiq band qilinmaydi, kassaga ta’sir yo‘q. Qabul qil
 
 | | |
 |---|---|
-| Huquq | `quotes:view` — admin, manager, sotuvchi |
+| Huquq | `quotes.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`QuotePageDto`](schemas.md#quotepagedto) |
 
@@ -3281,7 +3495,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `quotes:create` — admin, manager, sotuvchi |
+| Huquq | `quotes.create` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`QuoteDto`](schemas.md#quotedto) |
 | Audit jurnali | ha |
@@ -3321,7 +3535,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `quotes:view` — admin, manager, sotuvchi |
+| Huquq | `quotes.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`QuoteSummaryDto`](schemas.md#quotesummarydto) |
 
@@ -3341,7 +3555,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `quotes:view` — admin, manager, sotuvchi |
+| Huquq | `quotes.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`QuoteDto`](schemas.md#quotedto) |
 
@@ -3373,7 +3587,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `quotes:edit` — admin, manager, sotuvchi |
+| Huquq | `quotes.edit` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`QuoteDto`](schemas.md#quotedto) |
 | Audit jurnali | ha |
@@ -3418,7 +3632,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘k
 
 | | |
 |---|---|
-| Huquq | `quotes:delete` — admin, manager |
+| Huquq | `quotes.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -3449,7 +3663,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `quotes:delete` — admin, manager |
+| Huquq | `quotes.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`QuoteDto`](schemas.md#quotedto) |
 | Audit jurnali | ha |
@@ -3482,7 +3696,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `sales:create` — admin, manager, sotuvchi |
+| Huquq | `sales.create` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`SaleDto`](schemas.md#saledto) |
 | Realtime | `sale.created` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -3522,16 +3736,16 @@ Buyurtma → qabul (to‘liq/qisman, kirim harakatlari va o‘rtacha tannarx) �
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/purchase-orders`](#get-purchase-orders) | Kirim buyurtmalari | `suppliers:view` |
-| `POST` | [`/purchase-orders`](#post-purchase-orders) | Buyurtma yaratish | `suppliers:create` |
-| `GET` | [`/purchase-orders/summary`](#get-purchase-orders-summary) | Xaridlar xulosasi | `suppliers:view` |
-| `GET` | [`/purchase-orders/:id`](#get-purchase-orders-id) | Kirim buyurtmasi | `suppliers:view` |
-| `PATCH` | [`/purchase-orders/:id`](#patch-purchase-orders-id) | Buyurtmani tahrirlash | `suppliers:edit` |
-| `DELETE` | [`/purchase-orders/:id`](#delete-purchase-orders-id) | Buyurtmani o‘chirish | `suppliers:delete` |
-| `POST` | [`/purchase-orders/:id/cancel`](#post-purchase-orders-id-cancel) | Buyurtmani bekor qilish | `suppliers:edit` |
-| `POST` | [`/purchase-orders/:id/restore`](#post-purchase-orders-id-restore) | O‘chirilgan buyurtmani tiklash (undo) | `suppliers:delete` |
-| `POST` | [`/purchase-orders/:id/receive`](#post-purchase-orders-id-receive) 🔁 📡 | Qabul qilish (to‘liq yoki qisman) | `suppliers:edit` |
-| `POST` | [`/purchase-orders/:id/pay`](#post-purchase-orders-id-pay) 🔁 | Ta’minotchiga to‘lov | `finance:create` |
+| `GET` | [`/purchase-orders`](#get-purchase-orders) | Kirim buyurtmalari | `purchases.view` |
+| `POST` | [`/purchase-orders`](#post-purchase-orders) | Buyurtma yaratish | `purchases.create` |
+| `GET` | [`/purchase-orders/summary`](#get-purchase-orders-summary) | Xaridlar xulosasi | `purchases.view` |
+| `GET` | [`/purchase-orders/:id`](#get-purchase-orders-id) | Kirim buyurtmasi | `purchases.view` |
+| `PATCH` | [`/purchase-orders/:id`](#patch-purchase-orders-id) | Buyurtmani tahrirlash | `purchases.edit` |
+| `DELETE` | [`/purchase-orders/:id`](#delete-purchase-orders-id) | Buyurtmani o‘chirish | `purchases.delete` |
+| `POST` | [`/purchase-orders/:id/cancel`](#post-purchase-orders-id-cancel) | Buyurtmani bekor qilish | `purchases.edit` |
+| `POST` | [`/purchase-orders/:id/restore`](#post-purchase-orders-id-restore) | O‘chirilgan buyurtmani tiklash (undo) | `purchases.delete` |
+| `POST` | [`/purchase-orders/:id/receive`](#post-purchase-orders-id-receive) 🔁 📡 | Qabul qilish (to‘liq yoki qisman) | `purchases.receive` |
+| `POST` | [`/purchase-orders/:id/pay`](#post-purchase-orders-id-pay) 🔁 | Ta’minotchiga to‘lov | `purchases.pay` |
 
 <a id="get-purchase-orders"></a>
 
@@ -3543,7 +3757,7 @@ Buyurtma → qabul (to‘liq/qisman, kirim harakatlari va o‘rtacha tannarx) �
 
 | | |
 |---|---|
-| Huquq | `suppliers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `purchases.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PurchaseOrderPageDto`](schemas.md#purchaseorderpagedto) |
 
@@ -3577,7 +3791,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `suppliers:create` — admin, manager, omborchi |
+| Huquq | `purchases.create` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`PurchaseOrderDto`](schemas.md#purchaseorderdto) |
 | Audit jurnali | ha |
@@ -3615,7 +3829,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `suppliers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `purchases.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PurchaseOrderSummaryDto`](schemas.md#purchaseordersummarydto) |
 
@@ -3635,7 +3849,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `suppliers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `purchases.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PurchaseOrderDto`](schemas.md#purchaseorderdto) |
 
@@ -3667,7 +3881,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `suppliers:edit` — admin, manager, omborchi |
+| Huquq | `purchases.edit` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PurchaseOrderDto`](schemas.md#purchaseorderdto) |
 | Audit jurnali | ha |
@@ -3709,7 +3923,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `suppliers:delete` — admin, manager, omborchi |
+| Huquq | `purchases.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -3738,7 +3952,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `suppliers:edit` — admin, manager, omborchi |
+| Huquq | `purchases.edit` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PurchaseOrderDto`](schemas.md#purchaseorderdto) |
 | Audit jurnali | ha |
@@ -3769,7 +3983,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `suppliers:delete` — admin, manager, omborchi |
+| Huquq | `purchases.delete` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PurchaseOrderDto`](schemas.md#purchaseorderdto) |
 | Audit jurnali | ha |
@@ -3802,7 +4016,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `suppliers:edit` — admin, manager, omborchi |
+| Huquq | `purchases.receive` — sukut bo‘yicha: admin, manager, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `200` → [`PurchaseOrderDto`](schemas.md#purchaseorderdto) |
 | Realtime | `po.received` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -3839,11 +4053,11 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `
 
 > Kelgan tovar qarzidan oshmaydi (I18); naqd — kassadan (smena hisobotida). Idempotent.
 
-**Qachon / qanday:** Ta’minotchiga to‘lov (`finance:create` — omborchida yo‘q). Kelgan tovar qarzidan oshmaydi (422 `PAYMENT_EXCEEDS_DEBT`) — oldindan to‘lov yo‘q. `cash` — kassadan (ochiq smena shart). Sotuvchi rolida xatoda qarz miqdori aytilmaydi (`meta: { requested }`).
+**Qachon / qanday:** Ta’minotchiga to‘lov (`purchases.pay`). Kelgan tovar qarzidan oshmaydi (422 `PAYMENT_EXCEEDS_DEBT`) — oldindan to‘lov yo‘q. `cash` — kassadan (ochiq smena shart). `cost.view` siz rolda xatoda qarz miqdori aytilmaydi (`meta: { requested }`).
 
 | | |
 |---|---|
-| Huquq | `finance:create` — admin, manager, sotuvchi |
+| Huquq | `purchases.pay` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`PoPaymentResultDto`](schemas.md#popaymentresultdto) |
 | Audit jurnali | ha |
@@ -3882,16 +4096,16 @@ Yetkazishlar ro‘yxati, haydovchi ko‘rinishi (`/my`), marshrut varaqasi. Hola
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/deliveries`](#get-deliveries) | Yetkazishlar | `deliveries:view` |
-| `POST` | [`/deliveries`](#post-deliveries) | Yetkazish qo‘shish | `deliveries:create` |
-| `GET` | [`/deliveries/summary`](#get-deliveries-summary) | Yetkazishlar xulosasi | `deliveries:view` |
-| `GET` | [`/deliveries/my`](#get-deliveries-my) | Haydovchi ko‘rinishi | `deliveries:view` |
-| `GET` | [`/deliveries/route`](#get-deliveries-route) | Marshrut varaqasi | `deliveries:view` |
-| `GET` | [`/deliveries/:id`](#get-deliveries-id) | Yetkazish | `deliveries:view` |
-| `PATCH` | [`/deliveries/:id`](#patch-deliveries-id) | Yetkazishni tahrirlash | `deliveries:edit` |
-| `DELETE` | [`/deliveries/:id`](#delete-deliveries-id) | Yetkazishni o‘chirish | `deliveries:delete` |
-| `POST` | [`/deliveries/:id/status`](#post-deliveries-id-status) 📡 | Holatni o‘zgartirish | `deliveries:view` |
-| `POST` | [`/deliveries/:id/restore`](#post-deliveries-id-restore) | O‘chirilgan yetkazishni tiklash (undo) | `deliveries:delete` |
+| `GET` | [`/deliveries`](#get-deliveries) | Yetkazishlar | `deliveries.view` |
+| `POST` | [`/deliveries`](#post-deliveries) | Yetkazish qo‘shish | `deliveries.create` |
+| `GET` | [`/deliveries/summary`](#get-deliveries-summary) | Yetkazishlar xulosasi | `deliveries.view` |
+| `GET` | [`/deliveries/my`](#get-deliveries-my) | Haydovchi ko‘rinishi | `deliveries.view` |
+| `GET` | [`/deliveries/route`](#get-deliveries-route) | Marshrut varaqasi | `deliveries.view` |
+| `GET` | [`/deliveries/:id`](#get-deliveries-id) | Yetkazish | `deliveries.view` |
+| `PATCH` | [`/deliveries/:id`](#patch-deliveries-id) | Yetkazishni tahrirlash | `deliveries.edit` |
+| `DELETE` | [`/deliveries/:id`](#delete-deliveries-id) | Yetkazishni o‘chirish | `deliveries.delete` |
+| `POST` | [`/deliveries/:id/status`](#post-deliveries-id-status) 📡 | Holatni o‘zgartirish | `deliveries.view` |
+| `POST` | [`/deliveries/:id/restore`](#post-deliveries-id-restore) | O‘chirilgan yetkazishni tiklash (undo) | `deliveries.delete` |
 
 <a id="get-deliveries"></a>
 
@@ -3901,7 +4115,7 @@ Yetkazishlar ro‘yxati, haydovchi ko‘rinishi (`/my`), marshrut varaqasi. Hola
 
 | | |
 |---|---|
-| Huquq | `deliveries:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `deliveries.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliveryPageDto`](schemas.md#deliverypagedto) |
 
@@ -3936,7 +4150,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `deliveries:create` — admin, manager, sotuvchi |
+| Huquq | `deliveries.create` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`DeliveryDto`](schemas.md#deliverydto) |
 | Audit jurnali | ha |
@@ -3974,7 +4188,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `deliveries:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `deliveries.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliverySummaryDto`](schemas.md#deliverysummarydto) |
 
@@ -3996,7 +4210,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `deliveries:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `deliveries.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliveryDto`](schemas.md#deliverydto)[] |
 
@@ -4018,7 +4232,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `deliveries:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `deliveries.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`RouteSheetDto`](schemas.md#routesheetdto) |
 
@@ -4045,7 +4259,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `deliveries:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `deliveries.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliveryDto`](schemas.md#deliverydto) |
 
@@ -4077,7 +4291,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `deliveries:edit` — admin, manager, sotuvchi |
+| Huquq | `deliveries.edit` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliveryDto`](schemas.md#deliverydto) |
 | Audit jurnali | ha |
@@ -4117,7 +4331,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `deliveries:delete` — admin, manager |
+| Huquq | `deliveries.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -4142,11 +4356,11 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 > Faqat oldinga: pending → on_way → delivered; faoldan — cancelled. Tahrir huquqi yo‘q bo‘lsa — faqat o‘z yetkazishi.
 
-**Qachon / qanday:** Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries:edit` bor rollar (admin, manager, sotuvchi) HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (omborchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). Orqaga — 422 `INVALID_STATUS_TRANSITION`.
+**Qachon / qanday:** Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries.edit` bor rol HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (haydovchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). Orqaga — 422 `INVALID_STATUS_TRANSITION`.
 
 | | |
 |---|---|
-| Huquq | `deliveries:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `deliveries.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliveryDto`](schemas.md#deliverydto) |
 | Realtime | `delivery.status` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -4185,7 +4399,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘k
 
 | | |
 |---|---|
-| Huquq | `deliveries:delete` — admin, manager |
+| Huquq | `deliveries.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DeliveryDto`](schemas.md#deliverydto) |
 | Audit jurnali | ha |
@@ -4216,18 +4430,18 @@ Xarajatlar jurnali va kartalari. Naqd xarajat kassadan chiqadi (ochiq smena shar
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/expenses`](#get-expenses) | Xarajatlar ro‘yxati | `expenses:view` |
-| `POST` | [`/expenses`](#post-expenses) 🔁 | Xarajat qo‘shish | `expenses:create` |
-| `GET` | [`/expenses/summary`](#get-expenses-summary) | Xarajatlar xulosasi | `expenses:view` |
-| `GET` | [`/expenses/:id`](#get-expenses-id) | Xarajat | `expenses:view` |
-| `PATCH` | [`/expenses/:id`](#patch-expenses-id) | Xarajatni tahrirlash | `expenses:edit` |
-| `DELETE` | [`/expenses/:id`](#delete-expenses-id) | Xarajatni o‘chirish | `expenses:delete` |
-| `POST` | [`/expenses/:id/restore`](#post-expenses-id-restore) | O‘chirilgan xarajatni tiklash | `expenses:delete` |
-| `GET` | [`/expense-templates`](#get-expense-templates) | Shablonlar | `expenses:view` |
-| `POST` | [`/expense-templates`](#post-expense-templates) | Shablon qo‘shish | `expenses:create` |
-| `POST` | [`/expense-templates/run-due`](#post-expense-templates-run-due) | Muddati kelgan shablonlarni hozir ishga tushirish | `expenses:create` |
-| `PATCH` | [`/expense-templates/:id`](#patch-expense-templates-id) | Shablonni tahrirlash | `expenses:edit` |
-| `DELETE` | [`/expense-templates/:id`](#delete-expense-templates-id) | Shablonni o‘chirish | `expenses:delete` |
+| `GET` | [`/expenses`](#get-expenses) | Xarajatlar ro‘yxati | `expenses.view` |
+| `POST` | [`/expenses`](#post-expenses) 🔁 | Xarajat qo‘shish | `expenses.create` |
+| `GET` | [`/expenses/summary`](#get-expenses-summary) | Xarajatlar xulosasi | `expenses.view` |
+| `GET` | [`/expenses/:id`](#get-expenses-id) | Xarajat | `expenses.view` |
+| `PATCH` | [`/expenses/:id`](#patch-expenses-id) | Xarajatni tahrirlash | `expenses.edit` |
+| `DELETE` | [`/expenses/:id`](#delete-expenses-id) | Xarajatni o‘chirish | `expenses.delete` |
+| `POST` | [`/expenses/:id/restore`](#post-expenses-id-restore) | O‘chirilgan xarajatni tiklash | `expenses.delete` |
+| `GET` | [`/expense-templates`](#get-expense-templates) | Shablonlar | `expenses.view` |
+| `POST` | [`/expense-templates`](#post-expense-templates) | Shablon qo‘shish | `expenses.create` |
+| `POST` | [`/expense-templates/run-due`](#post-expense-templates-run-due) | Muddati kelgan shablonlarni hozir ishga tushirish | `expenses.create` |
+| `PATCH` | [`/expense-templates/:id`](#patch-expense-templates-id) | Shablonni tahrirlash | `expenses.edit` |
+| `DELETE` | [`/expense-templates/:id`](#delete-expense-templates-id) | Shablonni o‘chirish | `expenses.delete` |
 
 <a id="get-expenses"></a>
 
@@ -4237,7 +4451,7 @@ Xarajatlar jurnali va kartalari. Naqd xarajat kassadan chiqadi (ochiq smena shar
 
 | | |
 |---|---|
-| Huquq | `expenses:view` — admin, manager |
+| Huquq | `expenses.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpensePageDto`](schemas.md#expensepagedto) |
 
@@ -4272,7 +4486,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `expenses:create` — admin, manager |
+| Huquq | `expenses.create` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
 | Javob | `201` → [`ExpenseDto`](schemas.md#expensedto) |
 | Audit jurnali | ha |
@@ -4309,7 +4523,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 | | |
 |---|---|
-| Huquq | `expenses:view` — admin, manager |
+| Huquq | `expenses.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpenseSummaryDto`](schemas.md#expensesummarydto) |
 
@@ -4342,7 +4556,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `expenses:view` — admin, manager |
+| Huquq | `expenses.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpenseDto`](schemas.md#expensedto) |
 
@@ -4374,7 +4588,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `expenses:edit` — admin, manager |
+| Huquq | `expenses.edit` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpenseDto`](schemas.md#expensedto) |
 | Audit jurnali | ha |
@@ -4413,7 +4627,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `expenses:delete` — admin, manager |
+| Huquq | `expenses.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -4442,7 +4656,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `expenses:delete` — admin, manager |
+| Huquq | `expenses.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpenseDto`](schemas.md#expensedto) |
 | Audit jurnali | ha |
@@ -4469,7 +4683,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `expenses:view` — admin, manager |
+| Huquq | `expenses.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpenseTemplateDto`](schemas.md#expensetemplatedto)[] |
 
@@ -4489,7 +4703,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `expenses:create` — admin, manager |
+| Huquq | `expenses.create` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`ExpenseTemplateDto`](schemas.md#expensetemplatedto) |
 | Audit jurnali | ha |
@@ -4525,7 +4739,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `expenses:create` — admin, manager |
+| Huquq | `expenses.create` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`RunDueResultDto`](schemas.md#rundueresultdto) |
 | Audit jurnali | ha |
@@ -4546,7 +4760,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `expenses:edit` — admin, manager |
+| Huquq | `expenses.edit` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`ExpenseTemplateDto`](schemas.md#expensetemplatedto) |
 | Audit jurnali | ha |
@@ -4586,7 +4800,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 | | |
 |---|---|
-| Huquq | `expenses:delete` — admin, manager |
+| Huquq | `expenses.delete` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -4613,11 +4827,11 @@ Mijozlarga xabar: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kanal:
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/telegram`](#get-telegram) | Telegram bot holati | `customers:view` |
+| `GET` | [`/telegram`](#get-telegram) | Telegram bot holati | `customers.view` |
 | `POST` | [`/telegram/webhook`](#post-telegram-webhook) 🔓 | Telegram webhook | ochiq |
-| `GET` | [`/messages`](#get-messages) | Xabarlar jurnali | `customers:view` |
-| `POST` | [`/messages`](#post-messages) | Xabar yuborish | `customers:create` |
-| `POST` | [`/messages/preview`](#post-messages-preview) | Qabul qiluvchilar soni | `customers:view` |
+| `GET` | [`/messages`](#get-messages) | Xabarlar jurnali | `messages.view` |
+| `POST` | [`/messages`](#post-messages) | Xabar yuborish | `messages.send` |
+| `POST` | [`/messages/preview`](#post-messages-preview) | Qabul qiluvchilar soni | `messages.send` |
 
 <a id="get-telegram"></a>
 
@@ -4629,7 +4843,7 @@ Mijozlarga xabar: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kanal:
 
 | | |
 |---|---|
-| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `customers.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`TelegramStatusDto`](schemas.md#telegramstatusdto) |
 
@@ -4674,7 +4888,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `messages.view` — sukut bo‘yicha: admin, manager, sotuvchi, omborchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`MessagePageDto`](schemas.md#messagepagedto) |
 
@@ -4704,7 +4918,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `customers:create` — admin, manager, sotuvchi |
+| Huquq | `messages.send` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`MessageDto`](schemas.md#messagedto) |
 | Audit jurnali | ha |
@@ -4741,7 +4955,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 | | |
 |---|---|
-| Huquq | `customers:view` — admin, manager, sotuvchi, omborchi |
+| Huquq | `messages.send` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`AudiencePreviewDto`](schemas.md#audiencepreviewdto) |
 
@@ -4765,13 +4979,13 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 ## Hisobotlar
 
-Bosh sahifa (dashboard), foyda/zarar (P&L), analitika. Barcha raqamlar SERVERDA hisoblanadi — brauzerda yig‘indi qilinmaydi. Tannarx/foyda maydonlari rolga qarab yashiriladi.
+Bosh sahifa (dashboard), foyda/zarar (P&L), analitika. Barcha raqamlar SERVERDA hisoblanadi — brauzerda yig‘indi qilinmaydi. Tannarx/foyda maydonlari rol ruxsatiga qarab (`cost.view`, `profit.view`) yashiriladi.
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/dashboard`](#get-dashboard) | Boshqaruv paneli | `finance:view` |
-| `GET` | [`/reports/pnl`](#get-reports-pnl) | Foyda/zarar | `finance:view` |
-| `GET` | [`/analytics`](#get-analytics) | Analitika | `finance:view` |
+| `GET` | [`/dashboard`](#get-dashboard) | Boshqaruv paneli | `reports.view` |
+| `GET` | [`/reports/pnl`](#get-reports-pnl) | Foyda/zarar | `reports.view` |
+| `GET` | [`/analytics`](#get-analytics) | Analitika | `reports.view` |
 
 <a id="get-dashboard"></a>
 
@@ -4783,7 +4997,7 @@ Bosh sahifa (dashboard), foyda/zarar (P&L), analitika. Barcha raqamlar SERVERDA 
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `reports.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`DashboardDto`](schemas.md#dashboarddto) |
 
@@ -4811,7 +5025,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `reports.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PnlDto`](schemas.md#pnldto) |
 
@@ -4841,7 +5055,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `finance:view` — admin, manager, sotuvchi |
+| Huquq | `reports.view` — sukut bo‘yicha: admin, manager, sotuvchi (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`AnalyticsDto`](schemas.md#analyticsdto) |
 
@@ -4864,11 +5078,11 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 ## Audit jurnali
 
-Kim, qachon, nima qildi — faqat o‘qish. Faqat administrator (`users:view`).
+Kim, qachon, nima qildi — faqat o‘qish. `audit.view` ruxsati (sukut — faqat administrator).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/audit`](#get-audit) | Amallar jurnali | `users:view` |
+| `GET` | [`/audit`](#get-audit) | Amallar jurnali | `audit.view` |
 
 <a id="get-audit"></a>
 
@@ -4880,7 +5094,7 @@ Kim, qachon, nima qildi — faqat o‘qish. Faqat administrator (`users:view`).
 
 | | |
 |---|---|
-| Huquq | `users:view` — admin |
+| Huquq | `audit.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`AuditPageDto`](schemas.md#auditpagedto) |
 
@@ -4915,7 +5129,7 @@ Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g�
 |---|---|---|---|
 | `POST` | [`/files/presign`](#post-files-presign) | Yuklash ruxsati (presigned PUT) | servisda / hamma |
 | `POST` | [`/files/:id/confirm`](#post-files-id-confirm) | Yuklashni tasdiqlash | servisda / hamma |
-| `GET` | [`/files/usage`](#get-files-usage) | Saqlash hajmi | `settings:view` |
+| `GET` | [`/files/usage`](#get-files-usage) | Saqlash hajmi | `settings.view` |
 | `GET` | [`/files/urls`](#get-files-urls) | Bir nechta fayl havolasi (`<img src>` uchun) | servisda / hamma |
 | `GET` | [`/files/:id`](#get-files-id) | Fayl metama’lumoti | servisda / hamma |
 | `DELETE` | [`/files/:id`](#delete-files-id) | Faylni o‘chirish (yumshoq) | servisda / hamma |
@@ -4931,7 +5145,7 @@ Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g�
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; `document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete` |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PresignResultDto`](schemas.md#presignresultdto) |
 | Audit jurnali | ha |
@@ -4969,7 +5183,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; `document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete` |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`FileDto`](schemas.md#filedto) |
 | Audit jurnali | ha |
@@ -5005,7 +5219,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `settings:view` — admin, manager |
+| Huquq | `settings.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`UsageDto`](schemas.md#usagedto) |
 
@@ -5027,7 +5241,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; `document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete` |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`FileUrlsDto`](schemas.md#fileurlsdto) |
 
@@ -5054,7 +5268,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; `document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete` |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`FileDto`](schemas.md#filedto) |
 
@@ -5086,7 +5300,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; `document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete` |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -5119,7 +5333,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda): `product_image`, `import` → `products`; `avatar` → `employees`; `document` → `sales`; `export` → `finance`; `tenant_backup` → `settings`. Yuklash/tasdiqlash — `create`, o‘qish — `view`, o‘chirish — `delete` |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `302` — `Location` — imzolangan havola |
 
@@ -5228,7 +5442,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | ro‘yxatga qarab `view` (servisda): `products`, `stock-movements` → `products`; `clients` → `customers`; `sales` → `sales`; `expenses` → `expenses`; `audit` → `users` (amalda faqat admin) |
+| Huquq | ro‘yxatga qarab (servisda): `products` → `products.view`; `stock-movements` → `stock.view`; `clients` → `customers.view`; `sales` → `sales.view`; `expenses` → `expenses.view`; `audit` → `users.view` |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` — Fayl (`Content-Disposition: attachment`); `202` → [`ExportJobDto`](schemas.md#exportjobdto) — Katta eksport — fonda |
 
@@ -5257,7 +5471,7 @@ Butun do‘kon ma’lumoti bitta JSON (gzip) fayl — yuklab olish havolasi 1 so
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/backup/export`](#get-backup-export) | Do‘kon zaxirasi: butun ma’lumot JSON (gzip), havola 1 soat | servisda / hamma |
+| `GET` | [`/backup/export`](#get-backup-export) | Do‘kon zaxirasi: butun ma’lumot JSON (gzip), havola 1 soat | faqat `admin` |
 
 <a id="get-backup-export"></a>
 
@@ -5269,7 +5483,7 @@ Butun do‘kon ma’lumoti bitta JSON (gzip) fayl — yuklab olish havolasi 1 so
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`BackupDto`](schemas.md#backupdto) |
 
@@ -5292,8 +5506,8 @@ Eski (localStorage) versiyadan ko‘chirish sehrgari uchun: avval tekshirish (dr
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `POST` | [`/migration/validate`](#post-migration-validate) | Tekshirish (dry-run) | servisda / hamma |
-| `POST` | [`/migration/import`](#post-migration-import) 💳 | Import | servisda / hamma |
+| `POST` | [`/migration/validate`](#post-migration-validate) | Tekshirish (dry-run) | faqat `admin` |
+| `POST` | [`/migration/import`](#post-migration-import) 💳 | Import | faqat `admin` |
 
 <a id="post-migration-validate"></a>
 
@@ -5305,7 +5519,7 @@ Eski (localStorage) versiyadan ko‘chirish sehrgari uchun: avval tekshirish (dr
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`MigrationReportDto`](schemas.md#migrationreportdto) |
 | Audit jurnali | ha |
@@ -5343,7 +5557,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | faqat `admin` (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`MigrationResultDto`](schemas.md#migrationresultdto) |
 | Audit jurnali | ha |

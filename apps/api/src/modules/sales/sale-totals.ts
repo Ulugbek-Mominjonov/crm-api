@@ -1,8 +1,8 @@
 import {
   lineTotal, priceForUnit, refundTotals, saleTotals, toBaseQty, unitOptions,
-  type RoundStep, type SaleTotals, type UnitSpec,
+  type PermissionSet, type RoundStep, type SaleTotals, type UnitSpec,
 } from '@crm/shared'
-import type { PriceTier, ProductUnit, Role } from '@prisma/client'
+import type { PriceTier, ProductUnit } from '@prisma/client'
 import { DomainError, PermissionDeniedError } from '@/common/errors/domain.error'
 import { fromMilli, toMilli } from '@/common/quantity'
 import { canSeeField, visibilityPolicy } from '@/common/security/field-visibility'
@@ -63,19 +63,19 @@ export interface TierSettings {
 
 /**
  * Narx darajasi (sotuv, taklif). Ulgurji — faqat do'konda yoqilgan bo'lsa
- * (aks holda jimgina chakana). Ulgurji narxni ko'rmaydigan rol (sotuvchi,
- * `sellerWholesaleEnabled` o'chiq) unda sotmaydi: ataylab so'ralgani — 403,
+ * (aks holda jimgina chakana). Ulgurji narxni ko'rmaydigan rol (`wholesale.view`
+ * yo'q, `sellerWholesaleEnabled` o'chiq) unda sotmaydi: ataylab so'ralgani — 403,
  * mijoz guruhidan avtomatik tanlangani — chakana.
  */
 export function resolvePriceTier(
   requested: PriceTier | undefined,
   fallback: PriceTier,
   settings: TierSettings,
-  role: Role,
+  permissions: PermissionSet,
 ): PriceTier {
   if (!settings.wholesaleEnabled) return 'retail'
   const tier = requested ?? fallback
-  if (tier === 'retail' || canSeeField(role, 'wholesalePrice', visibilityPolicy(settings))) return tier
+  if (tier === 'retail' || canSeeField(permissions, 'wholesalePrice', visibilityPolicy(settings))) return tier
   if (requested) {
     throw new PermissionDeniedError('Ulgurji narxda sotish sotuvchiga yopiq — administrator sozlamada yoqadi')
   }

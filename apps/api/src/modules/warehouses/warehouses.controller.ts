@@ -49,7 +49,7 @@ export class WarehousesController {
   }
 
   @Post()
-  @RequirePermission('products', 'create')
+  @RequirePermission('stock', 'manage')
   @AuditAction('warehouse.create')
   @ApiOperation({ summary: 'Ombor qo‘shish', description: 'Nom do‘kon ichida noyob.' })
   @ApiCreatedResponse({ type: WarehouseDto })
@@ -60,7 +60,7 @@ export class WarehousesController {
   }
 
   @Patch(':id')
-  @RequirePermission('products', 'edit')
+  @RequirePermission('stock', 'manage')
   @AuditAction('warehouse.update')
   @ApiOperation({ summary: 'Omborni tahrirlash' })
   @ApiIfMatch()
@@ -77,7 +77,7 @@ export class WarehousesController {
 
   @Post(':id/archive')
   @HttpCode(200)
-  @RequirePermission('products', 'delete')
+  @RequirePermission('stock', 'manage')
   @AuditAction('warehouse.archive')
   @ApiOperation({
     summary: 'Omborni arxivlash',
@@ -94,7 +94,7 @@ export class WarehousesController {
 
   @Post(':id/restore')
   @HttpCode(200)
-  @RequirePermission('products', 'delete')
+  @RequirePermission('stock', 'manage')
   @AuditAction('warehouse.restore')
   @ApiOperation({ summary: 'Omborni arxivdan qaytarish' })
   @ApiOkResponse({ type: WarehouseDto })

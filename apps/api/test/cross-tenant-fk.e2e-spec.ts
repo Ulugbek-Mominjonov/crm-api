@@ -1,4 +1,4 @@
-import { seedProduct, seedTenant, testDb, truncateAll } from './helpers/db'
+import { roleIdOf, seedProduct, seedTenant, testDb, truncateAll } from './helpers/db'
 
 /**
  * Tenant izolyatsiyasi — BAZA darajasida.
@@ -74,14 +74,22 @@ describe('Tenantlararo havola imkonsiz', () => {
   })
 
   it('A ning kirish hisobi B ning xodimiga bog‘lanmaydi', async () => {
+    const roleId = await roleIdOf(a.tenantId, 'sotuvchi')
     await expect(
       testDb.user.create({
         data: {
           tenantId: a.tenantId, employeeId: b.employeeId,
-          email: 'x@crm.uz', passwordHash: 'x', role: 'sotuvchi',
+          email: 'x@crm.uz', passwordHash: 'x', roleId,
         },
       }),
     ).rejects.toThrow()
+  })
+
+  it('A ning kirish hisobiga B ning roli berilmaydi', async () => {
+    const roleId = await roleIdOf(b.tenantId, 'manager')
+    await expect(
+      testDb.user.update({ where: { id: a.userId }, data: { roleId } }),
+    ).rejects.toThrow(/users_role_id_same_tenant/)
   })
 
   it('bir tenant ichidagi havola normal ishlaydi', async () => {

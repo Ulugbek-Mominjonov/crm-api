@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, type SystemRole } from '@prisma/client'
 import argon2 from 'argon2'
 import { PRODUCT_CATEGORIES } from '@crm/shared'
+import { systemRoleRows } from '../src/modules/roles/system-roles'
 
 /**
  * Ishlab chiqish uchun demo do'kon.
@@ -99,11 +100,15 @@ async function main(): Promise<void> {
     const catId = (name: string): string =>
       categories.find((c) => c.name === name)?.id ?? categories[0]!.id
 
+    // Tizim rollari (T-134) — har do'konda: ruxsatlar rolda, foydalanuvchida emas
+    const roles = await tx.role.createManyAndReturn({ data: systemRoleRows(tenant.id), select: { id: true, key: true } })
+    const roleId = (key: SystemRole): string => roles.find((r) => r.key === key)!.id
+
     const owner = await tx.employee.create({
       data: { tenantId: tenant.id, name: 'Bobur Toshmatov', position: 'Direktor', phone: '+998901112233', hiredAt: new Date('2024-03-01') },
     })
     await tx.user.create({
-      data: { tenantId: tenant.id, employeeId: owner.id, email: DEMO_EMAIL, passwordHash, role: 'admin' },
+      data: { tenantId: tenant.id, employeeId: owner.id, email: DEMO_EMAIL, passwordHash, roleId: roleId('admin') },
     })
 
     for (const [i, e] of [
@@ -115,7 +120,7 @@ async function main(): Promise<void> {
         data: { tenantId: tenant.id, name: e.name, position: e.position, phone: `+99890222000${i}`, hiredAt: new Date('2025-01-15') },
       })
       await tx.user.create({
-        data: { tenantId: tenant.id, employeeId: emp.id, email: e.email, passwordHash, role: e.role },
+        data: { tenantId: tenant.id, employeeId: emp.id, email: e.email, passwordHash, roleId: roleId(e.role) },
       })
     }
 

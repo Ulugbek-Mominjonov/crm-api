@@ -17,7 +17,7 @@ export class MessagesController {
   constructor(private readonly messages: MessagesService) {}
 
   @Get()
-  @RequirePermission('customers', 'view')
+  @RequirePermission('messages', 'view')
   @ApiOperation({ summary: 'Xabarlar jurnali', description: 'Har xabarda yuborish holati statistikasi' })
   @ApiOkResponse({ type: MessagePageDto })
   list(@Query() query: MessageQueryDto): Promise<Paged<MessageDto>> {
@@ -26,7 +26,7 @@ export class MessagesController {
 
   @Post('preview')
   @HttpCode(200)
-  @RequirePermission('customers', 'view')
+  @RequirePermission('messages', 'send')
   @ApiOperation({ summary: 'Qabul qiluvchilar soni', description: 'Yubormaydi — faqat kim oladi (serverda hisoblanadi)' })
   @ApiOkResponse({ type: AudiencePreviewDto })
   preview(@Body() dto: MessageAudienceDto): Promise<AudiencePreviewDto> {
@@ -34,7 +34,7 @@ export class MessagesController {
   }
 
   @Post()
-  @RequirePermission('customers', 'create')
+  @RequirePermission('messages', 'send')
   @AuditedInService()
   @ApiOperation({
     summary: 'Xabar yuborish',

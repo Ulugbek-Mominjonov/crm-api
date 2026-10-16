@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common'
 import { Prisma, type POStatus } from '@prisma/client'
 import { dueDateFor, lineTotal } from '@crm/shared'
-import { currentContext, currentRole } from '@/common/context/request-context'
+import { currentContext, currentPermissions } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
@@ -414,7 +414,7 @@ function totalOf(items: readonly PoItemInputDto[]): bigint {
 
 /** Xarid summalari joriy rolga ko'rinadimi — sotuvchiga yo'q: bitta qatorli buyurtmada summadan tannarx tiklanadi */
 function amountsVisible(): boolean {
-  return canSeePurchaseAmounts(currentRole())
+  return canSeePurchaseAmounts(currentPermissions())
 }
 
 /** Qarzdan oshgan to'lov (I18). Xarid pulini ko'rmaydigan rolga qarz miqdori aytilmaydi */

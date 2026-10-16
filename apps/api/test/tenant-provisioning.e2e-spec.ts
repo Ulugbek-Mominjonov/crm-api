@@ -65,10 +65,10 @@ describe('Tenant provisioning', () => {
 
     const user = await testDb.user.findUniqueOrThrow({
       where: { id: res.userId },
-      include: { employee: true },
+      include: { employee: true, role: true },
     })
     expect(user.employeeId).toBe(res.employeeId)
-    expect(user.role).toBe('admin')
+    expect(user.role.key).toBe('admin')
     // Ism FAQAT xodimda — foydalanuvchida takrorlanmaydi
     expect(user.employee.name).toBe(owner.name)
     expect(user.employee.position).toBe('Direktor')

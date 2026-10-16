@@ -8,7 +8,7 @@
  */
 export const TENANT_MODELS = new Set([
   'TenantState', 'DocCounter', 'IdempotencyKey', 'Settings',
-  'Employee', 'User',
+  'Employee', 'User', 'Role',
   'Client', 'Supplier', 'Category', 'Warehouse',
   'Product', 'ProductStock', 'StockMovement',
   'Sale', 'SaleItem', 'DebtPayment',

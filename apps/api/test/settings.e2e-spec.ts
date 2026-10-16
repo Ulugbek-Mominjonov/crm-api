@@ -80,6 +80,8 @@ describe('Sozlamalar (/settings)', () => {
 
   it('keshlanadi: takroriy o‘qish bazaga bormaydi', async () => {
     const auth = await bearer(app, a)
+    // Rol ruxsatlari ham keshda (T-134) — avval isitiladi: o'lchanadigani sozlama
+    await http().get('/api/v1/auth/me').set('Authorization', auth).expect(200)
     const first = await captureQueries(() => http().get('/api/v1/settings').set('Authorization', auth).expect(200))
     expect(first.queries).toHaveLength(1)
 

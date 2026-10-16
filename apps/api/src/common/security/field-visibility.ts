@@ -1,39 +1,44 @@
-import type { Role } from '@prisma/client'
+import type { Permission, PermissionSet } from '@crm/shared'
 
 /**
- * Rolga ko'ra yashiriladigan maydonlar.
+ * Ruxsatga ko'ra yashiriladigan maydonlar.
  *
  * Muammo: sotuvchi katalogni ko'radi, lekin TANNARX unga ko'rinmasligi
  * kerak. UI da yashirish yetarli emas — u so'rovni to'g'ridan-to'g'ri
  * yuborishi mumkin. Shuning uchun maydon JAVOBDAN olib tashlanadi.
  *
+ * Har guruhni bitta ruxsat ochadi (T-134: `cost.view` …) — rol tahrirlash
+ * oynasidagi «Maxfiy ma'lumotlar».
+ *
  * Manba: backend-tz/core/03-security.md §3.6
  */
-const HIDDEN_BY_ROLE: Partial<Record<Role, readonly string[]>> = {
-  sotuvchi: [
-    'cost',        // tannarx
-    'unitCost',
-    'stockValue',  // ombor qiymati tannarxda
-    'stockValueByCategory',
-    'deadValue',   // sotilmayotgan tovar qiymati — tannarxda
-    'wholesalePrice',
-    'salary',
-    'grossProfit',
-    'netProfit', // = yalpi foyda − xarajat: undan yalpi foyda tiklanadi
-    'profit',
-    'cogs',
-    'margin',
-    'payables', // ta'minotchilarga qarz — xarid summasi (canSeePurchaseAmounts)
+const FIELD_GROUPS: ReadonlyArray<readonly [Permission, readonly string[]]> = [
+  [
+    'cost.view',
+    [
+      'cost', // tannarx
+      'unitCost',
+      'stockValue', // ombor qiymati tannarxda
+      'stockValueByCategory',
+      'deadValue', // sotilmayotgan tovar qiymati — tannarxda
+      'payables', // ta'minotchilarga qarz — xarid summasi (canSeePurchaseAmounts)
+    ],
   ],
-  omborchi: ['salary', 'grossProfit', 'netProfit', 'profit', 'cogs', 'margin'],
-}
+  ['wholesale.view', ['wholesalePrice']],
+  // netProfit = yalpi foyda − xarajat: undan yalpi foyda tiklanadi
+  ['profit.view', ['grossProfit', 'netProfit', 'profit', 'cogs', 'margin']],
+  ['salary.view', ['salary']],
+]
 
 /** Hech qachon javobga chiqmaydigan maydonlar — roldan qat'i nazar */
 const ALWAYS_HIDDEN = ['passwordHash', 'tokenHash', 'bodyHash'] as const
 
 /** Do'kon sozlamasiga bog'liq ko'rinish (sukut — eng qattiq) */
 export interface VisibilityPolicy {
-  /** Sotuvchi ulgurji narxda sota oladi — demak ulgurji narxni ham ko'radi */
+  /**
+   * Sotuvchi ulgurji narxda sota oladi — demak ulgurji narxni ham ko'radi:
+   * `wholesale.view` ruxsati bo'lmagan rolga ham ochiladi
+   */
   sellerWholesale?: boolean
 }
 
@@ -45,16 +50,20 @@ export function visibilityPolicy(settings: {
   return { sellerWholesale: settings.wholesaleEnabled && settings.sellerWholesaleEnabled }
 }
 
-/** Shu rol uchun yashiriladigan maydonlar to'plami */
-export function hiddenFieldsFor(role: Role, policy: VisibilityPolicy = {}): Set<string> {
-  const hidden = new Set<string>([...ALWAYS_HIDDEN, ...(HIDDEN_BY_ROLE[role] ?? [])])
-  if (policy.sellerWholesale) hidden.delete('wholesalePrice')
+/** Shu ruxsatlar bilan yashiriladigan maydonlar to'plami */
+export function hiddenFieldsFor(permissions: PermissionSet, policy: VisibilityPolicy = {}): Set<string> {
+  const hidden = new Set<string>(ALWAYS_HIDDEN)
+  for (const [permission, fields] of FIELD_GROUPS) {
+    if (permissions.has(permission)) continue
+    if (permission === 'wholesale.view' && policy.sellerWholesale) continue
+    for (const field of fields) hidden.add(field)
+  }
   return hidden
 }
 
-/** Rolga maydon ko'rinadimi? */
-export function canSeeField(role: Role, field: string, policy?: VisibilityPolicy): boolean {
-  return !hiddenFieldsFor(role, policy).has(field)
+/** Maydon ko'rinadimi? */
+export function canSeeField(permissions: PermissionSet, field: string, policy?: VisibilityPolicy): boolean {
+  return !hiddenFieldsFor(permissions, policy).has(field)
 }
 
 /**
@@ -64,8 +73,8 @@ export function canSeeField(role: Role, field: string, policy?: VisibilityPolicy
  * ham bor, shuning uchun ular global ro'yxatda emas — xarid javobini
  * yasovchi servis shu qoidaga qarab ularni qo'shmaydi.
  */
-export function canSeePurchaseAmounts(role: Role): boolean {
-  return canSeeField(role, 'cost')
+export function canSeePurchaseAmounts(permissions: PermissionSet): boolean {
+  return permissions.has('cost.view')
 }
 
 /**

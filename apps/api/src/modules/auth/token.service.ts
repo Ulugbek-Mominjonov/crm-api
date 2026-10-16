@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto'
 import { Injectable } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { JwtService } from '@nestjs/jwt'
-import type { Role } from '@prisma/client'
 import type { Env } from '@/config/env.schema'
 
 /**
@@ -11,13 +10,15 @@ import type { Env } from '@/config/env.schema'
  *
  * MUHIM: `tid` (tenantId) FAQAT shu yerdan olinadi. Uni so'rov tanasidan
  * yoki sarlavhadan qabul qilish izolyatsiyani darhol buzadi.
+ *
+ * Rol tokenda YO'Q (T-134): u har so'rovda bazadan o'qiladi — rolni
+ * almashtirish yoki hisobni yopish token muddatini kutmaydi.
  */
 export interface AccessTokenPayload {
   /** userId */
   sub: string
   /** tenantId */
   tid: string
-  role: Role
   /** employeeId */
   eid: string
   /** token identifikatori — bekor qilish uchun */

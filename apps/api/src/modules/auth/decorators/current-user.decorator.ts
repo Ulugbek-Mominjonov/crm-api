@@ -1,12 +1,14 @@
 import { createParamDecorator, type ExecutionContext } from '@nestjs/common'
 import type { Request } from 'express'
-import type { Role } from '@prisma/client'
+import type { Access } from '@/modules/roles/access.service'
 
-/** So'rovga biriktirilgan autentifikatsiya konteksti */
-export interface AuthContext {
+/**
+ * So'rovga biriktirilgan autentifikatsiya konteksti. Kim — tokendan,
+ * huquq (rol, ruxsatlar) — bazadan (`AccessService`, kesh bilan)
+ */
+export interface AuthContext extends Access {
   userId: string
   tenantId: string
-  role: Role
   employeeId: string
   jti: string
 }

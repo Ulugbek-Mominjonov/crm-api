@@ -11,7 +11,7 @@ import {
 } from './dto/debt.dto'
 import { DebtsService } from './debts.service'
 
-/** Qarzlar (04-api §6) — `finance` huquqi */
+/** Qarzlar (04-api §6) — `debts` ruxsatlari */
 @ApiTags('debts')
 @ApiBearerAuth()
 @Controller('debts')
@@ -19,7 +19,7 @@ export class DebtsController {
   constructor(private readonly debts: DebtsService) {}
 
   @Get()
-  @RequirePermission('finance', 'view')
+  @RequirePermission('debts', 'view')
   @ApiOperation({
     summary: 'Qarzdorlar',
     description: '`view=customers` — mijoz bo‘yicha (`client_balances`), `receipts` — cheklar. Eskirish 30/60/60+, muddati o‘tgan.',
@@ -30,7 +30,7 @@ export class DebtsController {
   }
 
   @Get('payments')
-  @RequirePermission('finance', 'view')
+  @RequirePermission('debts', 'view')
   @ApiOperation({ summary: 'Qarz to‘lovlari tarixi' })
   @ApiOkResponse({ type: DebtPaymentPageDto })
   payments(@Query() query: DebtPaymentQueryDto): Promise<Paged<DebtPaymentDto>> {
@@ -38,7 +38,7 @@ export class DebtsController {
   }
 
   @Post('payments')
-  @RequirePermission('finance', 'create')
+  @RequirePermission('debts', 'collect')
   @Idempotent()
   @AuditedInService()
   @ApiOperation({

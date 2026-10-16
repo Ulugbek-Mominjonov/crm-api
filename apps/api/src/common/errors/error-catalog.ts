@@ -50,6 +50,8 @@ export const ErrorCode = {
   SELF_DELETE: 'SELF_DELETE',
   SELF_ROLE_CHANGE: 'SELF_ROLE_CHANGE',
   EMPLOYEE_HAS_USER: 'EMPLOYEE_HAS_USER',
+  ROLE_PROTECTED: 'ROLE_PROTECTED',
+  ROLE_IN_USE: 'ROLE_IN_USE',
   // Spravochniklar: bog'liq ma'lumot bor yozuvni o'chirib bo'lmaydi
   CATEGORY_IN_USE: 'CATEGORY_IN_USE',
   CLIENT_HAS_DEBT: 'CLIENT_HAS_DEBT',
@@ -126,6 +128,8 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   SELF_DELETE: { status: 422, title: 'O‘z hisobingizni o‘chirib bo‘lmaydi' },
   SELF_ROLE_CHANGE: { status: 422, title: 'O‘z rolingizni o‘zgartirib bo‘lmaydi' },
   EMPLOYEE_HAS_USER: { status: 409, title: 'Xodimning kirish hisobi bor' },
+  ROLE_PROTECTED: { status: 422, title: 'Tizim rolini bunday o‘zgartirib bo‘lmaydi' },
+  ROLE_IN_USE: { status: 409, title: 'Rolda foydalanuvchilar bor — ularni boshqa rolga o‘tkazing' },
 
   CATEGORY_IN_USE: { status: 409, title: 'Kategoriya mahsulotlarda ishlatilmoqda' },
   CLIENT_HAS_DEBT: { status: 409, title: 'Mijozning to‘lanmagan qarzi bor' },
