@@ -7,8 +7,8 @@ savol qolmasligi.
 | Fayl | Nima bor |
 |------|----------|
 | **README.md** (shu fayl) | Umumiy qoidalar, auth oqimi, xatolar, rollar, realtime, biznes qoidalari, ekran → endpoint xaritasi, qadam-baqadam oqimlar, frontend vazifalari, ma’lum muammolar |
-| [endpoints.md](endpoints.md) | **179 ta endpoint** — har biri: nima uchun/qachon, huquq, sarlavhalar, parametrlar, so‘rov tanasi, javob, xatolar, realtime hodisa |
-| [schemas.md](schemas.md) | **222 ta DTO** — har bir maydon: tip, majburiymi, izoh, cheklovlar |
+| [endpoints.md](endpoints.md) | **192 ta endpoint** — har biri: nima uchun/qachon, huquq, sarlavhalar, parametrlar, so‘rov tanasi, javob, xatolar, realtime hodisa |
+| [schemas.md](schemas.md) | **229 ta DTO** — har bir maydon: tip, majburiymi, izoh, cheklovlar |
 | [owner-panel.md](owner-panel.md) | **Egasi paneli** — ALOHIDA ilova (`owner.workspaces.uz`, repo `crm-owner`): platforma egasining do‘konlar ustidan nazorati; do‘kon ilovasi uchun emas |
 
 **Haqiqat manbai** — kod. `endpoints.md` va `schemas.md` `apps/api/openapi.json` dan generatsiya
@@ -80,7 +80,7 @@ login’da do‘kon tanlash).
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
 Uni serverga ulash — frontend vazifasi ([13-bo‘lim](#tasks)). Backend tomoni tayyor va sinalgan
-(267 unit + 592 e2e test).
+(273 unit + 601 e2e test).
 
 ---
 
@@ -474,7 +474,9 @@ foydalanuvchi ma’lumoti login/refresh javobidagi `user` da:
 - **429** — daqiqasiga 10 urinishdan oshdi.
 
 Yangi do‘kon — `POST /tenants/register` (javob login bilan bir xil, foydalanuvchi darhol kirgan,
-roli `admin`). Keyin `settings.onboarded === false` bo‘lsa — dastlabki sozlash sehrgari.
+roli `admin`). Keyin `settings.onboarded === false` bo‘lsa — dastlabki sozlash sehrgari. Platforma egasi
+ro‘yxatdan o‘tishni **yopib qo‘yishi** mumkin: kirish sahifasi ochilganda `GET /tenants/registration` → `{ mode }`;
+`closed` bo‘lsa «Do‘kon ochish» havolasini yashiring, `register` esa 403 `REGISTRATION_CLOSED` qaytaradi.
 
 <a id="auth-refresh"></a>
 
@@ -975,6 +977,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh cookie ishlatildi (parallel refresh, logout-all / parol almashishidan keyin boshqa qurilmada) — barcha sessiyalar yopildi | «Sessiya tugadi» → login sahifasi |
 | `PLAN_LIMIT_EXCEEDED` | 402 | Tarif chegarasi (foydalanuvchi, ombor): `meta.resource`, `plan`, `limit`, `used` | Tarifni oshirish taklifi |
 | `PERMISSION_DENIED` | 403 | Rolda kerakli ruxsat yo‘q (`detail`: «Rolingizda «sales.cancel» ruxsati yo‘q»); faqat administrator amali ([6.3](#admin-only)); o‘zidan kengroq rol yoki o‘zida yo‘q ruxsat bilan ishlash ([6.4](#roles-api)); `wholesale.view` siz rol `priceTier: "wholesale"` yubordi, `sellerWholesaleEnabled` o‘chiq | «Ruxsat yo‘q» + `GET /auth/me` |
+| `REGISTRATION_CLOSED` | 403 | `POST /tenants/register` — platforma egasi ro‘yxatdan o‘tishni yopgan (oldindan `GET /tenants/registration` → `mode`) | «Yangi do‘kon ochish vaqtincha yopiq» |
 | `NOT_FOUND` | 404 | Yo‘ldagi yozuv yo‘q / o‘chirilgan / boshqa do‘konniki | Ro‘yxatga qaytish |
 | `AUTH_TENANT_REQUIRED` | 409 | Email bir necha do‘konda — `errors[].meta.{tenantId, tenantName}` | Do‘kon tanlash |
 | `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field` | Maydon ostida |
@@ -2073,6 +2076,13 @@ tanlangan ombor, til, mavzu, offline navbat.
    bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da kimga ruxsat berishni hal qiling.
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-18** — egasi paneli, davomi (T-137…T-139: egasiga Telegram xabarlar, ro‘yxatdan o‘tishni yopish, operatorlar va
+ikki bosqichli kirish — [owner-panel.md](owner-panel.md)); do‘kon ilovasiga ta’siri bitta:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Ro‘yxatdan o‘tish doim ochiq | Platforma egasi yopishi mumkin: `GET /tenants/registration` → `{ mode: "open" \| "closed" }` (ochiq yo‘l); `closed` da `POST /tenants/register` → 403 `REGISTRATION_CLOSED` ([5.2](#auth)) | Kirish sahifasida `mode` so‘rab, `closed` bo‘lsa «Do‘kon ochish» havolasini yashirish; 403 da xabar |
 
 **2026-10-17** — platforma egasi paneli (T-135): alohida ilova ([owner-panel.md](owner-panel.md)); do‘kon ilovasiga ta’siri:
 

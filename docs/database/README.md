@@ -2,7 +2,7 @@
 
 > Generatsiya qilingan: `npm run docs:db` (`scripts/db-docs/`). Tuzilma — ishlab turgan bazadan (migratsiyalar qo‘llangan), ustun izohlari — `apps/api/prisma/schema.prisma`, jadvallar vazifasi — `scripts/db-docs/tables.py`. Bu faylni qo‘lda tahrirlamang.
 
-PostgreSQL 16 · 41 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
+PostgreSQL 16 · 42 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
 
 ## Umumiy qoidalar
 
@@ -42,6 +42,7 @@ erDiagram
     messages ||--o{ message_recipients : "message_id"
     platform_admins |o--o{ platform_audit_log : "admin_id"
     platform_admins ||--o{ platform_refresh_tokens : "admin_id"
+    platform_admins |o--o{ platform_settings : "updated_by"
     products ||--o{ po_items : "product_id"
     products ||--o{ product_stocks : "product_id"
     products ||--o{ quote_items : "product_id"
@@ -1475,12 +1476,13 @@ Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click)
 
 ## Platforma egasi paneli
 
-Do'konlar ustidan nazorat (T-135): egasi hisobi do'kon hisoblaridan alohida, uning sessiyalari va amallari jurnali global (RLS'siz). Tenantlararo o'qish — faqat `platform_*` SECURITY DEFINER funksiyalar orqali.
+Do'konlar ustidan nazorat (T-135): egasi hisobi do'kon hisoblaridan alohida, uning sessiyalari va amallari jurnali global (RLS'siz). Tenantlararo o'qish — faqat `platform_*` SECURITY DEFINER funksiyalar orqali. Operatorlar, TOTP, egasining Telegram'i va platforma sozlamasi — T-137…T-139.
 
 ```mermaid
 erDiagram
     platform_admins |o--o{ platform_audit_log : "admin_id"
     platform_admins ||--o{ platform_refresh_tokens : "admin_id"
+    platform_admins |o--o{ platform_settings : "updated_by"
     platform_admins {
         uuid id PK
         text email
@@ -1489,6 +1491,14 @@ erDiagram
         boolean is_active
         timestamptz last_login_at
         timestamptz created_at
+        text role
+        text totp_secret
+        timestamptz totp_enabled_at
+        bigint totp_last_step
+        bigint telegram_chat_id
+        timestamptz telegram_linked_at
+        text telegram_link_hash
+        timestamptz telegram_link_expires_at
     }
     platform_refresh_tokens {
         uuid id PK
@@ -1512,11 +1522,17 @@ erDiagram
         text ip
         timestamptz created_at
     }
+    platform_settings {
+        smallint id PK
+        text registration_mode
+        timestamptz updated_at
+        uuid updated_by FK
+    }
 ```
 
 ### `platform_admins`
 
-Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik. Birinchisi `PLATFORM_OWNER_EMAIL` bilan ishga tushishda yaratiladi. Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi.
+Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik, rol (`owner` — hammasi; `operator` — do'konni o'chira olmaydi, hisob va sozlamani boshqarmaydi). Birinchisi `PLATFORM_OWNER_EMAIL` bilan ishga tushishda yaratiladi. Ikki bosqichli kirish: `totp_secret` (base32), `totp_enabled_at` (bo'sh — sozlash tasdiqlanmagan), `totp_last_step` (oxirgi ishlatilgan 30 s qadam — kod bir martalik). Telegram: `telegram_chat_id` (xabarlar shu chatga), havola xeshi va muddati (mijozlar kabi shaxsiy havola). Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi.
 
 | Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
 |-------|-----|----|------|
@@ -1527,6 +1543,14 @@ Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik. Birinchisi `P
 | `is_active` | boolean | — | Faol (kira oladi) |
 | `last_login_at` | timestamptz | ha | Oxirgi kirish vaqti |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
+| `role` | text | — | `owner` — hammasi; `operator` — do'konlar bilan ishlaydi, o'chira olmaydi, hisob va sozlamani boshqarmaydi (T-139) |
+| `totp_secret` | text | ha | TOTP siri (base32); `totpEnabledAt` null — sozlash tasdiqlanmagan. Loglarga tushmaydi |
+| `totp_enabled_at` | timestamptz | ha |  |
+| `totp_last_step` | bigint | ha | Oxirgi qabul qilingan 30 soniyalik qadam — bitta kod ikki marta o'tmaydi |
+| `telegram_chat_id` | bigint | ha | Egasining Telegram'i (T-137): mijozlar kabi shaxsiy havola bilan ulanadi; xabarlar shu chatga |
+| `telegram_linked_at` | timestamptz | ha |  |
+| `telegram_link_hash` | text | ha |  |
+| `telegram_link_expires_at` | timestamptz | ha |  |
 
 ### `platform_refresh_tokens`
 
@@ -1565,6 +1589,19 @@ Egasi amallari jurnali (faqat qo'shiladi): kim (`admin_id`, bootstrap'da bo'sh),
 | `diff` | jsonb | ha |  |
 | `ip` | text | ha | IP manzil |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
+
+### `platform_settings`
+
+Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `open` (har kim do'kon ochadi) yoki `closed` (`POST /tenants/register` 403, do'konni faqat egasi paneli ochadi); kim va qachon o'zgartirgan. Env emas — egasi panelidan qayta ishga tushirishsiz o'zgaradi.
+
+- Bog‘lanishlar: `updated_by` → `platform_admins` (SET NULL)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | smallint | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `registration_mode` | text | — |  |
+| `updated_at` | timestamptz | — | Oxirgi o'zgarish vaqti — versiya (`If-Match`) |
+| `updated_by` | uuid | ha | → `platform_admins` |
 
 ## Hisobot yordamchilari
 

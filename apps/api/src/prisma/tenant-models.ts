@@ -25,7 +25,7 @@ export const TENANT_MODELS = new Set([
  * (tenant hali ma'lum bo'lmaganda) o'qiladi. `Platform*` — egasi paneli
  * (T-135): hisob, sessiya va jurnal do'konga bog'lanmaydi.
  */
-export const GLOBAL_MODELS = new Set(['Tenant', 'RefreshToken', 'PlatformAdmin', 'PlatformRefreshToken', 'PlatformAuditEntry'])
+export const GLOBAL_MODELS = new Set(['Tenant', 'RefreshToken', 'PlatformAdmin', 'PlatformRefreshToken', 'PlatformAuditEntry', 'PlatformSettings'])
 
 /** O'qish amallari — `where` ga tenant qo'shiladi */
 export const READ_OPS = new Set([

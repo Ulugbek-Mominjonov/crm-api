@@ -59,8 +59,8 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| E17 | Egasi paneli (platforma) | 2 | 1/2 | B6 |
-| | **Jami** | **136** | **120/136** | |
+| E17 | Egasi paneli (platforma) | 5 | 4/5 | B6 |
+| | **Jami** | **139** | **123/139** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -993,8 +993,35 @@ Do'konlar ustidan egasi nazorati (egasi so'rovi, 2026-10-16): alohida kirish va 
   - Bog'liq: T-135
   - Manba: [docs/api/owner-panel.md §5, §8](docs/api/owner-panel.md)
   - Qabul: frontend dasturchi (alohida repo, CI/CD tayyor): kirish, bosh sahifa, do'konlar ro'yxati va kartasi, ochish,
-    blok/tarif/o'chirish oynalari, hisoblar, to'lovlar, jurnal — qabul mezonlari owner-panel.md §8
+    blok/tarif/o'chirish oynalari, hisoblar, to'lovlar, jurnal, hisoblar/sozlamalar/profil (T-137…T-139) — qabul
+    mezonlari owner-panel.md §8
   - Tekshirish: `npm run build` (crm-owner), `https://owner.workspaces.uz`
+
+- [x] **T-137 · Egasiga Telegram xabarlar**
+  - Bog'liq: T-132, T-135
+  - Manba: [docs/api/owner-panel.md §5.10](docs/api/owner-panel.md)
+  - Qabul: egasi hisobi botga mijozlar kabi shaxsiy havola (`p-` prefiks) bilan ulanadi (`POST/DELETE /platform/auth/telegram-link`,
+    `me.telegramLinked`); ulangan faol hisoblarga: yangi do'kon ro'yxatdan o'tdi, onlayn to'lov (Payme/Click; qo'lda — yo'q),
+    do'kon o'chirishni so'radi; chaqiruvchi kutmaydi, xato loglanadi; botni bloklagan — ulanish olib tashlanadi
+  - Tekshirish: `npm run test:e2e -- platform-notify`
+
+- [x] **T-138 · Ro'yxatdan o'tishni yopish (platforma sozlamasi)**
+  - Bog'liq: T-124, T-135
+  - Manba: [docs/api/owner-panel.md §5.9, §9](docs/api/owner-panel.md)
+  - Qabul: `platform_settings` (bitta qator), `GET/PATCH /platform/settings` (`registrationMode`, PATCH — faqat egasi), darhol
+    kuchga kiradi; `closed` — `POST /tenants/register` 403 `REGISTRATION_CLOSED`, ochiq `GET /tenants/registration` → `{ mode }`;
+    egasi paneli baribir ochadi; jurnalda `platform.settings.update`
+  - Tekshirish: `npm run test:e2e -- platform-admins every-route-guarded`
+
+- [x] **T-139 · Operatorlar va ikki bosqichli kirish (TOTP)**
+  - Bog'liq: T-135
+  - Manba: [docs/api/owner-panel.md §5.8, §5.10](docs/api/owner-panel.md)
+  - Qabul: `platform_admins.role` (`owner`/`operator`), `@PlatformRoles('owner')` — do'konni o'chirish/qaytarish, `/platform/admins`,
+    `PATCH /platform/settings` faqat egasi (403); hisoblar: ochish, nom/rol/faollik (o'z roli/faolligi — 422, faolsiz — sessiyalar
+    yopiladi), parolni tiklash, TOTP'ni olib tashlash; TOTP RFC 6238 kutubxonasiz (`common/security/totp.ts`, RFC vektorlari):
+    setup → enable (kod) → loginda `totpCode` majburiy (`AUTH_TOTP_REQUIRED`/`AUTH_TOTP_INVALID`), kod bir martalik, ±30 s,
+    disable kod bilan, 5/daqiqa
+  - Tekshirish: `npm run test:e2e -- platform-admins` + `vitest run totp`
 
 ---
 

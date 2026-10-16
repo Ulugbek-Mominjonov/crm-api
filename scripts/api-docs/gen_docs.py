@@ -56,6 +56,7 @@ def roles_with(permission: str) -> list[str]:
 ADMIN_ONLY = 'faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`)'
 PLATFORM_ONLY = ('platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 '
                  '`AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md)')
+PLATFORM_OWNER_ONLY = PLATFORM_ONLY + '. Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED`'
 ANY_USER = 'har qanday kirgan foydalanuvchi'
 FILE_PERM = ('fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; '
              '`avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; '
@@ -69,7 +70,7 @@ def permission_text(method: str, path: str, route: dict | None) -> str:
     if route and route.get('public'):
         return 'ochiq — token shart emas'
     if route and route.get('platform'):
-        return PLATFORM_ONLY
+        return PLATFORM_OWNER_ONLY if route.get('owner_only') else PLATFORM_ONLY
     perm = route and route.get('perm')
     if perm:
         return f'`{perm}` — sukut bo‘yicha: {", ".join(roles_with(perm))} (do‘kon rollarida — administrator belgilaydi)'
@@ -114,7 +115,7 @@ EVENTS = {
 
 # ───────────────────────────── Bo'limlar tartibi va kirish matni
 GROUPS = [
-    ('auth', 'Autentifikatsiya va ro‘yxatdan o‘tish', [r'^/auth', r'^/tenants/register'],
+    ('auth', 'Autentifikatsiya va ro‘yxatdan o‘tish', [r'^/auth', r'^/tenants/register', r'^/tenants/registration'],
      'Kirish, tokenni yangilash, chiqish, joriy foydalanuvchi, parol va yangi do‘kon ochish. '
      'To‘liq oqim (token qayerda saqlanadi, 401 da nima qilinadi, bir nechta tab) — '
      '[README → Autentifikatsiya](README.md#auth).'),
@@ -200,7 +201,8 @@ GROUPS = [
      'Faqat administrator. Sehrgar talablari — [README → Migratsiya](README.md#migration).'),
     ('platform', 'Platforma egasi paneli', [r'^/platform'],
      'DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, '
-     'bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali. O‘z kirishi '
+     'bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali; egasi hisoblari va '
+     'operatorlar (`role`), ikki bosqichli kirish (TOTP), egasining Telegram’i, platforma sozlamasi. O‘z kirishi '
      '(`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. '
      'To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).'),
     ('health', 'Sog‘liq tekshiruvi', [r'^/health'],
@@ -225,7 +227,38 @@ NOTES = {
     ('POST', '/platform/auth/refresh'):
         '401 da BIR marta (parallel 401’lar bitta refresh’ni kutadi). `AUTH_TOKEN_REUSE` — barcha sessiyalar yopilgan: kirish sahifasiga.',
     ('POST', '/platform/auth/logout'): 'Chiqish tugmasi; keyin xotiradagi tokenni o‘chiring.',
-    ('GET', '/platform/auth/me'): 'Ilova ochilganda: avval `refresh`, keyin shu — sarlavhadagi egasi nomi.',
+    ('GET', '/platform/auth/me'):
+        'Ilova ochilganda: avval `refresh`, keyin shu — sarlavhadagi egasi nomi. `role` (`owner`/`operator`) bo‘yicha '
+        'faqat egasiga tegishli tugmalarni (o‘chirish/qaytarish, «Hisoblar», «Sozlamalar») yashiring; `totpEnabled`, '
+        '`telegramLinked` — profil sahifasi.',
+    ('POST', '/platform/auth/totp/setup'):
+        'Profil → «Ikki bosqichli kirish» → «Yoqish»: `otpauthUrl` dan QR kod chizing (masalan `qrcode` paketi), yonida '
+        '`secret` (qo‘lda kiritish uchun). Keyin kod maydoni → `totp/enable`. Yoqilgan bo‘lsa — 422.',
+    ('POST', '/platform/auth/totp/enable'):
+        'QR skanerlangach ilovadagi 6 raqam. 401 `AUTH_TOTP_INVALID` — «Kod noto‘g‘ri, ilovadagi joriy kodni kiriting». '
+        'Muvaffaqiyatda `totpEnabled: true` — keyingi kirishda kod so‘raladi. Daqiqasiga 5 urinish.',
+    ('POST', '/platform/auth/totp/disable'):
+        'Profil → «O‘chirish» → kod so‘raladi (parol emas). Qurilma yo‘q — boshqa egasi `POST /platform/admins/:id/totp/reset`.',
+    ('POST', '/platform/auth/telegram-link'):
+        'Profil → «Telegram» → «Ulash»: `link` ni QR qilib va «Telegramda ochish» tugmasi bilan ko‘rsating; egasi Start '
+        'bosgach `GET /platform/auth/me` → `telegramLinked: true` (sahifani qayta so‘rang yoki tugma «Tekshirish»). '
+        '422 `RECIPIENT_UNREACHABLE` (`reason: no_channel`) — serverda bot sozlanmagan: tugmani yashiring.',
+    ('DELETE', '/platform/auth/telegram-link'): 'Profil → «Telegram» → «Uzish». 204; xabarlar to‘xtaydi.',
+    ('GET', '/platform/admins'): '«Hisoblar» sahifasi (faqat egasi): jadval — nom, email, rol, faol, TOTP, Telegram, oxirgi kirish.',
+    ('POST', '/platform/admins'):
+        '«Hisob ochish» oynasi: email, nom, parol (kamida 8 belgi), rol. 409 `ALREADY_EXISTS` — email band. Parolni '
+        'operatorga egasi o‘zi aytadi; operator keyin TOTP’ni o‘zi yoqadi.',
+    ('PATCH', '/platform/admins/:id'):
+        'Qator tahriri: nom, rol, faollik (faolsiz — kira olmaydi, sessiyalari yopiladi). O‘z qatorida rol va faollik '
+        'maydonlarini o‘chiq ko‘rsating (422 `SELF_ROLE_CHANGE` / `SELF_DELETE`).',
+    ('POST', '/platform/admins/:id/reset-password'):
+        '«Parolni tiklash» oynasi (yangi parol). 204; hisobning barcha sessiyalari yopiladi — o‘ziniki bo‘lsa qayta kiradi.',
+    ('POST', '/platform/admins/:id/totp/reset'):
+        '«TOTP’ni olib tashlash» (qurilma yo‘qolganda), tasdiq oynasi bilan. 204; 422 — yoqilmagan.',
+    ('GET', '/platform/settings'): '«Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, kim va qachon o‘zgartirgan.',
+    ('PATCH', '/platform/settings'):
+        'Almashtirgich (faqat egasi): `closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; '
+        'do‘konni faqat panel ochadi. Darhol kuchga kiradi.',
     ('GET', '/platform/stats'): 'Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar) va 12 oylik tushum grafigi.',
     ('GET', '/platform/tenants'):
         'Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, '
@@ -284,7 +317,11 @@ NOTES = {
         '`GET /settings` → `onboarded: false` bo‘lsa dastlabki sozlash sehrgarini ko‘rsating, oxirida '
         '`PATCH /settings {"onboarded": true}`. IP bo‘yicha soatiga 5 ta. Bir email bilan bir nechta do‘kon ochish '
         'mumkin (email do‘kon ichida noyob). Login’da do‘kon tanlash (`AUTH_TENANT_REQUIRED`) faqat email VA parol bir nechta '
-        'do‘konda mos kelsa chiqadi; parollar farqli bo‘lsa — mos kelgan do‘konga kiradi.',
+        'do‘konda mos kelsa chiqadi; parollar farqli bo‘lsa — mos kelgan do‘konga kiradi. 403 `REGISTRATION_CLOSED` — '
+        'platforma egasi ro‘yxatdan o‘tishni yopgan: «Yangi do‘kon ochish vaqtincha yopiq» (oldindan `GET /tenants/registration`).',
+    ('GET', '/tenants/registration'):
+        'Kirish sahifasi ochilganda (hisobsiz): `mode: closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish '
+        'sahifasini yashiring (`/register` ga kirilsa — xabar). `open` — avvalgidek.',
     # account
     ('GET', '/tenants/current'):
         '«Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `deletionScheduledAt`, `limits` va '

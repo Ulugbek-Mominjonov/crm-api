@@ -4,7 +4,7 @@ import { ApiPagedResponse } from '@/common/crud/api-paged-response.decorator'
 import type { Paged } from '@/common/crud/paging'
 import { ApiErrorDto } from '@/common/http/api-error.dto'
 import { AuditedInService } from '@/modules/audit/audit.decorator'
-import { CurrentAdmin, type PlatformContext } from '@/modules/auth/decorators/platform.decorator'
+import { CurrentAdmin, PlatformRoles, type PlatformContext } from '@/modules/auth/decorators/platform.decorator'
 import { GrantPlanDto, PlatformInvoiceDto, PlatformInvoicesQueryDto } from './dto/platform-billing.dto'
 import {
   BlockTenantDto, CreateTenantDto, PlatformTenantDto, PlatformTenantsQueryDto, PlatformTenantUserDto,
@@ -97,8 +97,9 @@ export class PlatformTenantsController {
 
   @Post(':id/delete')
   @HttpCode(200)
+  @PlatformRoles('owner')
   @AuditedInService()
-  @ApiOperation({ summary: 'Do‘konni o‘chirish (30 kun muhlat)', description: 'Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.' })
+  @ApiOperation({ summary: 'Do‘konni o‘chirish (30 kun muhlat)', description: 'Faqat egasi (operator — 403). Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.' })
   @ApiOkResponse({ type: PlatformTenantDto })
   @ApiResponse(TRANSITION_422)
   requestDeletion(@Param('id', ParseUUIDPipe) id: string): Promise<PlatformTenantDto> {
@@ -107,8 +108,9 @@ export class PlatformTenantsController {
 
   @Post(':id/restore')
   @HttpCode(200)
+  @PlatformRoles('owner')
   @AuditedInService()
-  @ApiOperation({ summary: 'O‘chirishni bekor qilish', description: 'Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.' })
+  @ApiOperation({ summary: 'O‘chirishni bekor qilish', description: 'Faqat egasi (operator — 403). Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.' })
   @ApiOkResponse({ type: PlatformTenantDto })
   @ApiResponse(TRANSITION_422)
   cancelDeletion(@Param('id', ParseUUIDPipe) id: string): Promise<PlatformTenantDto> {
