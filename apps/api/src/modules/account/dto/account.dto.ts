@@ -21,10 +21,12 @@ export class TenantAccountDto {
   @ApiProperty() id!: string
   @ApiProperty() name!: string
   @ApiProperty({ enum: ['free', 'basic', 'pro'] }) plan!: string
-  @ApiProperty({ enum: ['active', 'suspended', 'deleting'], description: '`suspended`/`deleting` — faqat o‘qish' }) status!: string
+  @ApiProperty({ enum: ['active', 'suspended', 'blocked', 'deleting'], description: '`suspended`/`blocked`/`deleting` — faqat o‘qish' }) status!: string
   @ApiProperty({ nullable: true, type: String, format: 'date-time' }) planExpiresAt!: Date | null
   @ApiProperty({ nullable: true, type: String, format: 'date-time', description: 'Shu vaqtdan keyin ma’lumot to‘liq o‘chadi' })
   deletionScheduledAt!: Date | null
+  @ApiProperty({ nullable: true, type: String, description: 'Platforma bloklagan bo‘lsa — sababi (bannerda ko‘rsating); to‘lov blokni ochmaydi' })
+  blockedReason!: string | null
   @ApiProperty({ type: PlanLimitsDto }) limits!: PlanLimitsDto
   @ApiProperty({ type: PlanUsageDto }) usage!: PlanUsageDto
 }

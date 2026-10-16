@@ -54,6 +54,8 @@ def roles_with(permission: str) -> list[str]:
 
 
 ADMIN_ONLY = 'faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`)'
+PLATFORM_ONLY = ('platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 '
+                 '`AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md)')
 ANY_USER = 'har qanday kirgan foydalanuvchi'
 FILE_PERM = ('fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; '
              '`avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; '
@@ -66,6 +68,8 @@ EXPORT_PERM = ('ro‘yxatga qarab (servisda): `products` → `products.view`; `s
 def permission_text(method: str, path: str, route: dict | None) -> str:
     if route and route.get('public'):
         return 'ochiq — token shart emas'
+    if route and route.get('platform'):
+        return PLATFORM_ONLY
     perm = route and route.get('perm')
     if perm:
         return f'`{perm}` — sukut bo‘yicha: {", ".join(roles_with(perm))} (do‘kon rollarida — administrator belgilaydi)'
@@ -100,6 +104,12 @@ EVENTS = {
     ('PATCH', '/roles/:id'): '`access.changed` (ruxsatlar o‘zgarsa)',
     ('DELETE', '/roles/:id'): '`access.changed`',
     ('PATCH', '/users/:id'): '`access.changed` (rol o‘zgarsa)',
+    # Egasi paneli (T-135) — hodisa DO‘KONGA boradi (egasi paneli WebSocket ishlatmaydi)
+    ('POST', '/platform/tenants/:id/block'): '`tenant.status` (do‘konga)',
+    ('POST', '/platform/tenants/:id/unblock'): '`tenant.status` (do‘konga)',
+    ('POST', '/platform/tenants/:id/plan'): '`tenant.status` (do‘konga)',
+    ('POST', '/platform/tenants/:id/delete'): '`tenant.status` (do‘konga)',
+    ('POST', '/platform/tenants/:id/restore'): '`tenant.status` (do‘konga)',
 }
 
 # ───────────────────────────── Bo'limlar tartibi va kirish matni
@@ -188,6 +198,11 @@ GROUPS = [
     ('migration', 'Migratsiya (brauzerdagi eski ma’lumotni serverga ko‘chirish)', [r'^/migration'],
      'Eski (localStorage) versiyadan ko‘chirish sehrgari uchun: avval tekshirish (dry-run), keyin import. '
      'Faqat administrator. Sehrgar talablari — [README → Migratsiya](README.md#migration).'),
+    ('platform', 'Platforma egasi paneli', [r'^/platform'],
+     'DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, '
+     'bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali. O‘z kirishi '
+     '(`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. '
+     'To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).'),
     ('health', 'Sog‘liq tekshiruvi', [r'^/health'],
      'Infratuzilma uchun (yuk balanslagich, monitoring). Frontend odatda chaqirmaydi.'),
 ]
@@ -203,6 +218,37 @@ def group_of(path: str) -> str:
 
 # ───────────────────────────── Endpoint bo'yicha qo'lda yozilgan izohlar
 NOTES = {
+    # platform — egasi paneli (T-135), alohida ilova: owner-panel.md
+    ('POST', '/platform/auth/login'):
+        'Egasi paneli kirish sahifasi. `accessToken` faqat XOTIRADA; `platform_refresh` httpOnly cookie faqat '
+        '`/api/v1/platform/auth/*` ga boradi (`credentials: "include"`). Daqiqasiga 5 urinish (IP), oshsa — 429.',
+    ('POST', '/platform/auth/refresh'):
+        '401 da BIR marta (parallel 401’lar bitta refresh’ni kutadi). `AUTH_TOKEN_REUSE` — barcha sessiyalar yopilgan: kirish sahifasiga.',
+    ('POST', '/platform/auth/logout'): 'Chiqish tugmasi; keyin xotiradagi tokenni o‘chiring.',
+    ('GET', '/platform/auth/me'): 'Ilova ochilganda: avval `refresh`, keyin shu — sarlavhadagi egasi nomi.',
+    ('GET', '/platform/stats'): 'Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar) va 12 oylik tushum grafigi.',
+    ('GET', '/platform/tenants'):
+        'Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, '
+        '`sort` (`-createdAt` sukut, `name`, `planExpiresAt`). Har qator: `usage`, `admin` (aloqa), `activity` (so‘nggi chek).',
+    ('POST', '/platform/tenants'):
+        '«Do‘kon ochish» formasi — ro‘yxatdan o‘tish maydonlari + boshlang‘ich tarif (`plan`, `months`; pullik bo‘lsa `months` shart). '
+        'Parolni egasi do‘kon egasiga o‘zi yetkazadi — API uni qaytarmaydi. Email do‘kon ichida noyob (boshqa do‘konda takror bo‘lishi mumkin).',
+    ('GET', '/platform/tenants/:id'): 'Do‘kon kartasi: sarlavha, holat (`blockedReason` bilan), tarif va muddati, ko‘rsatkichlar, administrator aloqasi, izoh.',
+    ('PATCH', '/platform/tenants/:id'): 'Nom va egasi izohi; `notes: ""` — izoh o‘chadi. `If-Match` YO‘Q.',
+    ('POST', '/platform/tenants/:id/block'):
+        'Tasdiq oynasi + sabab (majburiy, do‘kon administratori ko‘radi). Do‘kondagi ochiq ilovalar `tenant.status` hodisasi bilan bannerni darhol ko‘rsatadi.',
+    ('POST', '/platform/tenants/:id/unblock'): 'Blok bo‘lmasa — 422 `INVALID_STATUS_TRANSITION`.',
+    ('POST', '/platform/tenants/:id/plan'):
+        '«Tarif / to‘lov» oynasi: tarif, oy, usul (`cash` naqd, `transfer` o‘tkazma, `bonus` bepul), summa (sukut — narx × oy; '
+        'UI `PLAN_MONTHLY_PRICE` dan hisoblab ko‘rsatsin, egasi o‘zgartira oladi), izoh (kvitansiya). `free` — faqat tarif, qolgani yuborilmaydi.',
+    ('POST', '/platform/tenants/:id/delete'): 'Tasdiq oynasi («30 kundan keyin butunlay o‘chadi»). Muhlatdagi do‘kon — 422.',
+    ('POST', '/platform/tenants/:id/restore'): 'Muhlat ichida qaytarish; muhlatda bo‘lmasa — 422.',
+    ('GET', '/platform/tenants/:id/users'): 'Do‘kon kartasidagi «Hisoblar» jadvali (parolni tiklash tugmasi shu yerda).',
+    ('POST', '/platform/tenants/:id/users/:userId/reset-password'):
+        'Yangi parol oynasi (kamida 8 belgi, ommabop parol — 400). 204 — tana yo‘q. Parolni egasi do‘kon xodimiga o‘zi yetkazadi.',
+    ('GET', '/platform/tenants/:id/invoices'): 'Do‘kon kartasidagi «To‘lovlar» jadvali — onlayn va qo‘lda yozilganlar birga.',
+    ('GET', '/platform/invoices'): '«To‘lovlar» sahifasi: `state`, `provider`, `dateFrom`/`dateTo` (Toshkent kuni), `tenantId`; eng yangisi birinchi.',
+    ('GET', '/platform/audit'): '«Jurnal» sahifasi: `group` (`tenant`, `user`, `platform`), `tenantId`; `diff` — amal tafsiloti (sabab, tarif, summa).',
     # auth
     ('POST', '/auth/login'):
         'Kirish sahifasi. `accessToken` ni faqat XOTIRADA saqlang (localStorage/sessionStorage emas), '
@@ -754,9 +800,11 @@ def render_op(o: dict) -> list[str]:
         if prm['in'] == 'header':
             headers.append(f'`{prm["name"]}` ({"majburiy" if prm.get("required") else "ixtiyoriy"})')
     if not route.get('public') and not short(path).startswith('/health'):
-        headers.insert(0, '`Authorization: Bearer <accessToken>`')
+        headers.insert(0, '`Authorization: Bearer <egasi accessToken>`' if route.get('platform') else '`Authorization: Bearer <accessToken>`')
     if short(path) in ('/auth/refresh', '/auth/logout'):
         headers.append('cookie `refresh_token` (brauzer o‘zi yuboradi: `credentials: "include"`)')
+    if short(path) in ('/platform/auth/refresh', '/platform/auth/logout'):
+        headers.append('cookie `platform_refresh` (brauzer o‘zi yuboradi: `credentials: "include"`)')
     if headers:
         rows.append(('Sarlavhalar', ', '.join(headers)))
     success = []
@@ -832,8 +880,8 @@ def render_op(o: dict) -> list[str]:
         common.append('409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan)')
     if route.get('plan') and not any(e.startswith('| `402`') for e in errors):
         common.append('402 `PLAN_LIMIT_EXCEEDED`')
-    if m in ('POST', 'PATCH', 'PUT', 'DELETE') and not route.get('public') and not route.get('readonly_ok'):
-        common.append('423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda)')
+    if m in ('POST', 'PATCH', 'PUT', 'DELETE') and not route.get('public') and not route.get('readonly_ok') and not route.get('platform'):
+        common.append('423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda)')
     if errors or common:
         out += ['**Xatolar**', '']
         if errors:
@@ -884,7 +932,8 @@ for key, title, _patterns, intro in GROUPS:
         ])
         perm = r.get('perm')
         admin_only = permission_text(o['method'], norm(o['path']), r) == ADMIN_ONLY
-        perm_cell = f'`{perm}`' if perm else ('ochiq' if r.get('public') else 'faqat `admin`' if admin_only else 'servisda / hamma')
+        perm_cell = (f'`{perm}`' if perm else 'ochiq' if r.get('public') else 'egasi tokeni' if r.get('platform')
+                     else 'faqat `admin`' if admin_only else 'servisda / hamma')
         lines.append(f'| `{o["method"]}` | [`{o["key"][1]}`](#{op_anchor(o["method"], o["path"])}){marks} | '
                      f'{esc(o["op"].get("summary", ""))} | {perm_cell} |')
     lines.append('')

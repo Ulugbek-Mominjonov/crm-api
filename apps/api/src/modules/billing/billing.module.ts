@@ -9,5 +9,7 @@ import { PaymeService } from './payme.service'
   imports: [TenantsModule],
   controllers: [BillingController],
   providers: [BillingService, PaymeService, ClickService],
+  // Egasi paneli (T-135) qo'lda to'lovni shu servis orqali tasdiqlaydi — tarif mantig'i bitta joyda
+  exports: [BillingService],
 })
 export class BillingModule {}

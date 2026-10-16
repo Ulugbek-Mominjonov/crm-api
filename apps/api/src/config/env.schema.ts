@@ -134,6 +134,14 @@ export const envSchema = z
     /** Fiskal navbat ishchisi qayta urinishlar uchun qanchalik tez-tez aylanadi (ms); 0 — o'chiq (testlar) */
     OFD_DISPATCH_INTERVAL_MS: z.coerce.number().int().min(0).default(30_000),
     SENTRY_DSN: z.string().optional(),
+    // ── Platforma egasi paneli (T-135): birinchi egasi hisobi ishga tushishda yaratiladi ──
+    /** Bo'sh bo'lsa — hisob yaratilmaydi (mavjudi o'zgarmaydi, parol qayta yozilmaydi) */
+    PLATFORM_OWNER_EMAIL: blankAsUnset(z.email()),
+    PLATFORM_OWNER_PASSWORD: blankAsUnset(z.string().min(1)),
+  })
+  .refine((e) => !!e.PLATFORM_OWNER_EMAIL === !!e.PLATFORM_OWNER_PASSWORD, {
+    path: ['PLATFORM_OWNER_PASSWORD'],
+    message: 'PLATFORM_OWNER_EMAIL va PLATFORM_OWNER_PASSWORD birga beriladi',
   })
   // Bog'liq shartlar: bir o'zgaruvchi ikkinchisini talab qiladi
   .refine((e) => e.CACHE_DRIVER !== 'redis' || !!e.REDIS_URL, {

@@ -23,7 +23,11 @@ export class InvoiceDto {
   @ApiProperty() months!: number
   @ApiProperty({ description: 'So‘m' }) amount!: number
   @ApiProperty({ enum: InvoiceState }) state!: InvoiceState
-  @ApiProperty({ nullable: true, type: String, enum: ['payme', 'click'] }) provider!: string | null
+  @ApiProperty({
+    nullable: true, type: String, enum: ['payme', 'click', 'cash', 'transfer', 'bonus'],
+    description: '`payme`/`click` — onlayn; `cash`/`transfer`/`bonus` — platforma qo‘lda yozgan (naqd, o‘tkazma, bonus muddat)',
+  })
+  provider!: string | null
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date
   @ApiProperty({ nullable: true, type: String, format: 'date-time' }) paidAt!: Date | null
 }

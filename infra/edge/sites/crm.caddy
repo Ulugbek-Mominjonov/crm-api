@@ -7,6 +7,11 @@
 {$CRM_DOMAIN} {
 	encode zstd gzip
 
+	# Egasi paneli API'si (T-135) faqat owner subdomenida (sites/owner.caddy) — bu yerda yopiq
+	handle /api/v1/platform/* {
+		respond 404
+	}
+
 	# API (Swagger — /api/docs, ochiq/yopiqligini API o'zi hal qiladi: SWAGGER_ENABLED), realtime
 	# (WebSocket) va sog'liq
 	@backend {

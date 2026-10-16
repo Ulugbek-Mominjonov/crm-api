@@ -9,7 +9,7 @@ GROUPS = [
     ('tenant', "Do'kon va kirish", (
         "Har bir do'kon (SaaS mijozi) — `tenants` dagi bitta qator. Boshqa barcha jadvallarda `tenant_id` "
         "bor va shu do'konga tegishli. Xodim — shaxs, foydalanuvchi — uning kirish hisobi."),
-     ['tenants', 'tenant_state', 'settings', 'employees', 'users', 'refresh_tokens', 'doc_counters',
+     ['tenants', 'tenant_state', 'settings', 'employees', 'users', 'roles', 'refresh_tokens', 'doc_counters',
       'idempotency_keys', 'audit_log']),
     ('catalog', 'Katalog va ombor', (
         "Mahsulotlar, kategoriyalar va omborlar. Qoldiq ombor bo'yicha `product_stocks` da, har bir "
@@ -28,7 +28,11 @@ GROUPS = [
     ('comms', 'Xabarlar, fayllar va eksport', (
         "SMS yuborish navbati, S3 (R2) dagi fayllar metama'lumoti va fonda tayyorlanadigan eksportlar."),
      ['messages', 'message_recipients', 'files', 'exports']),
-    ('billing', 'Obuna (billing)', "Tarif to'lovlari (Payme, Click).", ['billing_invoices']),
+    ('billing', 'Obuna (billing)', "Tarif to'lovlari (Payme, Click) va egasi qo'lda yozgan to'lovlar.", ['billing_invoices']),
+    ('platform', 'Platforma egasi paneli', (
+        "Do'konlar ustidan nazorat (T-135): egasi hisobi do'kon hisoblaridan alohida, uning sessiyalari va "
+        "amallari jurnali global (RLS'siz). Tenantlararo o'qish — faqat `platform_*` SECURITY DEFINER funksiyalar orqali."),
+     ['platform_admins', 'platform_refresh_tokens', 'platform_audit_log']),
     ('reports', 'Hisobot yordamchilari', (
         "Hisobotlar tez ishlashi uchun materiallashgan ko'rinishlar va ularning yangilanish holati "
         "(ko'rinishlar — pastdagi alohida bo'limda)."),
@@ -40,7 +44,9 @@ TABLES = {
     'tenants': (
         "Do'kon — tizimdagi eng yuqori birlik; boshqa jadvallardagi `tenant_id` shunga ishora qiladi. Tarif "
         "(`plan`, `plan_expires_at`), holat (`active`; `suspended` — muddati o'tgan: o'qish bor, yozish yo'q; "
-        "`deleting` — o'chirish so'ralgan, 30 kun muhlat) va o'chirish rejasi. RLS yo'q: login va ro'yxatdan "
+        "`blocked` — platforma egasi to'xtatgan, to'lov ochmaydi; `deleting` — o'chirish so'ralgan, 30 kun muhlat) "
+        "va o'chirish rejasi. Egasi bloki (`blocked_at`, `blocked_reason`) holatdan alohida saqlanadi — o'chirishdan "
+        "qaytganda ham qoladi; `notes` — egasi izohi (do'kon ko'rmaydi). RLS yo'q: login va ro'yxatdan "
         "o'tishda do'kon hali ma'lum emas."),
     'tenant_state': (
         "Do'konning tez o'zgaradigan joriy holati — bitta qator: kassadagi naqd (`cash_balance`), ochiq smena, "
@@ -56,6 +62,10 @@ TABLES = {
     'users': (
         "Tizimga kirish hisobi — doim bitta xodimga tegishli (ism va lavozim `employees` da). Email (do'kon "
         "ichida noyob), argon2id parol xeshi, rol (`admin`, `manager`, `sotuvchi`, `omborchi`), faollik."),
+    'roles': (
+        "Do'kon rollari (T-134): 4 ta tizim roli (`key` — `admin`, `manager`, `sotuvchi`, `omborchi`; sukut ruxsatlari "
+        "avvalgi matritsa bilan bir xil) va do'kon yaratgan rollar (`key` bo'sh). `permissions` — `bo'lim.amal` "
+        "ro'yxati; `admin` ruxsatlari saqlanmaydi (doim hammasi). Nom do'kon ichida noyob (harf farqsiz)."),
     'refresh_tokens': (
         "Sessiyalar: refresh token'ning o'zi emas, SHA-256 xeshi; rotatsiya zanjiri (`parent_id`). Eski "
         "token qayta ishlatilsa — o'g'irlik belgisi, barcha sessiyalar yopiladi. RLS yo'q: refresh paytida "
@@ -146,8 +156,19 @@ TABLES = {
         "Fonda tayyorlanadigan katta eksportlar (CSV/JSON): kim so'radi, qaysi ro'yxat, filtrlar, holat, "
         "qatorlar soni, natija fayli. Faqat so'rovchining o'zi ko'radi."),
     'billing_invoices': (
-        "Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click) tranzaksiyasi. Tarif "
-        "faqat `paid` bo'lganda uzayadi."),
+        "Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click) tranzaksiyasi; egasi qo'lda "
+        "yozgan to'lov ham shu yerda (`provider` — `cash`, `transfer`, `bonus`; `platform_admin_id`, `note`, summa 0 "
+        "bo'lishi mumkin). Tarif faqat `paid` bo'lganda uzayadi."),
+    'platform_admins': (
+        "Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik. Birinchisi `PLATFORM_OWNER_EMAIL` bilan "
+        "ishga tushishda yaratiladi. Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi."),
+    'platform_refresh_tokens': (
+        "Egasi sessiyalari: `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya zanjiri, bekor qilinganini qayta "
+        "ishlatish — barcha sessiyalar yopiladi), lekin o'z jadvalida — do'kon sessiyalari bilan aralashmaydi."),
+    'platform_audit_log': (
+        "Egasi amallari jurnali (faqat qo'shiladi): kim (`admin_id`, bootstrap'da bo'sh), nima (`action`: "
+        "`tenant.block`, `tenant.plan`, `user.resetPassword` …), qaysi do'kon (`target_tenant_id` — FK emas: do'kon "
+        "to'liq o'chirilgach ham tarix qoladi), tafsilot (`diff`)."),
     'report_refresh_state': (
         "Hisobot ko'rinishlari oxirgi marta qachon yangilangani (bitta qator). Hisobot shu kundan oldingisini "
         "materiallashgan ko'rinishdan, qolganini jonli ko'rinishdan oladi."),

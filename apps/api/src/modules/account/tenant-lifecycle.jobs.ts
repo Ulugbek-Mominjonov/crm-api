@@ -2,9 +2,8 @@ import { Injectable, Logger } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
 import { BUSINESS_TIME_ZONE } from '@/common/time'
 import { S3Service } from '@/modules/files/s3.service'
-import { TenantStatusService } from '@/modules/tenants/tenant-status.service'
+import { SUSPEND_GRACE_DAYS, TenantStatusService } from '@/modules/tenants/tenant-status.service'
 import { PrismaService } from '@/prisma/prisma.service'
-import { SUSPEND_GRACE_DAYS } from './account.service'
 
 /**
  * Do'kon hayot sikli (T-127). `tenants` — global jadval (RLS'siz);

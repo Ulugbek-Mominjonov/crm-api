@@ -29,13 +29,18 @@ model Tenant {
   id                  String    @id @default(uuid(7)) @db.Uuid
   name                String
   plan                String    @default("free") // free | basic | pro
-  /// active | suspended (o'qish mumkin, yozish yo'q) | deleting (30 kun muhlat)
+  /// active | suspended (o'qish mumkin, yozish yo'q) | blocked (egasi to'xtatgan, faqat o'qish) | deleting (30 kun muhlat)
   status              String    @default("active")
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
   /// Pullik tarif amal qilish muddati — to'lov tasdiqlangach uzayadi (T-126)
   planExpiresAt       DateTime? @map("plan_expires_at") @db.Timestamptz
   /// O'chirish so'ralgan bo'lsa — shu vaqtdan keyin to'liq tozalanadi (T-127)
   deletionScheduledAt DateTime? @map("deletion_scheduled_at") @db.Timestamptz
+  /// Platforma egasi bloklagan (T-135): holatdan mustaqil saqlanadi — o'chirishdan qaytganda ham blok qoladi
+  blockedAt           DateTime? @map("blocked_at") @db.Timestamptz
+  blockedReason       String?   @map("blocked_reason")
+  /// Egasi paneli uchun izoh (do'kon ko'rmaydi)
+  notes               String?
 
   users     User[]
   roles     Role[]
@@ -1092,10 +1097,15 @@ model BillingInvoice {
   months       Int
   amount       BigInt
   state        InvoiceState @default(created)
+  /// payme | click — provayder; cash | transfer | bonus — egasi qo'lda yozgan to'lov (T-135)
   provider     String?
   providerTxId String?      @map("provider_tx_id")
   providerTime BigInt?      @map("provider_time")
   createdById  String?      @map("created_by_id") @db.Uuid
+  /// Egasi panelidan yozilgan bo'lsa — kim (T-135)
+  platformAdminId String?   @map("platform_admin_id") @db.Uuid
+  /// Egasi izohi: kvitansiya raqami, kelishuv …
+  note         String?
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
   paidAt       DateTime?    @map("paid_at") @db.Timestamptz
   cancelledAt  DateTime?    @map("cancelled_at") @db.Timestamptz
@@ -1103,6 +1113,8 @@ model BillingInvoice {
 
   @@unique([tenantId, id])
   @@index([tenantId, createdAt])
+  /// Egasi paneli: tenantlararo ro'yxat sana bo'yicha (T-135)
+  @@index([createdAt(sort: Desc)])
   @@map("billing_invoices")
 }
 
@@ -1111,6 +1123,66 @@ enum InvoiceState {
   pending
   paid
   cancelled
+}
+
+// ═══════════════════════════════════════════════ PLATFORMA EGASI (T-135)
+
+/// Platforma egasi hisobi: do'konlar ustidan nazorat. Do'kon hisoblaridan
+/// (`users`) ALOHIDA — tenantga bog'lanmaydi, tokeni do'kon yo'llarida o'tmaydi
+model PlatformAdmin {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  email        String    @unique
+  name         String
+  /// argon2id — hech qachon ochiq parol
+  passwordHash String    @map("password_hash")
+  isActive     Boolean   @default(true) @map("is_active")
+  lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  tokens   PlatformRefreshToken[]
+  auditLog PlatformAuditEntry[]
+
+  @@map("platform_admins")
+}
+
+/// Egasi sessiyasi — `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya, qayta ishlatishni aniqlash)
+model PlatformRefreshToken {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  adminId   String    @map("admin_id") @db.Uuid
+  tokenHash String    @unique @map("token_hash")
+  parentId  String?   @map("parent_id") @db.Uuid
+  userAgent String?   @map("user_agent")
+  ip        String?
+  expiresAt DateTime  @map("expires_at") @db.Timestamptz
+  revokedAt DateTime? @map("revoked_at") @db.Timestamptz
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  admin PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@map("platform_refresh_tokens")
+}
+
+/// Egasi amallari jurnali (global, RLS'siz). `target_tenant_id` — FK EMAS va `tenant_id`
+/// deb nomlanmagan: do'kon to'liq o'chirilgach ham tarix qoladi
+model PlatformAuditEntry {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  /// `null` — tizim (ishga tushishdagi bootstrap)
+  adminId        String?  @map("admin_id") @db.Uuid
+  action         String // 'tenant.block', 'tenant.plan', ...
+  targetTenantId String?  @map("target_tenant_id") @db.Uuid
+  entityType     String?  @map("entity_type")
+  entityId       String?  @map("entity_id") @db.Uuid
+  diff           Json?
+  ip             String?
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  /// Restrict: jurnal kim qilganini hech qachon yo'qotmaydi
+  admin PlatformAdmin? @relation(fields: [adminId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt])
+  @@index([targetTenantId, createdAt])
+  @@map("platform_audit_log")
 }
 
 /// Fiskal chek (T-129, 08 §8.9): chek bilan bir so'rovda navbatga, OFD ga — COMMIT'dan keyin

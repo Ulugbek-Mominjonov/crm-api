@@ -20,6 +20,11 @@ export function hashToken(raw: string): string {
   return createHash('sha256').update(raw).digest('hex')
 }
 
+/** Yangi xom token — mijozga shu beriladi (egasi sessiyasi ham shu qoidada, T-135) */
+export function newRawToken(): string {
+  return randomBytes(TOKEN_BYTES).toString('base64url')
+}
+
 /**
  * Refresh tokenlar: rotatsiya va o'g'irlanishni aniqlash.
  *
@@ -45,7 +50,7 @@ export class RefreshTokenService {
 
   /** Yangi token yaratadi va XOM qiymatini qaytaradi (u faqat shu yerda ko'rinadi) */
   async issue(userId: string, meta: TokenMeta = {}, parentId?: string): Promise<string> {
-    const raw = randomBytes(TOKEN_BYTES).toString('base64url')
+    const raw = newRawToken()
     await this.prisma.refreshToken.create({
       data: {
         userId,
@@ -88,7 +93,7 @@ export class RefreshTokenService {
         where: { id: token.id },
         data: { revokedAt: new Date() },
       })
-      const raw2 = randomBytes(TOKEN_BYTES).toString('base64url')
+      const raw2 = newRawToken()
       await tx.refreshToken.create({
         data: {
           userId: token.userId,

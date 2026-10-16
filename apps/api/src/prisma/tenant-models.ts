@@ -22,9 +22,10 @@ export const TENANT_MODELS = new Set([
 /**
  * Tenantdan TASHQARIDAGI modellar — ular butun tizimga tegishli.
  * `RefreshToken` shu yerda: u foydalanuvchiga bog'langan va login paytida
- * (tenant hali ma'lum bo'lmaganda) o'qiladi.
+ * (tenant hali ma'lum bo'lmaganda) o'qiladi. `Platform*` — egasi paneli
+ * (T-135): hisob, sessiya va jurnal do'konga bog'lanmaydi.
  */
-export const GLOBAL_MODELS = new Set(['Tenant', 'RefreshToken'])
+export const GLOBAL_MODELS = new Set(['Tenant', 'RefreshToken', 'PlatformAdmin', 'PlatformRefreshToken', 'PlatformAuditEntry'])
 
 /** O'qish amallari — `where` ga tenant qo'shiladi */
 export const READ_OPS = new Set([

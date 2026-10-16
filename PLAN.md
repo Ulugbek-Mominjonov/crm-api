@@ -53,13 +53,14 @@ Umumiy «tayyor» ta'rifi —
 | E8 | Ta'minot va kreditorlik | 6 | 6/6 | B3 |
 | E9 | Yetkazib berish va xabarlar | 6 | 6/6 | B3 |
 | E10 | Hisobot va analitika | 7 | 7/7 | B3 |
-| E11 | Fayl saqlash (S3) | 9 | 9/9 | B3 |
+| E11 | Fayl saqlash (S3) | 10 | 10/10 | B3 |
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| | **Jami** | **133** | **118/133** | |
+| E17 | Egasi paneli (platforma) | 2 | 1/2 | B6 |
+| | **Jami** | **136** | **120/136** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -971,6 +972,32 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
 
 ---
 
+## E17 — Egasi paneli (platforma)
+
+Do'konlar ustidan egasi nazorati (egasi so'rovi, 2026-10-16): alohida kirish va API, alohida frontend repo
+(`crm-owner`, `owner.workspaces.uz`). Qo'llanma — [docs/api/owner-panel.md](docs/api/owner-panel.md).
+
+- [x] **T-135 · Egasi paneli — backend (`/platform/*`)**
+  - Bog'liq: T-126, T-127, T-134
+  - Manba: [docs/api/owner-panel.md](docs/api/owner-panel.md)
+  - Qabul: egasi hisobi do'kon hisoblaridan alohida (`platform_admins`, token `kind: platform`, cookie `platform_refresh`;
+    do'kon tokeni egasi yo'lida va aksincha — 401; birinchi hisob env'dan); do'konlar ro'yxati/kartasi — RLS ostidagi
+    ko'rsatkichlar bitta SECURITY DEFINER so'rovda (yangi DB roli va siyosat o'zgarishi yo'q); ochish (provisioning bilan bir xil),
+    nom/izoh; blok — `blocked` (faqat o'qish, to'lov ochmaydi, do'kon olib tashlay olmaydi, o'chirishdan qaytganda qoladi);
+    tarif/qo'lda to'lov — hisob-faktura (`cash`/`transfer`/`bonus`) + Payme bilan bir xil `applyPayment`, `free` — muddat o'chadi;
+    o'chirish/qaytarish (30 kun); hisoblar ro'yxati va parolni tiklash (sessiyalar yopiladi); barcha hisob-fakturalar, oylik tushum;
+    egasi jurnali (faqat qo'shiladi) + do'kon jurnalida «Platforma»; `tenant.status` hodisasi; `/platform/*` faqat owner domenida (Caddy)
+  - Tekshirish: `npm run test:e2e -- platform every-route-guarded tenant-suspend-delete`
+
+- [ ] **T-136 · Egasi paneli — frontend (`crm-owner`)**
+  - Bog'liq: T-135
+  - Manba: [docs/api/owner-panel.md §5, §8](docs/api/owner-panel.md)
+  - Qabul: frontend dasturchi (alohida repo, CI/CD tayyor): kirish, bosh sahifa, do'konlar ro'yxati va kartasi, ochish,
+    blok/tarif/o'chirish oynalari, hisoblar, to'lovlar, jurnal — qabul mezonlari owner-panel.md §8
+  - Tekshirish: `npm run build` (crm-owner), `https://owner.workspaces.uz`
+
+---
+
 ## Bajarish tartibi
 
 ```
@@ -980,7 +1007,7 @@ E0 ─► E1 ─► E2 ─► E3 ─┬─► E4 ─┬─► E5 ─► E6 ─�
                       │
                       └─► E15 (T-114…T-117 — erta sozlansa yaxshi)
 
-E6 ─► E10 ─► E13 ─► E14 ─► E15 (qolgani) ─► E12 ─► E16
+E6 ─► E10 ─► E13 ─► E14 ─► E15 (qolgani) ─► E12 ─► E16 ─► E17
 ```
 
 **Tavsiya:** E15 ning birinchi uchta vazifasi (Docker, VM, compose) E4 dan

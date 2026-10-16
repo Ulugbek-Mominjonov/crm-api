@@ -5,7 +5,8 @@ import { createTestApp, resetThrottle } from './helpers/app'
 import { bearer } from './helpers/auth'
 import { seedProduct, seedTenant, testDb, truncateAll } from './helpers/db'
 import { seedFileRow } from './helpers/files'
-import { collectRoutes, type RouteInfo } from './helpers/routes'
+import { PLATFORM_KEY } from '@/modules/auth/decorators/platform.decorator'
+import { collectRoutes, routesOfControllersWith, type RouteInfo } from './helpers/routes'
 
 /**
  * Tenant izolyatsiyasi — eng muhim xavfsizlik testi (03-security §3.8).
@@ -167,8 +168,20 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
     ])
   }
 
+  // Egasi paneli yo'llari (T-135) tenantga bog'lanmaydi: do'kon tokeni u yerda umuman o'tmaydi (401, pastdagi test)
+  const platformRoutes = (): Set<string> => routesOfControllersWith(app, PLATFORM_KEY)
   const byIdRoutes = (): RouteInfo[] =>
-    routes.filter((r) => r.path.startsWith(API) && r.path.includes('/:id'))
+    routes.filter((r) => r.path.startsWith(API) && r.path.includes('/:id') && !platformRoutes().has(`${r.method} ${r.path}`))
+
+  it('egasi paneli `:id` yo‘llari do‘kon tokeni bilan — 401 (404 emas: ular tenant resursi emas)', async () => {
+    const platform = routes.filter((r) => platformRoutes().has(`${r.method} ${r.path}`) && r.path.includes('/:id'))
+    expect(platform.length).toBeGreaterThan(0)
+    for (const r of platform) {
+      const path = r.path.replace(':id', b.tenantId).replace(':userId', b.userId)
+      const res = await request(app.getHttpServer())[r.method.toLowerCase() as 'get' | 'post' | 'patch'](path).set('Authorization', authA).send({})
+      expect(res.status, `${r.method} ${r.path}`).toBe(401)
+    }
+  })
 
   it('`:id` li har bir yo‘l uchun B namunasi bor (yangi resurs unutilmagan)', () => {
     const resources = [...new Set(byIdRoutes().map((r) => resourceOf(r.path)))]

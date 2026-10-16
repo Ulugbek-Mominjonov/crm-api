@@ -16,7 +16,8 @@ R2 (Cloudflare): fayllar va shifrlangan zaxira — server tashqarisida
 |------|----------|--------|
 | `vm-setup.sh` | — | VPS: `deploy` foydalanuvchisi, docker, ufw, fail2ban, swap, SSH faqat kalit, `edge` tarmog'i (T-115) |
 | `edge/docker-compose.yml`, `edge/Caddyfile`, `edge/.env.example` | `/opt/edge/` | Umumiy kirish: bitta Caddy, TLS avtomatik |
-| `edge/sites/crm.caddy` | `/opt/edge/sites/` | CRM sayti: frontend + `/api`, `/socket.io`, `/health` → API; Swagger — `/api/docs` (`SWAGGER_ENABLED`) (T-116, T-119) |
+| `edge/sites/crm.caddy` | `/opt/edge/sites/` | CRM sayti: frontend + `/api`, `/socket.io`, `/health` → API; Swagger — `/api/docs` (`SWAGGER_ENABLED`) (T-116, T-119); `/api/v1/platform/*` yopiq |
+| `edge/sites/owner.caddy` | `/opt/edge/sites/` | Egasi paneli (T-135): `owner.<domen>` — `/opt/www/owner` + `/api`, `/health` → o'sha API (10-bo'lim) |
 | `docker-compose.prod.yml`, `postgres.conf` | `/opt/crm/` | postgres + redis + api; port chiqarmaydi (T-116, T-117) |
 | `.env.prod.example`, `backup.env.example` | `/opt/crm/` | `.env`, `backup.env` namunalari — qiymatsiz |
 | `backup.sh`, `verify-backup.sh` | `/opt/crm/` | shifrlangan kunlik zaxira va tiklash sinovi (T-121) |
@@ -243,6 +244,31 @@ mijozga yetib bormaydi: «Mijoz botga ulanmagan»).
 Lokal sinov — ALOHIDA test bot (production botining webhook'iga tegmaslik uchun): `apps/api/.env` da
 `TELEGRAM_BOT_TOKEN=<test bot tokeni>`, `TELEGRAM_UPDATES=polling` (ochiq manzil kerak emas).
 Token sizib chiqsa: BotFather → `/revoke` → yangi token `.env` ga → `up -d api`.
+
+## 10. Egasi paneli (T-135)
+
+Platforma egasining do'konlar ustidan nazorat paneli — alohida subdomen, o'sha API. Frontend —
+[crm-owner](https://github.com/Ulugbek-Mominjonov/crm-owner) (deploy — undagi `DEPLOY.md`); API qo'llanmasi —
+[docs/api/owner-panel.md](../docs/api/owner-panel.md).
+
+```bash
+# 1. Cloudflare: owner.<domen> → server IP, DNS only (crm.<domen> kabi)
+# 2. Caddy: yangi sayt + crm.caddy (unda /api/v1/platform/* endi yopiq) + domen
+scp infra/edge/sites/{crm,owner}.caddy deploy@IP:/opt/edge/sites/
+ssh deploy@IP "echo 'OWNER_DOMAIN=owner.<domen>' >> /opt/edge/.env && cd /opt/edge && docker compose up -d && docker compose exec -w /etc/caddy caddy caddy reload"
+# 3. Birinchi egasi hisobi: /opt/crm/.env ga PLATFORM_OWNER_EMAIL va PLATFORM_OWNER_PASSWORD (kamida 8 belgi),
+#    keyin API qayta ishga tushadi — hisob yaratiladi (bor bo'lsa tegilmaydi; parolni keyin env'dan o'chirsa ham bo'ladi)
+ssh deploy@IP "cd /opt/crm && printf 'PLATFORM_OWNER_EMAIL=%s\nPLATFORM_OWNER_PASSWORD=%s\n' 'owner@<domen>' '<parol>' >> .env && docker compose -f docker-compose.prod.yml up -d --no-deps api"
+# 4. Statik papka va yuklash kaliti — crm-owner/DEPLOY.md («Bir martalik sozlash»): /opt/www/owner, rrsync, GitHub secret'lar
+# Tekshirish:
+curl -fsS -o /dev/null -w '%{http_code}\n' https://owner.<domen>/health/ready                    # 200
+curl -s -o /dev/null -w '%{http_code}\n' https://owner.<domen>/api/v1/platform/tenants          # 401 (tokensiz)
+curl -s -o /dev/null -w '%{http_code}\n' https://crm.<domen>/api/v1/platform/tenants            # 404 (do'kon domenida yopiq)
+```
+
+Egasi tokeni do'kon ilovasida ishlamaydi (va aksincha), lekin `/api/v1/platform/*` ni do'kon domenida
+Caddy darajasida ham yopish — qo'shimcha qatlam. Faqat o'z IP'laringizdan kirish — `owner.caddy` dagi
+`remote_ip` qatorlari.
 
 ## Xavfsizlik eslatmalari
 

@@ -1,5 +1,35 @@
-import type { INestApplication } from '@nestjs/common'
+import { RequestMethod, type INestApplication } from '@nestjs/common'
+import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants'
+import { ModulesContainer, Reflector } from '@nestjs/core'
 import type { Router } from 'express'
+
+/**
+ * Klass darajasidagi metama'lumot (`@PlatformRoute()` kabi) Express
+ * handler'ida ko'rinmaydi — controller klasslari modullar konteyneridan
+ * olinadi va ularning yo'llari `METOD /yo'l` ko'rinishida yig'iladi.
+ */
+export function routesOfControllersWith(app: INestApplication, metadataKey: string): Set<string> {
+  const reflector = app.get(Reflector)
+  const out = new Set<string>()
+  for (const module of app.get(ModulesContainer).values()) {
+    for (const wrapper of module.controllers.values()) {
+      const cls = wrapper.metatype as (new () => unknown) | null
+      if (!cls || !reflector.get<boolean>(metadataKey, cls)) continue
+      const prefix = Reflect.getMetadata(PATH_METADATA, cls) as string
+      const proto = cls.prototype as Record<string, unknown>
+      for (const name of Object.getOwnPropertyNames(proto)) {
+        const fn = proto[name]
+        if (typeof fn !== 'function' || name === 'constructor') continue
+        const path = Reflect.getMetadata(PATH_METADATA, fn) as string | undefined
+        const method = Reflect.getMetadata(METHOD_METADATA, fn) as RequestMethod | undefined
+        if (path === undefined || method === undefined) continue
+        const segments = [prefix, path].flatMap((p) => p.split('/')).filter(Boolean)
+        out.add(`${RequestMethod[method]} /api/v1/${segments.join('/')}`)
+      }
+    }
+  }
+  return out
+}
 
 export interface RouteInfo {
   method: string

@@ -17,7 +17,7 @@ import type { AuthUserDto, LoginResponseDto } from './dto/auth-response.dto'
  * javob vaqtidagi farq "bu email ro'yxatda bormi?" degan savolga javob
  * berib qo'yardi (foydalanuvchi sanash / enumeration).
  */
-const DUMMY_HASH =
+export const DUMMY_HASH =
   '$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$JZ0z6l8N0y6t0YkTqZ0xQ1uJ0mFqZ0xQ1uJ0mFqZ0xQ'
 
 /** Bir email bir nechta do'konda bo'lishi mumkin — nechtasini tekshiramiz */

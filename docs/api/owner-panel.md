@@ -1,0 +1,379 @@
+# Egasi paneli (owner panel) — frontend qo‘llanmasi
+
+Bu hujjat **alohida** ilova — platforma egasining do‘konlar ustidan nazorat paneli — uchun. U do‘kon
+ilovasi (`crm-qurilish`) emas: boshqa repo, boshqa domen, boshqa kirish. Maqsad — frontend dasturchida
+savol qolmasligi: nima qurish kerak, qaysi endpoint, qanday javob, qanday xato, qanday tekshiriladi.
+
+| | |
+|---|---|
+| Repo | `https://github.com/Ulugbek-Mominjonov/crm-owner` (Vite + React 19 + TypeScript + Tailwind v4, CI/CD sozlangan; `README.md`, `DEPLOY.md`) |
+| Production | `https://owner.workspaces.uz` — frontend va API bitta domenda; API — `/api/v1/platform/*` (so‘rovlar nisbiy, `VITE_API_URL` bo‘sh) |
+| Backend manba | [endpoints.md → Platforma egasi paneli](endpoints.md#platform) (19 ta endpoint, generatsiya), [schemas.md](schemas.md) (`Platform*`, `GrantPlanDto`, `CreateTenantDto` …), `apps/api/openapi.json` |
+| Tiplar | `npm run gen:api` → `src/api/schema.d.ts` (`openapi-typescript`, manba — backend `master` dagi `openapi.json`) |
+| Kim nima qiladi | Kod — frontend dasturchi (shu repo). Deploy, secret, domen, serverdagi Caddy, birinchi egasi hisobi — server egasi |
+
+Backend tayyor: barcha endpointlar e2e testlar bilan qoplangan (`apps/api/test/platform.e2e-spec.ts`).
+
+## Mundarija
+
+1. [Do‘kon ilovasidan farqi](#farq)
+2. [Kirish va sessiya](#auth)
+3. [Umumiy qoidalar](#rules)
+4. [Holatlar va tariflar](#status)
+5. [Sahifalar va endpointlar](#pages)
+6. [Xatolar](#errors)
+7. [Lokal ishga tushirish](#local)
+8. [Qabul mezonlari](#acceptance)
+9. [Do‘kon ilovasiga (crm-qurilish) ta’siri](#store-app)
+
+---
+
+<a id="farq"></a>
+
+## 1. Do‘kon ilovasidan farqi
+
+| | Do‘kon ilovasi (`crm.workspaces.uz`) | Egasi paneli (`owner.workspaces.uz`) |
+|---|---|---|
+| Kim kiradi | Do‘kon xodimlari (`users`) | Platforma egasi (`platform_admins`) — alohida jadval, alohida hisob |
+| Kirish | `POST /auth/login` | `POST /platform/auth/login` |
+| Token | `tid` (do‘kon) bor | `kind: "platform"`, do‘kon yo‘q. **Do‘kon yo‘llarida 401**, do‘kon tokeni egasi yo‘llarida 401 |
+| Refresh cookie | `refresh_token`, yo‘l `/api/v1/auth` | `platform_refresh`, yo‘l `/api/v1/platform/auth` — ikkala panel bitta brauzerda ishlasa ham aralashmaydi |
+| Ruxsatlar | `user.permissions` bo‘yicha menyu | Yo‘q — egasi hammasini ko‘radi va qiladi |
+| WebSocket | `/events` | **Yo‘q.** Ma’lumot so‘rov bilan yangilanadi (amal → javobdagi yangi obyekt; ro‘yxat — qayta so‘rov) |
+| `Idempotency-Key`, `If-Match` | Ko‘p yozuvchi amallarda | **Yo‘q** — egasi paneli endpointlari ularni talab qilmaydi |
+| Faqat-o‘qish (423) | Do‘kon holati bo‘yicha | **Yo‘q** — egasi doim yozadi |
+| Yashirin maydonlar | Rolga qarab | Yo‘q |
+
+Egasi paneli do‘kon ilovasining endpointlarini (`/products`, `/sales` …) **chaqirmaydi** — 401 qaytadi.
+
+---
+
+<a id="auth"></a>
+
+## 2. Kirish va sessiya
+
+Oqim do‘kon ilovasidagi bilan bir xil ([README → 5](README.md#auth), [12.1](README.md#flow-client)), faqat yo‘llar va cookie nomi boshqa:
+
+| | |
+|---|---|
+| Kirish | `POST /platform/auth/login` `{ email, password }` → **201** `{ accessToken, expiresIn: 900, admin: { id, email, name, lastLoginAt } }` + `platform_refresh` httpOnly cookie |
+| Access token | Faqat **xotirada** (localStorage/sessionStorage emas). `Authorization: Bearer …`. Muddati 15 daqiqa |
+| Yangilash | `POST /platform/auth/refresh` (cookie’ni brauzer o‘zi yuboradi: `credentials: "include"`) → 201, javob login bilan bir xil. 401 da **bir marta**, parallel 401’lar bitta refresh’ni kutadi |
+| Ilova ochilganda | Token yo‘q → `refresh` → muvaffaqiyatli bo‘lsa `GET /platform/auth/me` (sarlavhadagi egasi nomi), aks holda kirish sahifasi |
+| Chiqish | `POST /platform/auth/logout` → `{ ok: true }`, cookie o‘chadi; xotiradagi tokenni ham o‘chiring |
+| Xatolar | 401 `AUTH_INVALID_CREDENTIALS` — email/parol xato yoki hisob faolsizlantirilgan (qaysi biri — aytilmaydi); 401 `AUTH_INVALID_REFRESH` — sessiya yo‘q/muddati o‘tgan → kirish sahifasi; 401 `AUTH_TOKEN_REUSE` — bekor qilingan cookie qayta ishlatildi, **barcha** sessiyalar yopildi → kirish sahifasi; 429 — daqiqasiga 5 urinish (IP) |
+
+```json
+// POST /platform/auth/login → 201
+{
+  "accessToken": "eyJ…",
+  "expiresIn": 900,
+  "admin": { "id": "0192…", "email": "owner@workspaces.uz", "name": "Egasi", "lastLoginAt": "2026-10-17T06:12:00.000Z" }
+}
+```
+
+Egasi hisobini yaratish UI’da **yo‘q**: birinchi hisob serverda `PLATFORM_OWNER_EMAIL` / `PLATFORM_OWNER_PASSWORD`
+bilan ishga tushishda yaratiladi (server egasi qiladi). Parolni almashtirish, qo‘shimcha operatorlar — keyingi bosqich.
+
+---
+
+<a id="rules"></a>
+
+## 3. Umumiy qoidalar
+
+Do‘kon ilovasi bilan bir xil ([README → 4](README.md#conventions)); bu yerda kerak bo‘ladiganlari:
+
+- **Javob shakli.** Bitta obyekt — to‘g‘ridan-to‘g‘ri; ro‘yxat — `{ items, page, pageSize, total, pageCount }`
+  (`page` 1 dan, `pageSize` sukut 20, maks. 200). Massiv javob — faqat `GET /platform/tenants/:id/users`.
+- **Identifikatorlar** — UUID; sanalar — ISO 8601 UTC (`2026-10-17T06:12:00.000Z`), ko‘rsatishda Toshkent vaqti;
+  `dateFrom`/`dateTo` — `YYYY-MM-DD` (Toshkent kuni, ikkala chegara kiradi).
+- **Pul** — butun so‘m (`amount: 99000`); **hajm** — bayt (`storageBytes`), MB/GB’ga UI aylantiradi.
+- **Saralash** — `sort=name` / `sort=-createdAt` (minus — kamayish); faqat ruxsat etilgan kalitlar (400).
+- **Filtrlar** — query parametrlari; bo‘sh qiymat yuborilmaydi.
+- **Yozuvchi amallar** javobda **yangilangan obyektni** qaytaradi (`PlatformTenantDto`) — ro‘yxatni qayta so‘ramasdan
+  qatorni almashtirish mumkin. `reset-password` — 204, tanasiz.
+- `PATCH /platform/tenants/:id` — faqat yuborilgan maydonlar o‘zgaradi; `If-Match` yo‘q.
+- Noma’lum maydon yuborilsa — 400 `VALIDATION_FAILED` (`whitelist`): DTO’da yo‘q maydonni yubormang.
+
+---
+
+<a id="status"></a>
+
+## 4. Holatlar va tariflar
+
+### 4.1 Do‘kon holati (`status`)
+
+| `status` | Ma’nosi | Do‘kon nima qila oladi | Egasi amallari |
+|---|---|---|---|
+| `active` | Oddiy | Hammasi | Bloklash, tarif/to‘lov, o‘chirish |
+| `suspended` | Pullik tarif muddati + 3 kun o‘tdi (server har kecha 01:00 da qo‘yadi) | Faqat o‘qish + to‘lov | **To‘lov yozish** (`plan`) → `active`; bloklash; o‘chirish |
+| `blocked` | **Egasi bloklagan** (`blockedAt`, `blockedReason`) | Faqat o‘qish; kirish ishlaydi; sababni administrator ko‘radi | **Blokdan chiqarish** (`unblock`); tarif/to‘lov (blokni OCHMAYDI); o‘chirish |
+| `deleting` | O‘chirish muhlati (`deletionScheduledAt` — shu vaqtda ma’lumot va fayllar butunlay o‘chadi) | Faqat o‘qish + o‘chirishni bekor qilish | **Qaytarish** (`restore`) |
+
+Blok belgisi holatdan **alohida** saqlanadi: bloklangan do‘kon o‘chirishga qo‘yilib, keyin qaytarilsa — yana `blocked`.
+`restore` dan keyingi holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.
+UI’da `blockedAt !== null` bo‘lsa holatdan qat’i nazar «Bloklangan» belgisini ko‘rsating.
+
+Tavsiya etilgan belgi ranglari: `active` — yashil, `suspended` — sariq, `blocked` — qizil, `deleting` — kulrang.
+
+### 4.2 Tariflar
+
+Manba — `packages/shared/src/plans.ts` (egasi paneli bu paketni import qilmaydi — qiymatlarni UI konstantasiga ko‘chiring):
+
+| `plan` | Oylik narx | Foydalanuvchi | Ombor | Saqlash | SMS/kun |
+|---|---|:-:|:-:|:-:|:-:|
+| `free` | 0 | 3 | 2 | 200 MB | 50 |
+| `basic` | 99 000 so‘m | 10 | 5 | 2 GB | 500 |
+| `pro` | 249 000 so‘m | 50 | 20 | 20 GB | 5 000 |
+
+Chegaralar javobda ham bor (`limits`), ularni UI hisoblamaydi. `usage` — ishlatilgani (`users`, `warehouses`, `storageBytes`).
+
+### 4.3 Tarif muddati qanday uzayadi (`POST /platform/tenants/:id/plan`)
+
+- `plan` pullik (`basic`/`pro`): `months` (1–12) va `provider` **shart**; `amount` berilmasa — narx × oy
+  (`bonus` — 0). Natija: `paid` hisob-faktura va:
+  - **o‘sha tarif** va muddati hali o‘tmagan → joriy `planExpiresAt` **dan** `months` oy;
+  - **boshqa tarif** yoki muddati o‘tgan → **hozirdan** `months` oy;
+  - `suspended` → `active`; `blocked` o‘zgarmaydi.
+- `plan: "free"` → tarif darhol bepul, `planExpiresAt: null`; `suspended` → `active`.
+- `provider`: `cash` — naqd, `transfer` — bank o‘tkazmasi, `bonus` — bepul muddat (summa 0). Onlayn to‘lovlar
+  (`payme`, `click`) do‘konning o‘zidan keladi — egasi ularni faqat ko‘radi.
+
+---
+
+<a id="pages"></a>
+
+## 5. Sahifalar va endpointlar
+
+Yo‘llar — tavsiya; nomlar o‘zbekcha. Hamma sahifa kirishni talab qiladi (`/login` dan boshqa).
+
+### 5.1 `/login` — Kirish
+
+Email + parol → `POST /platform/auth/login`. Xato matni: 401 → «Email yoki parol xato», 429 → «Ko‘p urinish —
+bir daqiqadan keyin». Muvaffaqiyat → `/`.
+
+### 5.2 `/` — Bosh sahifa (boshqaruv paneli)
+
+`GET /platform/stats` → [`PlatformStatsDto`](schemas.md#platformstatsdto):
+
+```json
+{
+  "tenants": {
+    "total": 14,
+    "byStatus": { "active": 11, "suspended": 2, "blocked": 1 },
+    "byPlan": { "free": 9, "basic": 3, "pro": 2 },
+    "newThisMonth": 3,
+    "expiringIn7Days": 2,
+    "overdue": 1
+  },
+  "revenue": {
+    "thisMonth": 447000,
+    "lastMonth": 198000,
+    "months": [ { "month": "2026-09-01", "amount": 198000, "invoices": 2 }, { "month": "2026-10-01", "amount": 447000, "invoices": 4 } ]
+  }
+}
+```
+
+Kartalar: jami do‘konlar (holat bo‘yicha taqsimot), tarif bo‘yicha, shu oyda ochilganlar, **7 kunda tugaydiganlar**
+(bosilsa → `/tenants?expiresWithinDays=7`), **muddati o‘tganlar** (`overdue` — 3 kunlik imtiyozda, hali
+to‘xtatilmagan; bosilsa → `/tenants?expiresWithinDays=0`), joriy/o‘tgan oy tushumi, 12 oylik ustunli grafik
+(`months` — to‘lov bo‘lmagan oy ro‘yxatda **yo‘q**, grafikda 0 deb chizing). `byStatus`/`byPlan` da bo‘lmagan kalit = 0.
+
+### 5.3 `/tenants` — Do‘konlar ro‘yxati
+
+`GET /platform/tenants?page&pageSize&q&status&plan&expiresWithinDays&sort` → sahifali
+[`PlatformTenantDto`](schemas.md#platformtenantdto):
+
+```json
+{
+  "id": "0192…", "name": "Qurilish Mollari", "plan": "basic", "status": "active",
+  "planExpiresAt": "2026-11-16T09:00:00.000Z", "deletionScheduledAt": null,
+  "blockedAt": null, "blockedReason": null, "notes": "Telefon orqali kelishildi",
+  "createdAt": "2026-10-01T05:20:11.000Z",
+  "limits": { "users": 10, "warehouses": 5, "storageBytes": 2147483648, "fileBytes": 10485760, "smsPerDay": 500 },
+  "usage": { "users": 4, "warehouses": 2, "storageBytes": 15728640 },
+  "admin": { "name": "Ali Valiyev", "email": "ali@dokon.uz", "phone": "+998901234567" },
+  "activity": { "lastSaleAt": "2026-10-16T14:02:00.000Z", "sales30d": 312 }
+}
+```
+
+| Element | Manba |
+|---|---|
+| Qidiruv (nom) | `q` (maks. 100 belgi, harf farqsiz) |
+| Filtr: holat, tarif | `status`, `plan` |
+| Filtr: «Tez orada tugaydi» | `expiresWithinDays=7` (muddati o‘tganlar ham kiradi); `0` — faqat o‘tganlar |
+| Saralash | `sort`: `-createdAt` (sukut), `name`, `-name`, `planExpiresAt`, `-planExpiresAt` |
+| Ustunlar | Nom, holat (belgi; `blockedAt` bo‘lsa «Bloklangan»), tarif + muddati (qolgan kunlar; `free` — «—»), foydalanuvchi `usage.users/limits.users`, hajm, administrator (ism, telefon), so‘nggi faollik (`activity.lastSaleAt`, `sales30d`), ochilgan sana |
+| Qator | bosilsa → `/tenants/:id` |
+| Tugma | «Do‘kon ochish» → `/tenants/new` |
+
+`admin` `null` bo‘lishi mumkin (administrator hisobi o‘chirilgan) — «—» ko‘rsating.
+
+### 5.4 `/tenants/new` — Do‘kon ochish
+
+`POST /platform/tenants` → **201** `PlatformTenantDto`. Tana — [`CreateTenantDto`](schemas.md#createtenantdto):
+
+| Maydon | Qoida |
+|---|---|
+| `storeName` | 1–120 belgi |
+| `ownerName` | 1–120 belgi — egasi (administrator) ismi |
+| `phone` | `+998901234567` ko‘rinishida |
+| `email` | Email (do‘kon ichida noyob; boshqa do‘konda takror bo‘lishi mumkin) |
+| `password` | Kamida 8 belgi, ommabop parol rad etiladi (400, `errors[].field = "password"`) |
+| `plan` | ixtiyoriy, sukut `free`; `basic`/`pro` bo‘lsa `months` **shart** (1–12) — bepul boshlang‘ich muddat (`bonus` hisob-faktura, summa 0) |
+| `notes` | ixtiyoriy, egasi izohi (maks. 500) |
+
+Muvaffaqiyatdan keyin: **email va parolni nusxalash** oynasi («Do‘kon egasiga yetkazing» — server parolni qayta
+ko‘rsatmaydi), keyin `/tenants/:id`. Do‘kon egasi `https://crm.workspaces.uz` ga shu email/parol bilan kiradi
+(roli `admin`, dastlabki sozlash sehrgari ochiladi).
+
+### 5.5 `/tenants/:id` — Do‘kon kartasi
+
+`GET /platform/tenants/:id` → `PlatformTenantDto` (404 — yo‘q). Sarlavha: nom, holat belgisi, tarif va muddati,
+administrator aloqasi (telefonga `tel:` havola). Bo‘limlar (tab):
+
+**Umumiy.** Ko‘rsatkichlar (`usage` / `limits` progress), faollik, ochilgan sana, `blockedReason` (bloklangan
+bo‘lsa — qizil blok), `deletionScheduledAt` (o‘chirilayotgan bo‘lsa). Nom va izoh tahriri — `PATCH /platform/tenants/:id`
+`{ name?, notes? }` (`notes: ""` — izoh o‘chadi) → yangilangan obyekt.
+
+**Amallar** (sarlavhadagi tugmalar, holatga qarab — 4.1 jadvali):
+
+| Tugma | So‘rov | Tasdiq oynasi |
+|---|---|---|
+| Bloklash | `POST …/block { reason }` (1–500 belgi, **majburiy**) | «Do‘kon faqat o‘qish rejimiga o‘tadi; sabab do‘kon administratoriga ko‘rinadi» |
+| Blokdan chiqarish | `POST …/unblock` | oddiy tasdiq |
+| Tarif / to‘lov | `POST …/plan` — 4.3 | alohida oyna (quyida) |
+| O‘chirish | `POST …/delete` | «30 kundan keyin do‘kon ma’lumoti va fayllari butunlay o‘chadi; muhlat ichida qaytarish mumkin» |
+| Qaytarish | `POST …/restore` | oddiy tasdiq |
+
+Hammasi **200** va yangilangan `PlatformTenantDto` qaytaradi — kartani shu bilan yangilang. 422 `INVALID_STATUS_TRANSITION` —
+holat bunga yo‘l qo‘ymaydi (masalan, bloklanmagan do‘konni `unblock`): xabarni (`detail`) ko‘rsating va kartani qayta so‘rang.
+
+**«Tarif / to‘lov» oynasi** (`POST /platform/tenants/:id/plan`, [`GrantPlanDto`](schemas.md#grantplandto)):
+tarif tanlovi (`free`/`basic`/`pro`); pullik bo‘lsa — oy soni (1–12), usul (`cash` «Naqd», `transfer` «O‘tkazma»,
+`bonus` «Bonus (bepul)»), summa (sukut narx × oy, `bonus` da 0 va o‘zgartirilmaydi), izoh (kvitansiya raqami).
+Oynada **yangi muddat qachon tugashini** oldindan ko‘rsating (4.3 qoidasi bilan). Natija — `PlatformTenantDto`
+(`plan`, `planExpiresAt`, `status`).
+
+**Hisoblar.** `GET /platform/tenants/:id/users` → massiv [`PlatformTenantUserDto`](schemas.md#platformtenantuserdto)
+(`id, name, email, role, roleName, isActive, lastLoginAt, createdAt`). Jadval + har qatorda «Parolni tiklash» →
+oyna (yangi parol, kamida 8 belgi) → `POST /platform/tenants/:id/users/:userId/reset-password { password }` → **204**.
+Xodimning barcha sessiyalari yopiladi; parolni egasi xodimga o‘zi yetkazadi.
+
+**To‘lovlar.** `GET /platform/tenants/:id/invoices?page&pageSize&state&provider&dateFrom&dateTo` → sahifali
+[`PlatformInvoiceDto`](schemas.md#platforminvoicedto):
+
+```json
+{ "id": "0192…", "tenantId": "0192…", "tenantName": "Qurilish Mollari", "plan": "basic", "months": 1, "amount": 99000,
+  "state": "paid", "provider": "cash", "note": "Kvitansiya №12", "createdAt": "2026-10-17T06:30:00.000Z", "paidAt": "2026-10-17T06:30:00.000Z" }
+```
+
+`state`: `created` (do‘kon hisob-faktura ochdi, hali to‘lamadi) → `pending` (provayder boshladi) → `paid` / `cancelled`.
+`provider`: `payme`, `click` — onlayn; `cash`, `transfer`, `bonus` — egasi yozgan; `null` — hali provayder tanlanmagan.
+
+**Jurnal.** `GET /platform/audit?tenantId=:id` — shu do‘kon bo‘yicha egasi amallari (5.7).
+
+### 5.6 `/invoices` — Barcha to‘lovlar
+
+`GET /platform/invoices?page&pageSize&tenantId&state&provider&dateFrom&dateTo` → sahifali `PlatformInvoiceDto`
+(eng yangisi birinchi). Filtrlar: holat, usul, sana oralig‘i; `tenantName` ustuni bosilsa → `/tenants/:tenantId`.
+Jadval tagida sahifadagi `paid` summalar yig‘indisi — UI hisoblaydi (umumiy tushum — bosh sahifada).
+
+### 5.7 `/audit` — Egasi jurnali
+
+`GET /platform/audit?page&pageSize&tenantId&group` → sahifali [`PlatformAuditEntryDto`](schemas.md#platformauditentrydto):
+
+```json
+{ "id": "0192…", "action": "tenant.block", "admin": { "id": "…", "name": "Egasi", "email": "owner@workspaces.uz" },
+  "targetTenantId": "0192…", "targetTenantName": "Qurilish Mollari", "entityType": "tenant", "entityId": "0192…",
+  "diff": { "reason": "To‘lov kelishuvi buzildi" }, "createdAt": "2026-10-17T06:40:00.000Z" }
+```
+
+| `action` | Ma’nosi | `diff` |
+|---|---|---|
+| `platform.login` | Egasi kirdi | — |
+| `platform.bootstrap` | Birinchi hisob yaratildi (`admin: null`) | `{ email }` |
+| `tenant.create` | Do‘kon ochildi | `{ name, email, plan, months }` |
+| `tenant.update` | Nom/izoh | `{ before, after }` |
+| `tenant.block` / `tenant.unblock` | Blok | `{ reason }` / — |
+| `tenant.plan` | Tarif / to‘lov | `{ plan, months, provider, amount, note, planExpiresAt }` |
+| `tenant.delete` / `tenant.restore` | O‘chirish / qaytarish | — |
+| `user.resetPassword` | Do‘kon hisobiga parol | `entityId` — foydalanuvchi |
+
+`group` filtri — `tenant`, `user`, `platform`. `targetTenantName` `null` — do‘kon allaqachon butunlay o‘chirilgan.
+
+---
+
+<a id="errors"></a>
+
+## 6. Xatolar
+
+Shakl do‘kon ilovasi bilan bir xil ([README → 7](README.md#errors)):
+
+```json
+{ "code": "VALIDATION_FAILED", "detail": "…", "errors": [ { "field": "months", "code": "VALIDATION_FAILED", "meta": { "message": "…" } } ], "traceId": "…" }
+```
+
+| Kod | Status | Qachon | UI |
+|---|---|---|---|
+| `AUTH_INVALID_CREDENTIALS` | 401 | Login xato; token yo‘q/yaroqsiz; **do‘kon tokeni** egasi yo‘lida; hisob faolsizlantirilgan | Login sahifasida — xabar; boshqa joyda — refresh, bo‘lmasa kirish sahifasi |
+| `AUTH_INVALID_REFRESH` | 401 | Refresh cookie yo‘q/eskirgan | Kirish sahifasi |
+| `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh qayta ishlatildi — hamma sessiya yopildi | Kirish sahifasi + «Xavfsizlik sababli qayta kiring» |
+| `VALIDATION_FAILED` | 400 | Maydon xato (`errors[].field`), noma’lum maydon, yaroqsiz UUID, noma’lum `sort`/`status` | Maydon ostida xabar |
+| `NOT_FOUND` | 404 | Do‘kon/hisob yo‘q | «Topilmadi» sahifasi yoki ro‘yxatga qaytish |
+| `INVALID_STATUS_TRANSITION` | 422 | Holat amalni rad etdi | `detail` ni ko‘rsatib, kartani qayta so‘rash |
+| — | 429 | Login chegarasi (5/daqiqa) yoki umumiy (300/daqiqa) | «Bir ozdan keyin urinib ko‘ring» |
+| `INTERNAL` | 500 | Kutilmagan | `traceId` bilan xabar |
+
+---
+
+<a id="local"></a>
+
+## 7. Lokal ishga tushirish
+
+1. Backend ([README → 2](README.md#local)): `npm run services:up`, `apps/api/.env` da
+   `PLATFORM_OWNER_EMAIL=owner@local.uz` va `PLATFORM_OWNER_PASSWORD=Egasi-2026!` (kamida 8 belgi), `npm run dev -w @crm/api` —
+   ishga tushganda egasi hisobi yaratiladi (logda «Egasi hisobi yaratildi»). Demo do‘kon — `npm run seed -w @crm/api`.
+2. Frontend: `crm-owner` repo’da `npm i`, `.env.local` da `API_PROXY_TARGET=http://localhost:3000`, `npm run dev` —
+   Vite `/api` va `/health` ni backend’ga proksilaydi (cookie bir xil origin’da, CORS yo‘q).
+3. Tiplar: `npm run gen:api` (lokal backend spec: `API_SPEC_URL=http://localhost:3000/api/docs-json`).
+4. Swagger: `http://localhost:3000/api/docs` — `platform` bo‘limi; «Authorize» ga egasi tokenini qo‘ying.
+
+Production’da `VITE_API_URL` bo‘sh, so‘rovlar nisbiy; deploy — `DEPLOY.md` (server egasi).
+
+---
+
+<a id="acceptance"></a>
+
+## 8. Qabul mezonlari
+
+- Kirish/chiqish/refresh ishlaydi; token faqat xotirada; 401 da bitta refresh; `AUTH_TOKEN_REUSE` da kirish sahifasi.
+- Do‘kon tokeni bilan egasi paneliga kirib bo‘lmaydi (API 401 beradi — UI buni «kirish sahifasi» deb ko‘rsatadi).
+- Bosh sahifa: `stats` kartalari va 12 oylik grafik; «tugaydiganlar» kartasi ro‘yxat filtriga olib boradi.
+- Ro‘yxat: qidiruv, holat/tarif/muddat filtrlari, saralash, sahifalash — **serverda** (`total`, `pageCount`).
+- Do‘kon ochish: validatsiya xatolari maydon ostida; muvaffaqiyatda email/parol nusxalash oynasi.
+- Karta: holat belgisi va `blockedReason`; blok/blokdan chiqarish/o‘chirish/qaytarish — tasdiq oynasi bilan, javobdagi obyekt bilan yangilanadi; 422 xabari ko‘rsatiladi.
+- Tarif/to‘lov oynasi: pullik tarifda oy va usul majburiy, summa sukut narx × oy, yangi muddat oldindan ko‘rsatiladi; `free` da qolgan maydonlar yashirin.
+- Hisoblar: ro‘yxat va parolni tiklash (204).
+- To‘lovlar va jurnal sahifalari filtr va sahifalash bilan.
+- Responsiv (planshet/telefon), o‘zbek tili, sanalar Toshkent vaqtida, summalar `99 000 so‘m` ko‘rinishida.
+- `npm run lint`, `npm run build`, `npm test` yashil (CI shuni tekshiradi, deploy — `main` ga push).
+
+---
+
+<a id="store-app"></a>
+
+## 9. Do‘kon ilovasiga (crm-qurilish) ta’siri
+
+Egasi paneli bilan birga do‘kon API’sida kichik o‘zgarishlar bor ([README → 8.1](README.md#tenant), [14.2](README.md#muammolar)):
+
+1. **Yangi holat `blocked`** — `user.tenant.status` (login, refresh, `/auth/me`) va 423 `TENANT_READ_ONLY`
+   (`errors[0].meta.status: "blocked"`). Banner: «Do‘kon platforma tomonidan to‘xtatilgan — faqat o‘qish». Administrator
+   uchun sabab — `GET /tenants/current` → `blockedReason` (yangi maydon); «To‘lash» tugmasi blokni **ochmaydi** (banner matni
+   buni aytsin: «Aloqa: platforma»).
+2. **Realtime hodisa `tenant.status`** `{ status, plan }` — egasi blok qo‘yganda/olganda, tarif berganda. Qabul qilinsa
+   `GET /auth/me` (banner) va `GET /tenants/current` (tarif sahifasi) qayta so‘raladi.
+3. **`InvoiceDto.provider`** endi `cash`, `transfer`, `bonus` ham bo‘lishi mumkin («Tarif va hisob» sahifasidagi to‘lovlar
+   ro‘yxati — «Naqd», «O‘tkazma», «Bonus» deb ko‘rsating).
+
+Qolgan hamma narsa o‘zgarmagan.

@@ -2,7 +2,7 @@
 
 > Generatsiya qilingan: `npm run docs:db` (`scripts/db-docs/`). Tuzilma — ishlab turgan bazadan (migratsiyalar qo‘llangan), ustun izohlari — `apps/api/prisma/schema.prisma`, jadvallar vazifasi — `scripts/db-docs/tables.py`. Bu faylni qo‘lda tahrirlamang.
 
-PostgreSQL 16 · 37 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
+PostgreSQL 16 · 41 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
 
 ## Umumiy qoidalar
 
@@ -40,6 +40,8 @@ erDiagram
     files |o--o{ products : "image_file_id"
     files |o--o{ settings : "logo_file_id"
     messages ||--o{ message_recipients : "message_id"
+    platform_admins |o--o{ platform_audit_log : "admin_id"
+    platform_admins ||--o{ platform_refresh_tokens : "admin_id"
     products ||--o{ po_items : "product_id"
     products ||--o{ product_stocks : "product_id"
     products ||--o{ quote_items : "product_id"
@@ -48,6 +50,7 @@ erDiagram
     purchase_orders ||--o{ po_items : "order_id"
     purchase_orders ||--o{ supplier_payments : "po_id"
     quotes ||--o{ quote_items : "quote_id"
+    roles ||--o{ users : "role_id"
     sales ||--o{ debt_payments : "sale_id"
     sales |o--o| deliveries : "sale_id"
     sales ||--o| fiscal_receipts : "sale_id"
@@ -74,7 +77,9 @@ Har bir do'kon (SaaS mijozi) — `tenants` dagi bitta qator. Boshqa barcha jadva
 erDiagram
     employees ||--o| users : "employee_id"
     files |o--o{ settings : "logo_file_id"
+    roles ||--o{ users : "role_id"
     tenants ||--o{ employees : "tenant_id"
+    tenants ||--o| roles : "tenant_id"
     tenants ||--o| settings : "tenant_id"
     tenants ||--o| tenant_state : "tenant_id"
     tenants ||--o{ users : "tenant_id"
@@ -88,6 +93,9 @@ erDiagram
         timestamptz created_at
         timestamptz plan_expires_at
         timestamptz deletion_scheduled_at
+        timestamptz blocked_at
+        text blocked_reason
+        text notes
     }
     tenant_state {
         uuid tenant_id PK, FK
@@ -136,11 +144,20 @@ erDiagram
         uuid employee_id FK
         text email
         text password_hash
-        Role role
         boolean is_active
         timestamptz last_login_at
         timestamptz created_at
         timestamptz deleted_at
+        timestamptz updated_at
+        uuid role_id FK
+    }
+    roles {
+        uuid id PK
+        uuid tenant_id FK
+        Role key
+        text name
+        text_arr permissions
+        timestamptz created_at
         timestamptz updated_at
     }
     refresh_tokens {
@@ -184,17 +201,20 @@ erDiagram
 
 ### `tenants`
 
-Do'kon — tizimdagi eng yuqori birlik; boshqa jadvallardagi `tenant_id` shunga ishora qiladi. Tarif (`plan`, `plan_expires_at`), holat (`active`; `suspended` — muddati o'tgan: o'qish bor, yozish yo'q; `deleting` — o'chirish so'ralgan, 30 kun muhlat) va o'chirish rejasi. RLS yo'q: login va ro'yxatdan o'tishda do'kon hali ma'lum emas.
+Do'kon — tizimdagi eng yuqori birlik; boshqa jadvallardagi `tenant_id` shunga ishora qiladi. Tarif (`plan`, `plan_expires_at`), holat (`active`; `suspended` — muddati o'tgan: o'qish bor, yozish yo'q; `blocked` — platforma egasi to'xtatgan, to'lov ochmaydi; `deleting` — o'chirish so'ralgan, 30 kun muhlat) va o'chirish rejasi. Egasi bloki (`blocked_at`, `blocked_reason`) holatdan alohida saqlanadi — o'chirishdan qaytganda ham qoladi; `notes` — egasi izohi (do'kon ko'rmaydi). RLS yo'q: login va ro'yxatdan o'tishda do'kon hali ma'lum emas.
 
 | Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
 |-------|-----|----|------|
 | `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
 | `name` | text | — | Nomi |
 | `plan` | text | — | Tarif |
-| `status` | text | — | active \| suspended (o'qish mumkin, yozish yo'q) \| deleting (30 kun muhlat) |
+| `status` | text | — | active \| suspended (o'qish mumkin, yozish yo'q) \| blocked (egasi to'xtatgan, faqat o'qish) \| deleting (30 kun muhlat) |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `plan_expires_at` | timestamptz | ha | Pullik tarif amal qilish muddati — to'lov tasdiqlangach uzayadi (T-126) |
 | `deletion_scheduled_at` | timestamptz | ha | O'chirish so'ralgan bo'lsa — shu vaqtdan keyin to'liq tozalanadi (T-127) |
+| `blocked_at` | timestamptz | ha | Platforma egasi bloklagan (T-135): holatdan mustaqil saqlanadi — o'chirishdan qaytganda ham blok qoladi |
+| `blocked_reason` | text | ha |  |
+| `notes` | text | ha | Egasi paneli uchun izoh (do'kon ko'rmaydi) |
 
 ### `tenant_state`
 
@@ -264,7 +284,7 @@ Xodim — shaxs haqidagi yagona manba: ism, lavozim, telefon, maosh, holat. Kiri
 Tizimga kirish hisobi — doim bitta xodimga tegishli (ism va lavozim `employees` da). Email (do'kon ichida noyob), argon2id parol xeshi, rol (`admin`, `manager`, `sotuvchi`, `omborchi`), faollik.
 
 - RLS: majburiy (FORCE)
-- Bog‘lanishlar: `employee_id` → `employees` (RESTRICT)
+- Bog‘lanishlar: `employee_id` → `employees` (RESTRICT); `role_id` → `roles` (RESTRICT)
 
 | Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
 |-------|-----|----|------|
@@ -273,12 +293,28 @@ Tizimga kirish hisobi — doim bitta xodimga tegishli (ism va lavozim `employees
 | `employee_id` | uuid | — | → `employees` · Xodim (kirish hisobi egasi) |
 | `email` | text | — | Email |
 | `password_hash` | text | — | argon2id — hech qachon ochiq parol |
-| `role` | `Role` (enum) | — | Rol: admin, manager, sotuvchi, omborchi |
 | `is_active` | boolean | — | Faol (kira oladi) |
 | `last_login_at` | timestamptz | ha | Oxirgi kirish vaqti |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
 | `updated_at` | timestamptz | — | Versiya (If-Match, T-098): tahrirlanadigan maydon o'zgarganda yangilanadi |
+| `role_id` | uuid | — | → `roles` · Do'kon roli (T-134) — ruxsatlar rolda, foydalanuvchida emas |
+
+### `roles`
+
+Do'kon rollari (T-134): 4 ta tizim roli (`key` — `admin`, `manager`, `sotuvchi`, `omborchi`; sukut ruxsatlari avvalgi matritsa bilan bir xil) va do'kon yaratgan rollar (`key` bo'sh). `permissions` — `bo'lim.amal` ro'yxati; `admin` ruxsatlari saqlanmaydi (doim hammasi). Nom do'kon ichida noyob (harf farqsiz).
+
+- RLS: majburiy (FORCE)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `tenant_id` | uuid | — | → `tenants` |
+| `key` | `Role` (enum) | ha | Tizim roli kaliti; do'kon yaratgan rolda — null |
+| `name` | text | — | Nomi |
+| `permissions` | text[] | — | `products.edit` kabi kalitlar, katalog tartibida (normallashtirilgan) |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+| `updated_at` | timestamptz | — | Versiya (If-Match) |
 
 ### `refresh_tokens`
 
@@ -1388,7 +1424,7 @@ Fonda tayyorlanadigan katta eksportlar (CSV/JSON): kim so'radi, qaysi ro'yxat, f
 
 ## Obuna (billing)
 
-Tarif to'lovlari (Payme, Click).
+Tarif to'lovlari (Payme, Click) va egasi qo'lda yozgan to'lovlar.
 
 ```mermaid
 erDiagram
@@ -1407,12 +1443,14 @@ erDiagram
         timestamptz paid_at
         timestamptz cancelled_at
         integer cancel_reason
+        uuid platform_admin_id
+        text note
     }
 ```
 
 ### `billing_invoices`
 
-Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click) tranzaksiyasi. Tarif faqat `paid` bo'lganda uzayadi.
+Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click) tranzaksiyasi; egasi qo'lda yozgan to'lov ham shu yerda (`provider` — `cash`, `transfer`, `bonus`; `platform_admin_id`, `note`, summa 0 bo'lishi mumkin). Tarif faqat `paid` bo'lganda uzayadi.
 
 - RLS: majburiy (FORCE)
 
@@ -1424,7 +1462,7 @@ Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click)
 | `months` | integer | — | Necha oyga |
 | `amount` | bigint | — | Summa (so'm) |
 | `state` | `InvoiceState` (enum) | — | Holat |
-| `provider` | text | ha | To'lov provayderi (payme, click) |
+| `provider` | text | ha | payme \| click — provayder; cash \| transfer \| bonus — egasi qo'lda yozgan to'lov (T-135) |
 | `provider_tx_id` | text | ha | Provayder tranzaksiya ID |
 | `provider_time` | bigint | ha | Provayder vaqti (ms) |
 | `created_by_id` | uuid | ha | Yaratgan foydalanuvchi |
@@ -1432,6 +1470,101 @@ Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click)
 | `paid_at` | timestamptz | ha | To'langan vaqt |
 | `cancelled_at` | timestamptz | ha | Bekor qilingan vaqt |
 | `cancel_reason` | integer | ha | Bekor qilish sababi (provayder kodi) |
+| `platform_admin_id` | uuid | ha | Egasi panelidan yozilgan bo'lsa — kim (T-135) |
+| `note` | text | ha | Egasi izohi: kvitansiya raqami, kelishuv … |
+
+## Platforma egasi paneli
+
+Do'konlar ustidan nazorat (T-135): egasi hisobi do'kon hisoblaridan alohida, uning sessiyalari va amallari jurnali global (RLS'siz). Tenantlararo o'qish — faqat `platform_*` SECURITY DEFINER funksiyalar orqali.
+
+```mermaid
+erDiagram
+    platform_admins |o--o{ platform_audit_log : "admin_id"
+    platform_admins ||--o{ platform_refresh_tokens : "admin_id"
+    platform_admins {
+        uuid id PK
+        text email
+        text name
+        text password_hash
+        boolean is_active
+        timestamptz last_login_at
+        timestamptz created_at
+    }
+    platform_refresh_tokens {
+        uuid id PK
+        uuid admin_id FK
+        text token_hash
+        uuid parent_id
+        text user_agent
+        text ip
+        timestamptz expires_at
+        timestamptz revoked_at
+        timestamptz created_at
+    }
+    platform_audit_log {
+        uuid id PK
+        uuid admin_id FK
+        text action
+        uuid target_tenant_id
+        text entity_type
+        uuid entity_id
+        jsonb diff
+        text ip
+        timestamptz created_at
+    }
+```
+
+### `platform_admins`
+
+Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik. Birinchisi `PLATFORM_OWNER_EMAIL` bilan ishga tushishda yaratiladi. Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi.
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `email` | text | — | Email |
+| `name` | text | — | Nomi |
+| `password_hash` | text | — | argon2id — hech qachon ochiq parol |
+| `is_active` | boolean | — | Faol (kira oladi) |
+| `last_login_at` | timestamptz | ha | Oxirgi kirish vaqti |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+
+### `platform_refresh_tokens`
+
+Egasi sessiyalari: `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya zanjiri, bekor qilinganini qayta ishlatish — barcha sessiyalar yopiladi), lekin o'z jadvalida — do'kon sessiyalari bilan aralashmaydi.
+
+- Bog‘lanishlar: `admin_id` → `platform_admins` (CASCADE)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `admin_id` | uuid | — | → `platform_admins` |
+| `token_hash` | text | — |  |
+| `parent_id` | uuid | ha |  |
+| `user_agent` | text | ha | Brauzer / qurilma |
+| `ip` | text | ha | IP manzil |
+| `expires_at` | timestamptz | — | Amal qilish muddati |
+| `revoked_at` | timestamptz | ha | Bekor qilingan (chiqilgan) vaqt |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+
+### `platform_audit_log`
+
+Egasi amallari jurnali (faqat qo'shiladi): kim (`admin_id`, bootstrap'da bo'sh), nima (`action`: `tenant.block`, `tenant.plan`, `user.resetPassword` …), qaysi do'kon (`target_tenant_id` — FK emas: do'kon to'liq o'chirilgach ham tarix qoladi), tafsilot (`diff`).
+
+- Bog‘lanishlar: `admin_id` → `platform_admins` (RESTRICT)
+- Trigger `platform_audit_no_delete`
+- Trigger `platform_audit_no_update`
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `admin_id` | uuid | ha | → `platform_admins` · `null` — tizim (ishga tushishdagi bootstrap) |
+| `action` | text | — | Amal (masalan `sale.create`) |
+| `target_tenant_id` | uuid | ha |  |
+| `entity_type` | text | ha | Qaysi obyekt turi |
+| `entity_id` | uuid | ha | Qaysi obyekt |
+| `diff` | jsonb | ha |  |
+| `ip` | text | ha | IP manzil |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
 
 ## Hisobot yordamchilari
 

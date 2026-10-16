@@ -1,15 +1,17 @@
 import type { INestApplication } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+import { PLATFORM_KEY } from '@/modules/auth/decorators/platform.decorator'
 import { IS_PUBLIC_KEY } from '@/modules/auth/decorators/public.decorator'
 import { PERMISSION_KEY } from '@/modules/auth/decorators/require-permission.decorator'
 import { createTestApp } from './helpers/app'
 import { testDb } from './helpers/db'
-import { collectRoutes, type RouteInfo } from './helpers/routes'
+import { collectRoutes, routesOfControllersWith, type RouteInfo } from './helpers/routes'
 
 /**
  * Har bir endpoint ATAYLAB tasniflangan bo'lishi kerak:
  *  · `@Public()` — autentifikatsiyasiz
  *  · `@RequirePermission(...)` — rol ruxsati tekshiruvi bilan
+ *  · `@PlatformRoute()` controller'ida — platforma egasi tokeni (T-135)
  *  · quyidagi oq ro'yxatda — faqat autentifikatsiya yetarli
  *
  * Yangi endpoint qo'shilib, hech biriga kirmasa — SHU TEST yiqiladi.
@@ -67,19 +69,29 @@ describe('Har bir endpoint himoyalangan', () => {
     expect(routes.length).toBeGreaterThan(0)
   })
 
-  it('har bir yo‘l tasniflangan: public, huquqli yoki oq ro‘yxatda', () => {
+  it('har bir yo‘l tasniflangan: public, huquqli, egasi paneli yoki oq ro‘yxatda', () => {
     const reflector = app.get(Reflector)
+    const platform = routesOfControllersWith(app, PLATFORM_KEY)
     const unclassified: string[] = []
 
     for (const route of routes) {
       const key = `${route.method} ${route.path}`
       const isPublic = reflector.get<boolean>(IS_PUBLIC_KEY, route.handler)
       const perm = reflector.get<unknown>(PERMISSION_KEY, route.handler)
-      if (isPublic || perm || AUTH_ONLY.has(key)) continue
+      if (isPublic || perm || AUTH_ONLY.has(key) || platform.has(key)) continue
       unclassified.push(key)
     }
 
     expect(unclassified).toEqual([])
+  })
+
+  it('egasi paneli yo‘llari (`/platform/*`) — hammasi `@PlatformRoute()` controller’ida (egasi guard’i)', () => {
+    const platform = routesOfControllersWith(app, PLATFORM_KEY)
+    const unguarded = routes
+      .map((r) => `${r.method} ${r.path}`)
+      .filter((key) => key.includes(' /api/v1/platform') && !platform.has(key))
+    expect(unguarded).toEqual([])
+    expect(platform.size).toBeGreaterThan(0)
   })
 
   it('ochiq yo‘llar ro‘yxati kutilganidek', () => {
@@ -100,6 +112,10 @@ describe('Har bir endpoint himoyalangan', () => {
       'POST /api/v1/billing/click/complete',
       'POST /api/v1/billing/click/prepare',
       'POST /api/v1/billing/payme',
+      // Egasi paneli kirishi (T-135) — o'z tokeni, o'z cookie'si
+      'POST /api/v1/platform/auth/login',
+      'POST /api/v1/platform/auth/logout',
+      'POST /api/v1/platform/auth/refresh',
       // Telegram bot (Q116) — JWT emas, webhook siri bilan
       'POST /api/v1/telegram/webhook',
       // Yangi do'kon ochish (T-124) — hisob hali yo'q; rate limit bilan
