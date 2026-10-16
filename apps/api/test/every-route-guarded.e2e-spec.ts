@@ -103,6 +103,8 @@ describe('Har bir endpoint himoyalangan', () => {
 
     // Har bir ochiq yo'l ONGLI qaror. Ro'yxat o'zgarsa — test yiqiladi.
     expect(publicRoutes).toEqual([
+      // Ro'yxatdan o'tish ochiqmi (T-138) — kirish sahifasi hisobsiz so'raydi
+      'GET /api/v1/tenants/registration',
       'GET /health/live',
       'GET /health/ready',
       'POST /api/v1/auth/login',

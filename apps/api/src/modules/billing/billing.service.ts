@@ -7,6 +7,7 @@ import { uuidv7 } from '@/common/ids'
 import type { Env } from '@/config/env.schema'
 import { AuditService } from '@/modules/audit/audit.service'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
+import { OwnerNotifierService } from '@/modules/telegram/owner-notifier.service'
 import { TenantStatusService } from '@/modules/tenants/tenant-status.service'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import { onCommit, requireTenantTx } from '@/prisma/tenant-tx'
@@ -35,6 +36,8 @@ export interface LockedInvoice {
 }
 
 const HISTORY_LIMIT = 50
+/** Onlayn provayderlar — to'lovi haqida egasiga Telegram xabar ketadi (T-137); qo'lda yozilganlar (`cash` …) emas */
+const ONLINE_PROVIDERS: ReadonlySet<string> = new Set(['payme', 'click'])
 
 /**
  * Obuna (T-126): hisob-faktura → provayder (Payme/Click) → tasdiq. Tarif
@@ -49,6 +52,7 @@ export class BillingService {
     private readonly audit: AuditService,
     private readonly config: ConfigService<Env, true>,
     private readonly statuses: TenantStatusService,
+    private readonly ownerNotifier: OwnerNotifierService,
   ) {}
 
   async createInvoice(dto: CreateInvoiceDto, user: AuthContext): Promise<CheckoutDto> {
@@ -112,6 +116,12 @@ export class BillingService {
       tx,
     )
     onCommit(() => this.statuses.invalidate(invoice.tenantId))
+    // Egasiga xabar (T-137) — faqat onlayn to'lov: qo'lda yozilganini egasi o'zi biladi
+    if (invoice.provider && ONLINE_PROVIDERS.has(invoice.provider)) {
+      const { tenantId, plan, months, provider } = invoice
+      const amount = Number(invoice.amount)
+      onCommit(() => this.ownerNotifier.paymentReceived({ tenantId, amount, plan, months, provider }))
+    }
     Object.assign(invoice, { state: 'paid', paidAt: paid!.paidAt })
     return paid!.paidAt
   }

@@ -34,7 +34,7 @@ export class PlatformBootstrapService implements OnModuleInit {
       return
     }
     const admin = await this.prisma.platformAdmin.create({
-      data: { email, name: 'Egasi', passwordHash: await this.passwords.hash(password) },
+      data: { email, name: 'Egasi', role: 'owner', passwordHash: await this.passwords.hash(password) },
       select: { id: true },
     })
     await this.audit.log({ action: 'platform.bootstrap', adminId: null, entityType: 'admin', entityId: admin.id, diff: { email } })

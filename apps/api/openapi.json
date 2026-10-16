@@ -329,9 +329,32 @@
         ]
       }
     },
+    "/api/v1/tenants/registration": {
+      "get": {
+        "description": "Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi.",
+        "operationId": "Registration_registration",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RegistrationInfoDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Ro‘yxatdan o‘tish ochiqmi",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/v1/tenants/register": {
       "post": {
-        "description": "Do‘kon, sozlama, sukut ombor, kategoriyalar va egasi (administrator) yaratiladi; javob — kirish bilan bir xil (access token + refresh cookie). Keyin mijoz sozlash sehrgarini ko‘rsatadi (`settings.onboarded = false`).",
+        "description": "Do‘kon, sozlama, sukut ombor, kategoriyalar va egasi (administrator) yaratiladi; javob — kirish bilan bir xil (access token + refresh cookie). Keyin mijoz sozlash sehrgarini ko‘rsatadi (`settings.onboarded = false`). Platforma egasi ro‘yxatdan o‘tishni yopgan bo‘lsa — 403 `REGISTRATION_CLOSED` (`GET /tenants/registration`).",
         "operationId": "Registration_register",
         "parameters": [],
         "requestBody": {
@@ -357,6 +380,16 @@
           },
           "400": {
             "description": "VALIDATION_FAILED — jumladan kuchsiz parol",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "REGISTRATION_CLOSED — ro‘yxatdan o‘tish yopiq",
             "content": {
               "application/json": {
                 "schema": {
@@ -704,10 +737,10 @@
         ]
       }
     },
-    "/health/live": {
+    "/api/v1/telegram": {
       "get": {
-        "description": "Hech qanday bog‘liqlikni tekshirmaydi. Orkestrator shu bo‘yicha konteynerni qayta ishga tushiradi — baza tushganda qayta ishga tushirish yordam bermaydi, shuning uchun u bu yerda tekshirilmaydi.",
-        "operationId": "Health_live",
+        "description": "`enabled: false` — serverda bot sozlanmagan: «Telegram’ga ulash» va «Chekni Telegram’ga» tugmalarini ko‘rsatmang.",
+        "operationId": "Telegram_status",
         "parameters": [],
         "responses": {
           "200": {
@@ -715,54 +748,56 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "example": {
-                    "status": "ok",
-                    "uptimeSec": 42
-                  }
+                  "$ref": "#/components/schemas/TelegramStatusDto"
                 }
               }
             }
           }
         },
-        "summary": "Jarayon tirikmi",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Telegram bot holati",
         "tags": [
-          "health"
+          "telegram"
         ]
       }
     },
-    "/health/ready": {
-      "get": {
-        "description": "Baza va obyekt saqlagich tekshiriladi. Yuk balanslagich shu bo‘yicha trafik yuboradi.",
-        "operationId": "Health_ready",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "example": {
-                    "status": "ok",
-                    "uptimeSec": 42,
-                    "checks": [
-                      {
-                        "name": "database",
-                        "ok": true,
-                        "ms": 3
-                      }
-                    ]
-                  }
-                }
+    "/api/v1/telegram/webhook": {
+      "post": {
+        "description": "Faqat Telegram chaqiradi: `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`, aks holda 401. Qayta ishlash xatosida ham 200 — Telegram yangilanishni qayta-qayta yubormasin.",
+        "operationId": "Telegram_webhook",
+        "parameters": [
+          {
+            "name": "x-telegram-bot-api-secret-token",
+            "required": true,
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Telegram Update — core.telegram.org/bots/api#update"
               }
             }
-          },
-          "503": {
-            "description": "Bog‘liqliklardan biri javob bermayapti"
           }
         },
-        "summary": "Trafik qabul qilishga tayyormi",
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Telegram webhook",
         "tags": [
-          "health"
+          "telegram"
         ]
       }
     },
@@ -847,6 +882,68 @@
         "summary": "Sozlamalarni o‘zgartirish",
         "tags": [
           "settings"
+        ]
+      }
+    },
+    "/health/live": {
+      "get": {
+        "description": "Hech qanday bog‘liqlikni tekshirmaydi. Orkestrator shu bo‘yicha konteynerni qayta ishga tushiradi — baza tushganda qayta ishga tushirish yordam bermaydi, shuning uchun u bu yerda tekshirilmaydi.",
+        "operationId": "Health_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "ok",
+                    "uptimeSec": 42
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Jarayon tirikmi",
+        "tags": [
+          "health"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "description": "Baza va obyekt saqlagich tekshiriladi. Yuk balanslagich shu bo‘yicha trafik yuboradi.",
+        "operationId": "Health_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "status": "ok",
+                    "uptimeSec": 42,
+                    "checks": [
+                      {
+                        "name": "database",
+                        "ok": true,
+                        "ms": 3
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Bog‘liqliklardan biri javob bermayapti"
+          }
+        },
+        "summary": "Trafik qabul qilishga tayyormi",
+        "tags": [
+          "health"
         ]
       }
     },
@@ -2775,70 +2872,6 @@
         "summary": "Telegram’ga ulash — shaxsiy havola (QR uchun)",
         "tags": [
           "clients"
-        ]
-      }
-    },
-    "/api/v1/telegram": {
-      "get": {
-        "description": "`enabled: false` — serverda bot sozlanmagan: «Telegram’ga ulash» va «Chekni Telegram’ga» tugmalarini ko‘rsatmang.",
-        "operationId": "Telegram_status",
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TelegramStatusDto"
-                }
-              }
-            }
-          }
-        },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
-        "summary": "Telegram bot holati",
-        "tags": [
-          "telegram"
-        ]
-      }
-    },
-    "/api/v1/telegram/webhook": {
-      "post": {
-        "description": "Faqat Telegram chaqiradi: `X-Telegram-Bot-Api-Secret-Token` = `TELEGRAM_WEBHOOK_SECRET`, aks holda 401. Qayta ishlash xatosida ham 200 — Telegram yangilanishni qayta-qayta yubormasin.",
-        "operationId": "Telegram_webhook",
-        "parameters": [
-          {
-            "name": "x-telegram-bot-api-secret-token",
-            "required": true,
-            "in": "header",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "description": "Telegram Update — core.telegram.org/bots/api#update"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "summary": "Telegram webhook",
-        "tags": [
-          "telegram"
         ]
       }
     },
@@ -9020,7 +9053,7 @@
     },
     "/api/v1/platform/auth/login": {
       "post": {
-        "description": "Access token javobda (`kind: platform` — do‘kon yo‘llarida o‘tmaydi), refresh token `platform_refresh` httpOnly cookie’da.",
+        "description": "Access token javobda (`kind: platform` — do‘kon yo‘llarida o‘tmaydi), refresh token `platform_refresh` httpOnly cookie’da. Ikki bosqichli kirish yoqilgan hisobda `totpCode` majburiy: kodsiz — 401 `AUTH_TOTP_REQUIRED` (parol to‘g‘ri, kod maydonini ko‘rsating), noto‘g‘ri kod — 401 `AUTH_TOTP_INVALID`.",
         "operationId": "PlatformAuth_login",
         "parameters": [],
         "requestBody": {
@@ -9045,7 +9078,7 @@
             }
           },
           "401": {
-            "description": "AUTH_INVALID_CREDENTIALS",
+            "description": "AUTH_INVALID_CREDENTIALS | AUTH_TOTP_REQUIRED | AUTH_TOTP_INVALID",
             "content": {
               "application/json": {
                 "schema": {
@@ -9148,6 +9181,7 @@
     },
     "/api/v1/platform/auth/me": {
       "get": {
+        "description": "Rol, ikki bosqichli kirish va Telegram holati ham shu yerda (profil sahifasi).",
         "operationId": "PlatformAuth_me",
         "parameters": [],
         "responses": {
@@ -9178,6 +9212,247 @@
           }
         ],
         "summary": "Joriy egasi",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/totp/setup": {
+      "post": {
+        "description": "Yangi sir: QR (`otpauthUrl`) yoki qo‘lda `secret`. Kirishga hali ta’sir qilmaydi — `totp/enable` da ilovadagi kod bilan tasdiqlanadi. Qayta chaqirish — yangi sir.",
+        "operationId": "PlatformAuth_totpSetup",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TotpSetupDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — holat bunga yo‘l qo‘ymaydi (yoqilgan/yoqilmagan)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ikki bosqichli kirishni sozlashni boshlash",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/totp/enable": {
+      "post": {
+        "description": "Ilovadagi kod sozlangan sirga mos kelsa yoqiladi; keyingi kirishdan `totpCode` majburiy.",
+        "operationId": "PlatformAuth_totpEnable",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAdminDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_TOTP_INVALID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — holat bunga yo‘l qo‘ymaydi (yoqilgan/yoqilmagan)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ikki bosqichli kirishni yoqish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/totp/disable": {
+      "post": {
+        "description": "Ham ilovadagi kod bilan — o‘g‘irlangan sessiya himoyani olib tashlay olmaydi. Qurilma yo‘qolgan bo‘lsa — boshqa egasi `POST /platform/admins/:id/totp/reset`.",
+        "operationId": "PlatformAuth_totpDisable",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TotpCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAdminDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_TOTP_INVALID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — holat bunga yo‘l qo‘ymaydi (yoqilgan/yoqilmagan)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ikki bosqichli kirishni o‘chirish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/telegram-link": {
+      "post": {
+        "description": "Mijozlar kabi shaxsiy havola: ochib Start bosilsa shu hisobga bog‘lanadi va egasi xabarlari (yangi do‘kon, onlayn to‘lov, o‘chirish so‘rovi) shu chatga keladi. Bir martalik, 7 kun.",
+        "operationId": "PlatformAuth_telegramLink",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TelegramLinkDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "RECIPIENT_UNREACHABLE (`reason: no_channel`) — bot sozlanmagan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Telegram botga ulanish havolasi",
+        "tags": [
+          "platform"
+        ]
+      },
+      "delete": {
+        "description": "Xabarlar to‘xtaydi; qayta ulash — yangi havola.",
+        "operationId": "PlatformAuth_telegramUnlink",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Ulanish olib tashlandi (bo‘lmasa ham 204)"
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Telegram ulanishini olib tashlash",
         "tags": [
           "platform"
         ]
@@ -9670,7 +9945,7 @@
     },
     "/api/v1/platform/tenants/{id}/delete": {
       "post": {
-        "description": "Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.",
+        "description": "Faqat egasi (operator — 403). Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.",
         "operationId": "PlatformTenants_requestDeletion",
         "parameters": [
           {
@@ -9727,7 +10002,7 @@
     },
     "/api/v1/platform/tenants/{id}/restore": {
       "post": {
-        "description": "Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.",
+        "description": "Faqat egasi (operator — 403). Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.",
         "operationId": "PlatformTenants_cancelDeletion",
         "parameters": [
           {
@@ -10058,6 +10333,290 @@
         ]
       }
     },
+    "/api/v1/platform/admins": {
+      "get": {
+        "description": "Egasi va operatorlar: rol, faollik, ikki bosqichli kirish va Telegram holati, oxirgi kirish.",
+        "operationId": "PlatformAdmins_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformAdminDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Egasi hisoblari ro‘yxati",
+        "tags": [
+          "platform"
+        ]
+      },
+      "post": {
+        "description": "Operator yoki yana bir egasi. Parolni siz aytasiz; u keyin ikki bosqichli kirishni o‘zi yoqadi.",
+        "operationId": "PlatformAdmins_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePlatformAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAdminDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_EXISTS — bu email bilan hisob bor",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hisob ochish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/admins/{id}": {
+      "patch": {
+        "description": "`isActive: false` — hisob kira olmaydi, sessiyalari yopiladi. O‘z rolini o‘zgartirish yoki o‘zini faolsizlantirish — 422.",
+        "operationId": "PlatformAdmins_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlatformAdminDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAdminDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "SELF_ROLE_CHANGE | SELF_DELETE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Nom, rol, faollik",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/admins/{id}/reset-password": {
+      "post": {
+        "description": "Barcha sessiyalari yopiladi. O‘z hisobingiz uchun ham ishlaydi (joriy sessiya ham yopiladi — qayta kiring).",
+        "operationId": "PlatformAdmins_resetPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetUserPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Parol o‘zgartirildi"
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hisobga yangi parol",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/admins/{id}/totp/reset": {
+      "post": {
+        "description": "Qurilma yo‘qolganda: hisob yana faqat parol bilan kiradi va qayta sozlaydi.",
+        "operationId": "PlatformAdmins_resetTotp",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Olib tashlandi"
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — yoqilmagan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Ikki bosqichli kirishni olib tashlash",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/v1/platform/stats": {
       "get": {
         "description": "Do‘konlar holat va tarif bo‘yicha, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy).",
@@ -10352,6 +10911,90 @@
           }
         ],
         "summary": "Egasi amallari jurnali",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/settings": {
+      "get": {
+        "description": "Ro‘yxatdan o‘tish ochiq yoki yopiq; kim va qachon o‘zgartirgan.",
+        "operationId": "Platform_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Platforma sozlamasi",
+        "tags": [
+          "platform"
+        ]
+      },
+      "patch": {
+        "description": "Faqat egasi (operator — 403). `registrationMode: closed` — `POST /tenants/register` darhol 403 `REGISTRATION_CLOSED`, do‘konni faqat panel ochadi. Qayta ishga tushirish shart emas.",
+        "operationId": "Platform_updateSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePlatformSettingsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformSettingsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Sozlamani o‘zgartirish",
         "tags": [
           "platform"
         ]
@@ -10872,6 +11515,22 @@
           "newPassword"
         ]
       },
+      "RegistrationInfoDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ],
+            "description": "`closed` — platforma egasi yopgan; `POST /tenants/register` 403 `REGISTRATION_CLOSED`"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
       "RegisterDto": {
         "type": "object",
         "properties": {
@@ -11373,6 +12032,24 @@
             }
           }
         }
+      },
+      "TelegramStatusDto": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Bot sozlanganmi (serverda `TELEGRAM_BOT_TOKEN`)"
+          },
+          "botUsername": {
+            "type": "string",
+            "nullable": true,
+            "example": "dokon_xabar_bot"
+          }
+        },
+        "required": [
+          "enabled",
+          "botUsername"
+        ]
       },
       "SettingsDto": {
         "type": "object",
@@ -12697,24 +13374,6 @@
         "required": [
           "link",
           "expiresAt"
-        ]
-      },
-      "TelegramStatusDto": {
-        "type": "object",
-        "properties": {
-          "enabled": {
-            "type": "boolean",
-            "description": "Bot sozlanganmi (serverda `TELEGRAM_BOT_TOKEN`)"
-          },
-          "botUsername": {
-            "type": "string",
-            "nullable": true,
-            "example": "dokon_xabar_bot"
-          }
-        },
-        "required": [
-          "enabled",
-          "botUsername"
         ]
       },
       "SupplierListItemDto": {
@@ -18787,6 +19446,11 @@
           },
           "password": {
             "type": "string"
+          },
+          "totpCode": {
+            "type": "string",
+            "example": "123456",
+            "description": "Ikki bosqichli kirish yoqilgan hisobda majburiy: autentifikator ilovasidagi 6 raqam. Yo‘q bo‘lsa — 401 `AUTH_TOTP_REQUIRED`"
           }
         },
         "required": [
@@ -18808,9 +19472,33 @@
             "type": "string",
             "example": "Ulug‘bek"
           },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "operator"
+            ],
+            "description": "`owner` — hammasi; `operator` — do‘konni o‘chira olmaydi, hisob va sozlamani boshqarmaydi"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Faolsiz hisob kira olmaydi, ochiq sessiyalari yopilgan"
+          },
+          "totpEnabled": {
+            "type": "boolean",
+            "description": "Ikki bosqichli kirish (TOTP) yoqilgan"
+          },
+          "telegramLinked": {
+            "type": "boolean",
+            "description": "Telegram botga ulangan — egasi xabarlari keladi"
+          },
           "lastLoginAt": {
             "type": "string",
             "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
             "format": "date-time"
           }
         },
@@ -18818,7 +19506,12 @@
           "id",
           "email",
           "name",
-          "lastLoginAt"
+          "role",
+          "isActive",
+          "totpEnabled",
+          "telegramLinked",
+          "lastLoginAt",
+          "createdAt"
         ]
       },
       "PlatformLoginResponseDto": {
@@ -18840,6 +19533,38 @@
           "accessToken",
           "expiresIn",
           "admin"
+        ]
+      },
+      "TotpSetupDto": {
+        "type": "object",
+        "properties": {
+          "secret": {
+            "type": "string",
+            "example": "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+            "description": "Base32 — ilovaga qo‘lda kiritish uchun"
+          },
+          "otpauthUrl": {
+            "type": "string",
+            "example": "otpauth://totp/CRM%20egasi:owner%40workspaces.uz?secret=JBSW…&issuer=CRM+egasi&algorithm=SHA1&digits=6&period=30",
+            "description": "Frontend shundan QR kod chizadi (Google Authenticator, Aegis, 1Password …)"
+          }
+        },
+        "required": [
+          "secret",
+          "otpauthUrl"
+        ]
+      },
+      "TotpCodeDto": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "123456",
+            "description": "Autentifikator ilovasidagi joriy 6 raqam"
+          }
+        },
+        "required": [
+          "code"
         ]
       },
       "TenantUsageDto": {
@@ -19265,6 +19990,59 @@
           "paidAt"
         ]
       },
+      "CreatePlatformAdminDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "operator@workspaces.uz"
+          },
+          "name": {
+            "type": "string",
+            "example": "Dilnoza",
+            "maxLength": 120
+          },
+          "password": {
+            "type": "string",
+            "description": "Kamida 8 belgi; ommabop parollar rad etiladi. Operatorga birinchi kirishda aytiladi"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "operator"
+            ],
+            "description": "`operator` — do‘konni o‘chira olmaydi, hisob va sozlamani boshqarmaydi"
+          }
+        },
+        "required": [
+          "email",
+          "name",
+          "password",
+          "role"
+        ]
+      },
+      "UpdatePlatformAdminDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "owner",
+              "operator"
+            ],
+            "description": "O‘z rolini o‘zgartirib bo‘lmaydi (422 `SELF_ROLE_CHANGE`)"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "`false` — kira olmaydi, sessiyalari yopiladi. O‘zini faolsizlantirib bo‘lmaydi (422 `SELF_DELETE`)"
+          }
+        }
+      },
       "TenantCountsDto": {
         "type": "object",
         "properties": {
@@ -19454,6 +20232,48 @@
           "entityId",
           "diff",
           "createdAt"
+        ]
+      },
+      "PlatformSettingsDto": {
+        "type": "object",
+        "properties": {
+          "registrationMode": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ],
+            "description": "`open` — har kim do‘kon ochadi (`POST /tenants/register`); `closed` — faqat egasi paneli ochadi, ochiq yo‘l 403 `REGISTRATION_CLOSED`"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedBy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Oxirgi o‘zgartirgan egasi hisobi (nomi)"
+          }
+        },
+        "required": [
+          "registrationMode",
+          "updatedAt",
+          "updatedBy"
+        ]
+      },
+      "UpdatePlatformSettingsDto": {
+        "type": "object",
+        "properties": {
+          "registrationMode": {
+            "type": "string",
+            "enum": [
+              "open",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "registrationMode"
         ]
       }
     }

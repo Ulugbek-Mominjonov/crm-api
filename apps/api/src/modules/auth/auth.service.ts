@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client'
 import { effectivePermissions } from '@crm/shared'
 import { PrismaService } from '@/prisma/prisma.service'
 import { DomainError } from '@/common/errors/domain.error'
+import { OwnerNotifierService } from '@/modules/telegram/owner-notifier.service'
 import { TenantProvisioningService } from '@/modules/tenants/tenant-provisioning.service'
 import type { RegisterDto } from './dto/register.dto'
 import { PasswordService } from './password.service'
@@ -48,12 +49,14 @@ export class AuthService {
     private readonly tokens: TokenService,
     private readonly refresh: RefreshTokenService,
     private readonly provisioning: TenantProvisioningService,
+    private readonly ownerNotifier: OwnerNotifierService,
   ) {}
 
   /**
    * Yangi do'kon (T-124, 07 §7.9): do'kon, sozlama, sukut ombor, egasi
    * (administrator) — bitta tranzaksiyada; javob — kirish bilan bir xil
-   * (sessiya darhol). Parol siyosati xeshlashda tekshiriladi.
+   * (sessiya darhol). Parol siyosati xeshlashda tekshiriladi. Platforma
+   * egasiga Telegram xabar (T-137) — kutilmaydi, yetmasa ham ro'yxat o'tgan.
    */
   async register(
     dto: RegisterDto,
@@ -68,6 +71,7 @@ export class AuthService {
       tx.user.findUniqueOrThrow({ where: { id: userId }, include: userInclude }),
     )
     this.logger.log({ tenantId, userId }, 'Yangi do‘kon ro‘yxatdan o‘tdi')
+    this.ownerNotifier.tenantRegistered({ store: dto.storeName, ownerName: dto.ownerName, phone: dto.phone, email: user.email })
     return this.issue(user, meta)
   }
 

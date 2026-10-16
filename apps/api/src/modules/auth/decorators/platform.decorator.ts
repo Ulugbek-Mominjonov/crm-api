@@ -2,6 +2,11 @@ import { createParamDecorator, SetMetadata, type ExecutionContext } from '@nestj
 import type { Request } from 'express'
 
 export const PLATFORM_KEY = 'isPlatform'
+export const PLATFORM_ROLES_KEY = 'platformRoles'
+
+/** Egasi hisobining roli (T-139): `owner` — hammasi; `operator` — do'konlar bilan ishlaydi */
+export const PLATFORM_ROLES = ['owner', 'operator'] as const
+export type PlatformRole = (typeof PLATFORM_ROLES)[number]
 
 /**
  * Platforma egasi yo'li (T-135): do'kon tokeni o'tmaydi, egasi tokeni
@@ -10,11 +15,18 @@ export const PLATFORM_KEY = 'isPlatform'
  */
 export const PlatformRoute = (): ClassDecorator => SetMetadata(PLATFORM_KEY, true)
 
+/**
+ * Yo'l faqat shu rollarga (T-139): boshqa rol — 403 `PERMISSION_DENIED`.
+ * Belgilanmagan yo'l — har qanday faol egasi hisobi.
+ */
+export const PlatformRoles = (...roles: PlatformRole[]): MethodDecorator & ClassDecorator => SetMetadata(PLATFORM_ROLES_KEY, roles)
+
 /** So'rovga biriktirilgan egasi konteksti (`req.platform`) */
 export interface PlatformContext {
   adminId: string
   email: string
   name: string
+  role: PlatformRole
   jti: string
 }
 

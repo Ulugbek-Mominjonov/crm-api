@@ -31,8 +31,9 @@ GROUPS = [
     ('billing', 'Obuna (billing)', "Tarif to'lovlari (Payme, Click) va egasi qo'lda yozgan to'lovlar.", ['billing_invoices']),
     ('platform', 'Platforma egasi paneli', (
         "Do'konlar ustidan nazorat (T-135): egasi hisobi do'kon hisoblaridan alohida, uning sessiyalari va "
-        "amallari jurnali global (RLS'siz). Tenantlararo o'qish — faqat `platform_*` SECURITY DEFINER funksiyalar orqali."),
-     ['platform_admins', 'platform_refresh_tokens', 'platform_audit_log']),
+        "amallari jurnali global (RLS'siz). Tenantlararo o'qish — faqat `platform_*` SECURITY DEFINER funksiyalar orqali. "
+        "Operatorlar, TOTP, egasining Telegram'i va platforma sozlamasi — T-137…T-139."),
+     ['platform_admins', 'platform_refresh_tokens', 'platform_audit_log', 'platform_settings']),
     ('reports', 'Hisobot yordamchilari', (
         "Hisobotlar tez ishlashi uchun materiallashgan ko'rinishlar va ularning yangilanish holati "
         "(ko'rinishlar — pastdagi alohida bo'limda)."),
@@ -160,8 +161,15 @@ TABLES = {
         "yozgan to'lov ham shu yerda (`provider` — `cash`, `transfer`, `bonus`; `platform_admin_id`, `note`, summa 0 "
         "bo'lishi mumkin). Tarif faqat `paid` bo'lganda uzayadi."),
     'platform_admins': (
-        "Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik. Birinchisi `PLATFORM_OWNER_EMAIL` bilan "
-        "ishga tushishda yaratiladi. Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi."),
+        "Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik, rol (`owner` — hammasi; `operator` — do'konni "
+        "o'chira olmaydi, hisob va sozlamani boshqarmaydi). Birinchisi `PLATFORM_OWNER_EMAIL` bilan ishga tushishda "
+        "yaratiladi. Ikki bosqichli kirish: `totp_secret` (base32), `totp_enabled_at` (bo'sh — sozlash tasdiqlanmagan), "
+        "`totp_last_step` (oxirgi ishlatilgan 30 s qadam — kod bir martalik). Telegram: `telegram_chat_id` (xabarlar shu "
+        "chatga), havola xeshi va muddati (mijozlar kabi shaxsiy havola). Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi."),
+    'platform_settings': (
+        "Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `open` (har kim do'kon ochadi) yoki "
+        "`closed` (`POST /tenants/register` 403, do'konni faqat egasi paneli ochadi); kim va qachon o'zgartirgan. "
+        "Env emas — egasi panelidan qayta ishga tushirishsiz o'zgaradi."),
     'platform_refresh_tokens': (
         "Egasi sessiyalari: `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya zanjiri, bekor qilinganini qayta "
         "ishlatish — barcha sessiyalar yopiladi), lekin o'z jadvalida — do'kon sessiyalari bilan aralashmaydi."),

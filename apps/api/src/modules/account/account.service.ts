@@ -5,9 +5,10 @@ import { AuditService } from '@/modules/audit/audit.service'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { PasswordService } from '@/modules/auth/password.service'
 import { smsUsedToday } from '@/modules/messages/messages.service'
-import { TenantStatusService } from '@/modules/tenants/tenant-status.service'
+import { OwnerNotifierService } from '@/modules/telegram/owner-notifier.service'
+import { DELETION_GRACE_DAYS, TenantStatusService } from '@/modules/tenants/tenant-status.service'
 import { PrismaService } from '@/prisma/prisma.service'
-import { requireTenantTx } from '@/prisma/tenant-tx'
+import { onCommit, requireTenantTx } from '@/prisma/tenant-tx'
 import type { TenantAccountDto } from './dto/account.dto'
 
 /**
@@ -22,6 +23,7 @@ export class AccountService {
     private readonly passwords: PasswordService,
     private readonly statuses: TenantStatusService,
     private readonly audit: AuditService,
+    private readonly ownerNotifier: OwnerNotifierService,
   ) {}
 
   async current(user: AuthContext): Promise<TenantAccountDto> {
@@ -55,6 +57,8 @@ export class AccountService {
     }
     await this.statuses.scheduleDeletion(this.prisma.scoped, tenantId)
     await this.audit.log({ action: 'tenant.deletionRequested', entityType: 'tenant', entityId: tenantId })
+    // Platforma egasiga xabar (T-137): muhlat ichida panelidan qaytarishi mumkin
+    onCommit(() => this.ownerNotifier.deletionRequested({ tenantId, days: DELETION_GRACE_DAYS }))
     return this.current(user)
   }
 

@@ -14,7 +14,10 @@ export const ErrorCode = {
   AUTH_INVALID_REFRESH: 'AUTH_INVALID_REFRESH',
   AUTH_TOKEN_REUSE: 'AUTH_TOKEN_REUSE',
   AUTH_TENANT_REQUIRED: 'AUTH_TENANT_REQUIRED',
+  AUTH_TOTP_REQUIRED: 'AUTH_TOTP_REQUIRED',
+  AUTH_TOTP_INVALID: 'AUTH_TOTP_INVALID',
   PERMISSION_DENIED: 'PERMISSION_DENIED',
+  REGISTRATION_CLOSED: 'REGISTRATION_CLOSED',
   // Kassa smenasi
   SHIFT_REQUIRED: 'SHIFT_REQUIRED',
   SHIFT_ALREADY_OPEN: 'SHIFT_ALREADY_OPEN',
@@ -92,7 +95,10 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   AUTH_INVALID_REFRESH: { status: 401, title: 'Sessiya yaroqsiz' },
   AUTH_TOKEN_REUSE: { status: 401, title: 'Bekor qilingan token ishlatildi' },
   AUTH_TENANT_REQUIRED: { status: 409, title: 'Do‘konni tanlang' },
+  AUTH_TOTP_REQUIRED: { status: 401, title: 'Ilovadagi tasdiqlash kodini kiriting' },
+  AUTH_TOTP_INVALID: { status: 401, title: 'Tasdiqlash kodi noto‘g‘ri' },
   PERMISSION_DENIED: { status: 403, title: 'Ruxsat yo‘q' },
+  REGISTRATION_CLOSED: { status: 403, title: 'Ro‘yxatdan o‘tish vaqtincha yopiq' },
 
   SHIFT_REQUIRED: { status: 423, title: 'Kassa smenasi ochiq emas' },
   SHIFT_ALREADY_OPEN: { status: 409, title: 'Smena allaqachon ochiq' },

@@ -8,11 +8,14 @@ savol qolmasligi: nima qurish kerak, qaysi endpoint, qanday javob, qanday xato, 
 |---|---|
 | Repo | `https://github.com/Ulugbek-Mominjonov/crm-owner` (Vite + React 19 + TypeScript + Tailwind v4, CI/CD sozlangan; `README.md`, `DEPLOY.md`) |
 | Production | `https://owner.workspaces.uz` — frontend va API bitta domenda; API — `/api/v1/platform/*` (so‘rovlar nisbiy, `VITE_API_URL` bo‘sh) |
-| Backend manba | [endpoints.md → Platforma egasi paneli](endpoints.md#platform) (19 ta endpoint, generatsiya), [schemas.md](schemas.md) (`Platform*`, `GrantPlanDto`, `CreateTenantDto` …), `apps/api/openapi.json` |
+| Backend manba | [endpoints.md → Platforma egasi paneli](endpoints.md#platform) (31 ta endpoint, generatsiya), [schemas.md](schemas.md) (`Platform*`, `GrantPlanDto`, `CreateTenantDto` …), `apps/api/openapi.json` |
 | Tiplar | `npm run gen:api` → `src/api/schema.d.ts` (`openapi-typescript`, manba — backend `master` dagi `openapi.json`) |
 | Kim nima qiladi | Kod — frontend dasturchi (shu repo). Deploy, secret, domen, serverdagi Caddy, birinchi egasi hisobi — server egasi |
 
-Backend tayyor: barcha endpointlar e2e testlar bilan qoplangan (`apps/api/test/platform.e2e-spec.ts`).
+Backend tayyor: barcha endpointlar e2e testlar bilan qoplangan (`apps/api/test/platform.e2e-spec.ts`,
+`platform-admins.e2e-spec.ts`, `platform-notify.e2e-spec.ts`). Ikkinchi bosqich (T-137…T-139) qo‘shgani: egasi
+hisoblari va operatorlar (rol), ikki bosqichli kirish (TOTP), egasining Telegram’i (xabarlar), ro‘yxatdan o‘tishni
+yopish — [5.8](#admins), [5.9](#settings), [5.10](#profile).
 
 ## Mundarija
 
@@ -38,7 +41,7 @@ Backend tayyor: barcha endpointlar e2e testlar bilan qoplangan (`apps/api/test/p
 | Kirish | `POST /auth/login` | `POST /platform/auth/login` |
 | Token | `tid` (do‘kon) bor | `kind: "platform"`, do‘kon yo‘q. **Do‘kon yo‘llarida 401**, do‘kon tokeni egasi yo‘llarida 401 |
 | Refresh cookie | `refresh_token`, yo‘l `/api/v1/auth` | `platform_refresh`, yo‘l `/api/v1/platform/auth` — ikkala panel bitta brauzerda ishlasa ham aralashmaydi |
-| Ruxsatlar | `user.permissions` bo‘yicha menyu | Yo‘q — egasi hammasini ko‘radi va qiladi |
+| Ruxsatlar | `user.permissions` bo‘yicha menyu | Ikki rol — `admin.role`: `owner` hammasini qiladi; `operator` do‘konlar bilan ishlaydi, lekin do‘konni o‘chira/qaytara olmaydi, «Hisoblar» va «Sozlamalar» sahifalari yo‘q (API 403 `PERMISSION_DENIED`) |
 | WebSocket | `/events` | **Yo‘q.** Ma’lumot so‘rov bilan yangilanadi (amal → javobdagi yangi obyekt; ro‘yxat — qayta so‘rov) |
 | `Idempotency-Key`, `If-Match` | Ko‘p yozuvchi amallarda | **Yo‘q** — egasi paneli endpointlari ularni talab qilmaydi |
 | Faqat-o‘qish (423) | Do‘kon holati bo‘yicha | **Yo‘q** — egasi doim yozadi |
@@ -56,24 +59,28 @@ Oqim do‘kon ilovasidagi bilan bir xil ([README → 5](README.md#auth), [12.1](
 
 | | |
 |---|---|
-| Kirish | `POST /platform/auth/login` `{ email, password }` → **201** `{ accessToken, expiresIn: 900, admin: { id, email, name, lastLoginAt } }` + `platform_refresh` httpOnly cookie |
+| Kirish | `POST /platform/auth/login` `{ email, password, totpCode? }` → **201** `{ accessToken, expiresIn: 900, admin: PlatformAdminDto }` + `platform_refresh` httpOnly cookie. `admin`: `{ id, email, name, role, isActive, totpEnabled, telegramLinked, lastLoginAt, createdAt }` |
+| Ikki bosqichli kirish | Hisobda TOTP yoqilgan bo‘lsa parol to‘g‘ri bo‘lsa ham **401 `AUTH_TOTP_REQUIRED`** → kod maydonini ko‘rsating va o‘sha email/parol + `totpCode` (6 raqam) bilan qayta yuboring; noto‘g‘ri kod — 401 `AUTH_TOTP_INVALID`. Yoqish/o‘chirish — profil ([5.10](#profile)) |
 | Access token | Faqat **xotirada** (localStorage/sessionStorage emas). `Authorization: Bearer …`. Muddati 15 daqiqa |
 | Yangilash | `POST /platform/auth/refresh` (cookie’ni brauzer o‘zi yuboradi: `credentials: "include"`) → 201, javob login bilan bir xil. 401 da **bir marta**, parallel 401’lar bitta refresh’ni kutadi |
 | Ilova ochilganda | Token yo‘q → `refresh` → muvaffaqiyatli bo‘lsa `GET /platform/auth/me` (sarlavhadagi egasi nomi), aks holda kirish sahifasi |
 | Chiqish | `POST /platform/auth/logout` → `{ ok: true }`, cookie o‘chadi; xotiradagi tokenni ham o‘chiring |
-| Xatolar | 401 `AUTH_INVALID_CREDENTIALS` — email/parol xato yoki hisob faolsizlantirilgan (qaysi biri — aytilmaydi); 401 `AUTH_INVALID_REFRESH` — sessiya yo‘q/muddati o‘tgan → kirish sahifasi; 401 `AUTH_TOKEN_REUSE` — bekor qilingan cookie qayta ishlatildi, **barcha** sessiyalar yopildi → kirish sahifasi; 429 — daqiqasiga 5 urinish (IP) |
+| Xatolar | 401 `AUTH_INVALID_CREDENTIALS` — email/parol xato yoki hisob faolsizlantirilgan (qaysi biri — aytilmaydi); 401 `AUTH_TOTP_REQUIRED` / `AUTH_TOTP_INVALID` — yuqorida; 401 `AUTH_INVALID_REFRESH` — sessiya yo‘q/muddati o‘tgan → kirish sahifasi; 401 `AUTH_TOKEN_REUSE` — bekor qilingan cookie qayta ishlatildi, **barcha** sessiyalar yopildi → kirish sahifasi; 429 — daqiqasiga 5 urinish (IP) |
 
 ```json
 // POST /platform/auth/login → 201
 {
   "accessToken": "eyJ…",
   "expiresIn": 900,
-  "admin": { "id": "0192…", "email": "owner@workspaces.uz", "name": "Egasi", "lastLoginAt": "2026-10-17T06:12:00.000Z" }
+  "admin": {
+    "id": "0192…", "email": "owner@workspaces.uz", "name": "Egasi", "role": "owner", "isActive": true,
+    "totpEnabled": true, "telegramLinked": true, "lastLoginAt": "2026-10-17T06:12:00.000Z", "createdAt": "2026-10-16T09:00:00.000Z"
+  }
 }
 ```
 
-Egasi hisobini yaratish UI’da **yo‘q**: birinchi hisob serverda `PLATFORM_OWNER_EMAIL` / `PLATFORM_OWNER_PASSWORD`
-bilan ishga tushishda yaratiladi (server egasi qiladi). Parolni almashtirish, qo‘shimcha operatorlar — keyingi bosqich.
+Birinchi egasi hisobi serverda `PLATFORM_OWNER_EMAIL` / `PLATFORM_OWNER_PASSWORD` bilan ishga tushishda yaratiladi
+(server egasi qiladi, roli `owner`). Qolgan hisoblar (yana bir egasi, operatorlar) — «Hisoblar» sahifasida ([5.8](#admins)).
 
 ---
 
@@ -149,8 +156,10 @@ Yo‘llar — tavsiya; nomlar o‘zbekcha. Hamma sahifa kirishni talab qiladi (`
 
 ### 5.1 `/login` — Kirish
 
-Email + parol → `POST /platform/auth/login`. Xato matni: 401 → «Email yoki parol xato», 429 → «Ko‘p urinish —
-bir daqiqadan keyin». Muvaffaqiyat → `/`.
+Email + parol → `POST /platform/auth/login`. Xato matni: 401 `AUTH_INVALID_CREDENTIALS` → «Email yoki parol xato»,
+429 → «Ko‘p urinish — bir daqiqadan keyin». 401 `AUTH_TOTP_REQUIRED` → shu sahifada **kod maydoni** ochiladi
+(«Autentifikator ilovasidagi 6 raqam»), email/parol saqlanadi, qayta yuborishda `totpCode` qo‘shiladi; 401
+`AUTH_TOTP_INVALID` → «Kod noto‘g‘ri». Muvaffaqiyat → `/`.
 
 ### 5.2 `/` — Bosh sahifa (boshqaruv paneli)
 
@@ -243,11 +252,12 @@ bo‘lsa — qizil blok), `deletionScheduledAt` (o‘chirilayotgan bo‘lsa). No
 | Bloklash | `POST …/block { reason }` (1–500 belgi, **majburiy**) | «Do‘kon faqat o‘qish rejimiga o‘tadi; sabab do‘kon administratoriga ko‘rinadi» |
 | Blokdan chiqarish | `POST …/unblock` | oddiy tasdiq |
 | Tarif / to‘lov | `POST …/plan` — 4.3 | alohida oyna (quyida) |
-| O‘chirish | `POST …/delete` | «30 kundan keyin do‘kon ma’lumoti va fayllari butunlay o‘chadi; muhlat ichida qaytarish mumkin» |
-| Qaytarish | `POST …/restore` | oddiy tasdiq |
+| O‘chirish | `POST …/delete` — **faqat `owner`** | «30 kundan keyin do‘kon ma’lumoti va fayllari butunlay o‘chadi; muhlat ichida qaytarish mumkin» |
+| Qaytarish | `POST …/restore` — **faqat `owner`** | oddiy tasdiq |
 
 Hammasi **200** va yangilangan `PlatformTenantDto` qaytaradi — kartani shu bilan yangilang. 422 `INVALID_STATUS_TRANSITION` —
 holat bunga yo‘l qo‘ymaydi (masalan, bloklanmagan do‘konni `unblock`): xabarni (`detail`) ko‘rsating va kartani qayta so‘rang.
+`admin.role === "operator"` bo‘lsa «O‘chirish» va «Qaytarish» tugmalarini ko‘rsatmang (API 403 `PERMISSION_DENIED`).
 
 **«Tarif / to‘lov» oynasi** (`POST /platform/tenants/:id/plan`, [`GrantPlanDto`](schemas.md#grantplandto)):
 tarif tanlovi (`free`/`basic`/`pro`); pullik bo‘lsa — oy soni (1–12), usul (`cash` «Naqd», `transfer` «O‘tkazma»,
@@ -299,8 +309,71 @@ Jadval tagida sahifadagi `paid` summalar yig‘indisi — UI hisoblaydi (umumiy 
 | `tenant.plan` | Tarif / to‘lov | `{ plan, months, provider, amount, note, planExpiresAt }` |
 | `tenant.delete` / `tenant.restore` | O‘chirish / qaytarish | — |
 | `user.resetPassword` | Do‘kon hisobiga parol | `entityId` — foydalanuvchi |
+| `platform.admin.create` / `platform.admin.update` | Egasi hisobi ochildi / nom, rol, faollik | `{ email, name, role }` / `{ before, after }` |
+| `platform.admin.resetPassword` / `platform.admin.totpReset` | Hisobga parol / TOTP olib tashlandi | `entityId` — hisob |
+| `platform.totp.enable` / `platform.totp.disable` | O‘zi TOTP yoqdi / o‘chirdi | — |
+| `platform.telegram.link` / `platform.telegram.unlink` | Telegram ulandi / uzildi | — |
+| `platform.settings.update` | Ro‘yxatdan o‘tish rejimi | `{ before, after }` |
 
 `group` filtri — `tenant`, `user`, `platform`. `targetTenantName` `null` — do‘kon allaqachon butunlay o‘chirilgan.
+Egasi hisoblari bilan bog‘liq yozuvlarda `targetTenantId` yo‘q, `entityType: "admin"`.
+
+<a id="admins"></a>
+
+### 5.8 `/admins` — Hisoblar va operatorlar (faqat `owner`)
+
+Egasi o‘ziga yordamchi — **operator** — ochadi: operator do‘konlarni ko‘radi, ochadi, bloklaydi, tarif/to‘lov yozadi,
+xodim parolini tiklaydi, lekin do‘konni **o‘chira/qaytara olmaydi**, hisoblar va sozlamani boshqarmaydi. Menyuda bu
+sahifa faqat `admin.role === "owner"` ga ko‘rinadi (API baribir 403 beradi).
+
+| Element | So‘rov |
+|---|---|
+| Jadval | `GET /platform/admins` → massiv [`PlatformAdminDto`](schemas.md#platformadmindto): nom, email, rol, faol, TOTP (`totpEnabled`), Telegram (`telegramLinked`), oxirgi kirish |
+| «Hisob ochish» oynasi | `POST /platform/admins` `{ email, name, password, role }` → 201. `password` — kamida 8 belgi (400); email band — 409 `ALREADY_EXISTS`. Parolni egasi operatorga o‘zi aytadi |
+| Qator tahriri | `PATCH /platform/admins/:id` `{ name?, role?, isActive? }` → 200. `isActive: false` — kira olmaydi, sessiyalari yopiladi. **O‘z qatorida** rol va faollik o‘zgartirilmaydi (422 `SELF_ROLE_CHANGE` / `SELF_DELETE`) — maydonlarni o‘chiq ko‘rsating |
+| «Parolni tiklash» | `POST /platform/admins/:id/reset-password { password }` → 204; barcha sessiyalari yopiladi (o‘ziniki bo‘lsa — qayta kirish) |
+| «TOTP’ni olib tashlash» | `POST /platform/admins/:id/totp/reset` → 204 (422 — yoqilmagan). Qurilma yo‘qolganda: hisob yana faqat parol bilan kiradi va qayta sozlaydi |
+
+Egasi o‘z rolini pasaytira va o‘zini faolsizlantira olmagani uchun tizimda doim kamida bitta faol egasi qoladi.
+Yagona egasi o‘z TOTP qurilmasini yo‘qotsa — server egasi bazada olib tashlaydi (`infra/README.md` §10).
+
+<a id="settings"></a>
+
+### 5.9 `/settings` — Platforma sozlamasi (faqat `owner`)
+
+`GET /platform/settings` → [`PlatformSettingsDto`](schemas.md#platformsettingsdto)
+`{ registrationMode: "open" | "closed", updatedAt, updatedBy }` (o‘qish — operator uchun ham ochiq);
+`PATCH /platform/settings { registrationMode }` → 200, darhol kuchga kiradi (qayta ishga tushirish yo‘q).
+
+Almashtirgich «Ro‘yxatdan o‘tish ochiq» bilan izoh: *yopiq bo‘lsa do‘kon ilovasidagi «Do‘kon ochish» yo‘qoladi
+(`POST /tenants/register` → 403 `REGISTRATION_CLOSED`), yangi do‘kon faqat shu paneldan ochiladi.*
+`updatedBy` — oxirgi o‘zgartirgan hisob nomi (`null` — hech qachon o‘zgartirilmagan).
+
+<a id="profile"></a>
+
+### 5.10 `/profile` — Profil (har bir hisob o‘zi uchun)
+
+Manba — `GET /platform/auth/me` (`PlatformAdminDto`). Ikki blok:
+
+**Ikki bosqichli kirish (TOTP).** `totpEnabled: false` → «Yoqish»: `POST /platform/auth/totp/setup` → 201
+`{ secret, otpauthUrl }` — `otpauthUrl` dan **QR kod** chizing (masalan `qrcode` paketi), yonida `secret` (qo‘lda
+kiritish uchun) va izoh «Google Authenticator, Aegis, 1Password … bilan skanerlang». Keyin kod maydoni →
+`POST /platform/auth/totp/enable { code }` → 200 `PlatformAdminDto` (`totpEnabled: true`); 401 `AUTH_TOTP_INVALID` —
+«Kod noto‘g‘ri». `setup` ni qayta chaqirish — yangi sir (eski QR bekor). `totpEnabled: true` → «O‘chirish»: kod
+so‘raladi → `POST /platform/auth/totp/disable { code }` → 200. Ikkala kod endpointi — daqiqasiga 5 urinish (429).
+Kodlar 30 soniyalik, ±30 s soat farqi qabul qilinadi; **bitta kod bir marta** ishlaydi (qayta yuborilsa 401).
+
+**Telegram xabarlari.** `telegramLinked: false` → «Ulash»: `POST /platform/auth/telegram-link` → 201
+`{ link, expiresAt }` — `link` ni QR qilib va «Telegramda ochish» tugmasi bilan ko‘rsating (`https://t.me/<bot>?start=p-…`,
+bir martalik, 7 kun). Egasi botda Start bosgach ulanadi — sahifada «Tekshirish» tugmasi (`GET /platform/auth/me`)
+yoki 3–5 soniyada qayta so‘rash. 422 `RECIPIENT_UNREACHABLE` (`errors[0].meta.reason: "no_channel"`) — serverda bot
+sozlanmagan: blokni «Telegram bot sozlanmagan» deb ko‘rsating. `telegramLinked: true` → «Uzish»:
+`DELETE /platform/auth/telegram-link` → 204.
+
+Ulangan hisobga bot yuboradigan xabarlar (hammasi **ulangan faol** hisoblarga, egasi ham, operator ham):
+🆕 yangi do‘kon ro‘yxatdan o‘tdi (nom, administrator ismi, telefon, email); 💳 onlayn to‘lov keldi (do‘kon, summa,
+tarif, oy, Payme/Click — qo‘lda yozilgan to‘lov haqida xabar yo‘q); 🗑 do‘kon administratori o‘chirishni so‘radi
+(30 kun muhlat — panelda qaytarish mumkin). Egasi botni bloklasa ulanish o‘zi olib tashlanadi (`telegramLinked: false`).
 
 ---
 
@@ -317,12 +390,18 @@ Shakl do‘kon ilovasi bilan bir xil ([README → 7](README.md#errors)):
 | Kod | Status | Qachon | UI |
 |---|---|---|---|
 | `AUTH_INVALID_CREDENTIALS` | 401 | Login xato; token yo‘q/yaroqsiz; **do‘kon tokeni** egasi yo‘lida; hisob faolsizlantirilgan | Login sahifasida — xabar; boshqa joyda — refresh, bo‘lmasa kirish sahifasi |
+| `AUTH_TOTP_REQUIRED` | 401 | Login: parol to‘g‘ri, hisobda TOTP yoqilgan, `totpCode` yo‘q | Kod maydonini ochish, qayta yuborish |
+| `AUTH_TOTP_INVALID` | 401 | Kod noto‘g‘ri, eskirgan yoki qayta ishlatilgan (login, `totp/enable`, `totp/disable`) | «Kod noto‘g‘ri — ilovadagi joriy kodni kiriting» |
 | `AUTH_INVALID_REFRESH` | 401 | Refresh cookie yo‘q/eskirgan | Kirish sahifasi |
 | `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh qayta ishlatildi — hamma sessiya yopildi | Kirish sahifasi + «Xavfsizlik sababli qayta kiring» |
+| `PERMISSION_DENIED` | 403 | `operator` egasiga tegishli amalni chaqirdi (o‘chirish/qaytarish, `/platform/admins`, `PATCH /platform/settings`) | Tugma ko‘rinmasligi kerak edi — `GET /platform/auth/me` ni qayta so‘rab menyuni yangilash |
 | `VALIDATION_FAILED` | 400 | Maydon xato (`errors[].field`), noma’lum maydon, yaroqsiz UUID, noma’lum `sort`/`status` | Maydon ostida xabar |
 | `NOT_FOUND` | 404 | Do‘kon/hisob yo‘q | «Topilmadi» sahifasi yoki ro‘yxatga qaytish |
-| `INVALID_STATUS_TRANSITION` | 422 | Holat amalni rad etdi | `detail` ni ko‘rsatib, kartani qayta so‘rash |
-| — | 429 | Login chegarasi (5/daqiqa) yoki umumiy (300/daqiqa) | «Bir ozdan keyin urinib ko‘ring» |
+| `ALREADY_EXISTS` | 409 | `POST /platform/admins` — email band | Maydon ostida |
+| `INVALID_STATUS_TRANSITION` | 422 | Holat amalni rad etdi (do‘kon holati; TOTP allaqachon yoqilgan/yoqilmagan) | `detail` ni ko‘rsatib, kartani qayta so‘rash |
+| `SELF_ROLE_CHANGE` / `SELF_DELETE` | 422 | O‘z rolini o‘zgartirish / o‘zini faolsizlantirish | Maydonlar o‘chiq bo‘lishi kerak edi |
+| `RECIPIENT_UNREACHABLE` | 422 | `telegram-link`: bot sozlanmagan (`meta.reason: "no_channel"`) | Telegram blokini «sozlanmagan» deb ko‘rsatish |
+| — | 429 | Login va TOTP kod chegarasi (5/daqiqa) yoki umumiy (300/daqiqa) | «Bir ozdan keyin urinib ko‘ring» |
 | `INTERNAL` | 500 | Kutilmagan | `traceId` bilan xabar |
 
 ---
@@ -356,6 +435,11 @@ Production’da `VITE_API_URL` bo‘sh, so‘rovlar nisbiy; deploy — `DEPLOY.m
 - Tarif/to‘lov oynasi: pullik tarifda oy va usul majburiy, summa sukut narx × oy, yangi muddat oldindan ko‘rsatiladi; `free` da qolgan maydonlar yashirin.
 - Hisoblar: ro‘yxat va parolni tiklash (204).
 - To‘lovlar va jurnal sahifalari filtr va sahifalash bilan.
+- Rol: `operator` ga «O‘chirish»/«Qaytarish» tugmalari, «Hisoblar» va «Sozlamalar» menyusi ko‘rinmaydi; 403 kelsa `me` qayta so‘raladi.
+- Kirishda `AUTH_TOTP_REQUIRED` → kod maydoni (email/parol saqlanadi); profil: TOTP yoqish (QR + qo‘lda sir, kod bilan tasdiq) va o‘chirish (kod bilan).
+- Hisoblar sahifasi (`owner`): ochish, nom/rol/faollik tahriri (o‘z qatorida rol va faollik o‘chiq), parolni tiklash, TOTP’ni olib tashlash.
+- Sozlamalar (`owner`): ro‘yxatdan o‘tish almashtirgichi, kim/qachon o‘zgartirgani.
+- Profil: Telegram ulash (QR + «Telegramda ochish», «Tekshirish»), uzish; bot sozlanmagan — blok «sozlanmagan».
 - Responsiv (planshet/telefon), o‘zbek tili, sanalar Toshkent vaqtida, summalar `99 000 so‘m` ko‘rinishida.
 - `npm run lint`, `npm run build`, `npm test` yashil (CI shuni tekshiradi, deploy — `main` ga push).
 
@@ -375,5 +459,8 @@ Egasi paneli bilan birga do‘kon API’sida kichik o‘zgarishlar bor ([README 
    `GET /auth/me` (banner) va `GET /tenants/current` (tarif sahifasi) qayta so‘raladi.
 3. **`InvoiceDto.provider`** endi `cash`, `transfer`, `bonus` ham bo‘lishi mumkin («Tarif va hisob» sahifasidagi to‘lovlar
    ro‘yxati — «Naqd», «O‘tkazma», «Bonus» deb ko‘rsating).
+4. **Ro‘yxatdan o‘tish yopilishi mumkin** (T-138): kirish sahifasi ochilganda `GET /tenants/registration` (ochiq yo‘l) →
+   `{ mode: "open" | "closed" }`; `closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish sahifasini yashiring.
+   `POST /tenants/register` yopiq rejimda 403 `REGISTRATION_CLOSED` — «Yangi do‘kon ochish vaqtincha yopiq».
 
 Qolgan hamma narsa o‘zgarmagan.

@@ -35,3 +35,9 @@ export class RegisterDto {
   @MaxLength(MAX_PASSWORD_LENGTH)
   password!: string
 }
+
+/** Ro'yxatdan o'tish ochiqmi (T-138) — kirish sahifasi «Do'kon ochish» havolasini shunga qarab ko'rsatadi */
+export class RegistrationInfoDto {
+  @ApiProperty({ enum: ['open', 'closed'], description: '`closed` — platforma egasi yopgan; `POST /tenants/register` 403 `REGISTRATION_CLOSED`' })
+  mode!: 'open' | 'closed'
+}

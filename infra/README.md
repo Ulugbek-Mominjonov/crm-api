@@ -270,6 +270,15 @@ Egasi tokeni do'kon ilovasida ishlamaydi (va aksincha), lekin `/api/v1/platform/
 Caddy darajasida ham yopish — qo'shimcha qatlam. Faqat o'z IP'laringizdan kirish — `owner.caddy` dagi
 `remote_ip` qatorlari.
 
+**Davomi (T-137…T-139)** — serverda qo'shimcha sozlama YO'Q: operatorlar, ikki bosqichli kirish (TOTP), egasining
+Telegram'i va ro'yxatdan o'tish rejimi panelning o'zida (Telegram — o'sha `TELEGRAM_BOT_TOKEN` boti). Faqat bitta
+favqulodda holat — **yagona egasi TOTP qurilmasini yo'qotdi** (boshqa egasi hisobi bo'lsa u panelda olib tashlaydi):
+
+```bash
+ssh deploy@IP "cd /opt/crm && docker compose -f docker-compose.prod.yml exec db psql -U crm -d crm -c \
+  \"UPDATE platform_admins SET totp_secret = NULL, totp_enabled_at = NULL, totp_last_step = NULL WHERE email = 'owner@<domen>'\""
+```
+
 ## Xavfsizlik eslatmalari
 
 - Docker e'lon qilgan portlar ufw'ni chetlab o'tadi: tashqi `ports:` FAQAT umumiy Caddy'da (80/443);

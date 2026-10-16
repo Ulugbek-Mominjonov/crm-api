@@ -5,9 +5,11 @@ import { currentContext, currentTenantId, runWithContext } from '@/common/contex
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import type { Env } from '@/config/env.schema'
 import { AuditService } from '@/modules/audit/audit.service'
+import { PlatformAuditService } from '@/modules/platform/platform-audit.service'
 import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import type { TelegramLinkDto, TelegramStatusDto } from './dto/telegram.dto'
+import { OWNER_TEXT } from './owner-texts'
 import { TELEGRAM_CLIENT, TelegramApiError, type TelegramClient, type TelegramFile, type TelegramUpdate } from './telegram.client'
 import { BOT_TEXT } from './telegram-texts'
 
@@ -16,6 +18,9 @@ const LINK_TTL_MS = 7 * 24 * 3_600_000
 /** Token — 16 tasodifiy bayt (128 bit) → base64url, 22 belgi (Telegram `start`: ≤ 64, `[A-Za-z0-9_-]`) */
 const TOKEN_BYTES = 16
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{22}$/
+/** Egasi hisobining havolasi (T-137) — mijoznikidan prefiks bilan farqlanadi: `p-` + o'sha token */
+const PLATFORM_PREFIX = 'p-'
+const PLATFORM_TOKEN_PATTERN = /^p-[A-Za-z0-9_-]{22}$/
 const START = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/
 
 /** Nega yetkazib bo'lmaydi — `RECIPIENT_UNREACHABLE` ning `meta.reason` i (frontend shunga qarab taklif beradi) */
@@ -68,6 +73,7 @@ export class TelegramService {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly audit: AuditService,
+    private readonly platformAudit: PlatformAuditService,
     private readonly config: ConfigService<Env, true>,
     @Optional() @Inject(TELEGRAM_CLIENT) private readonly client: TelegramClient | null,
   ) {}
@@ -92,6 +98,28 @@ export class TelegramService {
        WHERE tenant_id = ${currentTenantId()}::uuid AND id = ${clientId}::uuid AND deleted_at IS NULL`
     if (updated === 0) throw new NotFoundError('Mijoz', clientId)
     return { link: `https://t.me/${username}?start=${token}`, expiresAt }
+  }
+
+  /** Egasi hisobining shaxsiy havolasi (T-137) — mijoznikidek, lekin `platform_admins` da va `p-` prefiks bilan */
+  async createPlatformLink(adminId: string): Promise<TelegramLinkDto> {
+    if (!this.client) throw unreachableError('no_channel')
+    const username = await this.username(this.client)
+    const token = randomBytes(TOKEN_BYTES).toString('base64url')
+    const expiresAt = new Date(Date.now() + LINK_TTL_MS)
+    await this.prisma.platformAdmin.update({
+      where: { id: adminId },
+      data: { telegramLinkHash: hashToken(token), telegramLinkExpiresAt: expiresAt },
+    })
+    return { link: `https://t.me/${username}?start=${PLATFORM_PREFIX}${token}`, expiresAt }
+  }
+
+  async unlinkPlatformAdmin(adminId: string): Promise<void> {
+    const before = await this.prisma.platformAdmin.findUniqueOrThrow({ where: { id: adminId }, select: { telegramChatId: true } })
+    await this.prisma.platformAdmin.update({
+      where: { id: adminId },
+      data: { telegramChatId: null, telegramLinkedAt: null, telegramLinkHash: null, telegramLinkExpiresAt: null },
+    })
+    if (before.telegramChatId !== null) await this.platformAudit.log({ action: 'platform.telegram.unlink', entityType: 'admin', entityId: adminId })
   }
 
   /**
@@ -163,6 +191,11 @@ export class TelegramService {
   }
 
   private async onStart(client: TelegramClient, chatId: number, payload: string | undefined): Promise<void> {
+    if (payload && PLATFORM_TOKEN_PATTERN.test(payload)) {
+      const admin = await this.linkPlatformAdmin(chatId, payload.slice(PLATFORM_PREFIX.length))
+      await reply(client, chatId, admin ? OWNER_TEXT.linked(admin.name) : BOT_TEXT.badLink)
+      return
+    }
     const linked = payload && TOKEN_PATTERN.test(payload) ? await this.linkByToken(chatId, payload) : null
     if (linked) {
       await reply(client, chatId, BOT_TEXT.linked(linked.store, linked.name))
@@ -195,6 +228,29 @@ export class TelegramService {
     )
     if (!linked) return null
     return { store: (await this.settings.forTenant(tenantId)).storeName, name: linked.name }
+  }
+
+  /**
+   * Egasi hisobini chatga bog'lash (T-137): havola bir martalik va muddatli,
+   * faol hisob. Bitta chat — bitta hisob: shu chat boshqa hisobda bo'lsa,
+   * undan olib tashlanadi (odam bitta, hisobni almashtirdi)
+   */
+  private async linkPlatformAdmin(chatId: number, token: string): Promise<{ name: string } | null> {
+    const hash = hashToken(token)
+    const admin = await this.prisma.platformAdmin.findFirst({
+      where: { telegramLinkHash: hash, telegramLinkExpiresAt: { gt: new Date() }, isActive: true },
+      select: { id: true, name: true },
+    })
+    if (!admin) return null
+    await this.prisma.$transaction([
+      this.prisma.platformAdmin.updateMany({ where: { telegramChatId: BigInt(chatId), id: { not: admin.id } }, data: { telegramChatId: null, telegramLinkedAt: null } }),
+      this.prisma.platformAdmin.update({
+        where: { id: admin.id },
+        data: { telegramChatId: BigInt(chatId), telegramLinkedAt: new Date(), telegramLinkHash: null, telegramLinkExpiresAt: null },
+      }),
+    ])
+    await this.platformAudit.log({ action: 'platform.telegram.link', adminId: admin.id, entityType: 'admin', entityId: admin.id })
+    return admin
   }
 
   /** Chat bog'langan barcha do'konlarda: har biri — o'z tranzaksiyasida (RLS) */

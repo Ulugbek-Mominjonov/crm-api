@@ -2,13 +2,13 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **179** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **192** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
 ## Mundarija
 
-- [Autentifikatsiya va ro‘yxatdan o‘tish](#auth) — 7 ta
+- [Autentifikatsiya va ro‘yxatdan o‘tish](#auth) — 8 ta
 - [Do‘kon hisobi: tarif, holat, o‘chirish](#account) — 3 ta
 - [Obuna to‘lovi (Payme, Click)](#billing) — 5 ta
 - [Do‘kon sozlamalari](#settings) — 2 ta
@@ -35,7 +35,7 @@ Jami **179** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Eksport (CSV/JSON)](#exports) — 3 ta
 - [Do‘kon zaxirasi](#backup) — 1 ta
 - [Migratsiya (brauzerdagi eski ma’lumotni serverga ko‘chirish)](#migration) — 2 ta
-- [Platforma egasi paneli](#platform) — 19 ta
+- [Platforma egasi paneli](#platform) — 31 ta
 - [Sog‘liq tekshiruvi](#health) — 2 ta
 
 <a id="auth"></a>
@@ -52,6 +52,7 @@ Kirish, tokenni yangilash, chiqish, joriy foydalanuvchi, parol va yangi do‘kon
 | `POST` | [`/auth/logout-all`](#post-auth-logout-all) | Barcha qurilmalardan chiqish | servisda / hamma |
 | `GET` | [`/auth/me`](#get-auth-me) | Joriy foydalanuvchi | servisda / hamma |
 | `POST` | [`/auth/change-password`](#post-auth-change-password) | Parolni o‘zgartirish | servisda / hamma |
+| `GET` | [`/tenants/registration`](#get-tenants-registration) 🔓 | Ro‘yxatdan o‘tish ochiqmi | ochiq |
 | `POST` | [`/tenants/register`](#post-tenants-register) 🔓 | Yangi do‘kon ochish | ochiq |
 
 <a id="post-auth-login"></a>
@@ -197,13 +198,30 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 ---
 
+<a id="get-tenants-registration"></a>
+
+### `GET /tenants/registration` — Ro‘yxatdan o‘tish ochiqmi
+
+> Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi.
+
+**Qachon / qanday:** Kirish sahifasi ochilganda (hisobsiz): `mode: closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish sahifasini yashiring (`/register` ga kirilsa — xabar). `open` — avvalgidek.
+
+| | |
+|---|---|
+| Huquq | ochiq — token shart emas |
+| Javob | `200` → [`RegistrationInfoDto`](schemas.md#registrationinfodto) |
+
+[↑ Bo‘lim boshiga](#auth)
+
+---
+
 <a id="post-tenants-register"></a>
 
 ### `POST /tenants/register` — Yangi do‘kon ochish
 
-> Do‘kon, sozlama, sukut ombor, kategoriyalar va egasi (administrator) yaratiladi; javob — kirish bilan bir xil (access token + refresh cookie). Keyin mijoz sozlash sehrgarini ko‘rsatadi (`settings.onboarded = false`).
+> Do‘kon, sozlama, sukut ombor, kategoriyalar va egasi (administrator) yaratiladi; javob — kirish bilan bir xil (access token + refresh cookie). Keyin mijoz sozlash sehrgarini ko‘rsatadi (`settings.onboarded = false`). Platforma egasi ro‘yxatdan o‘tishni yopgan bo‘lsa — 403 `REGISTRATION_CLOSED` (`GET /tenants/registration`).
 
-**Qachon / qanday:** Ro‘yxatdan o‘tish sahifasi. Javob login bilan bir xil — foydalanuvchi darhol kirgan (admin). Keyin `GET /settings` → `onboarded: false` bo‘lsa dastlabki sozlash sehrgarini ko‘rsating, oxirida `PATCH /settings {"onboarded": true}`. IP bo‘yicha soatiga 5 ta. Bir email bilan bir nechta do‘kon ochish mumkin (email do‘kon ichida noyob). Login’da do‘kon tanlash (`AUTH_TENANT_REQUIRED`) faqat email VA parol bir nechta do‘konda mos kelsa chiqadi; parollar farqli bo‘lsa — mos kelgan do‘konga kiradi.
+**Qachon / qanday:** Ro‘yxatdan o‘tish sahifasi. Javob login bilan bir xil — foydalanuvchi darhol kirgan (admin). Keyin `GET /settings` → `onboarded: false` bo‘lsa dastlabki sozlash sehrgarini ko‘rsating, oxirida `PATCH /settings {"onboarded": true}`. IP bo‘yicha soatiga 5 ta. Bir email bilan bir nechta do‘kon ochish mumkin (email do‘kon ichida noyob). Login’da do‘kon tanlash (`AUTH_TENANT_REQUIRED`) faqat email VA parol bir nechta do‘konda mos kelsa chiqadi; parollar farqli bo‘lsa — mos kelgan do‘konga kiradi. 403 `REGISTRATION_CLOSED` — platforma egasi ro‘yxatdan o‘tishni yopgan: «Yangi do‘kon ochish vaqtincha yopiq» (oldindan `GET /tenants/registration`).
 
 | | |
 |---|---|
@@ -226,6 +244,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | Status | Kod — qachon |
 |---|---|
 | `400` | `VALIDATION_FAILED` — jumladan kuchsiz parol |
+| `403` | `REGISTRATION_CLOSED` — ro‘yxatdan o‘tish yopiq |
 
 [↑ Bo‘lim boshiga](#auth)
 
@@ -5591,7 +5610,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 ## Platforma egasi paneli
 
-DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali. O‘z kirishi (`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).
+DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali; egasi hisoblari va operatorlar (`role`), ikki bosqichli kirish (TOTP), egasining Telegram’i, platforma sozlamasi. O‘z kirishi (`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
@@ -5599,6 +5618,11 @@ DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do
 | `POST` | [`/platform/auth/refresh`](#post-platform-auth-refresh) 🔓 | Egasi access tokenini yangilash | ochiq |
 | `POST` | [`/platform/auth/logout`](#post-platform-auth-logout) 🔓 | Egasi panelidan chiqish | ochiq |
 | `GET` | [`/platform/auth/me`](#get-platform-auth-me) | Joriy egasi | egasi tokeni |
+| `POST` | [`/platform/auth/totp/setup`](#post-platform-auth-totp-setup) | Ikki bosqichli kirishni sozlashni boshlash | egasi tokeni |
+| `POST` | [`/platform/auth/totp/enable`](#post-platform-auth-totp-enable) | Ikki bosqichli kirishni yoqish | egasi tokeni |
+| `POST` | [`/platform/auth/totp/disable`](#post-platform-auth-totp-disable) | Ikki bosqichli kirishni o‘chirish | egasi tokeni |
+| `POST` | [`/platform/auth/telegram-link`](#post-platform-auth-telegram-link) | Telegram botga ulanish havolasi | egasi tokeni |
+| `DELETE` | [`/platform/auth/telegram-link`](#delete-platform-auth-telegram-link) | Telegram ulanishini olib tashlash | egasi tokeni |
 | `GET` | [`/platform/tenants`](#get-platform-tenants) | Do‘konlar ro‘yxati | egasi tokeni |
 | `POST` | [`/platform/tenants`](#post-platform-tenants) | Do‘kon ochish | egasi tokeni |
 | `GET` | [`/platform/tenants/:id`](#get-platform-tenants-id) | Do‘kon kartasi | egasi tokeni |
@@ -5611,15 +5635,22 @@ DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do
 | `GET` | [`/platform/tenants/:id/users`](#get-platform-tenants-id-users) | Do‘kon kirish hisoblari | egasi tokeni |
 | `POST` | [`/platform/tenants/:id/users/:userId/reset-password`](#post-platform-tenants-id-users-userid-reset-password) | Do‘kon hisobiga yangi parol | egasi tokeni |
 | `GET` | [`/platform/tenants/:id/invoices`](#get-platform-tenants-id-invoices) | Do‘kon hisob-fakturalari | egasi tokeni |
+| `GET` | [`/platform/admins`](#get-platform-admins) | Egasi hisoblari ro‘yxati | egasi tokeni |
+| `POST` | [`/platform/admins`](#post-platform-admins) | Hisob ochish | egasi tokeni |
+| `PATCH` | [`/platform/admins/:id`](#patch-platform-admins-id) | Nom, rol, faollik | egasi tokeni |
+| `POST` | [`/platform/admins/:id/reset-password`](#post-platform-admins-id-reset-password) | Hisobga yangi parol | egasi tokeni |
+| `POST` | [`/platform/admins/:id/totp/reset`](#post-platform-admins-id-totp-reset) | Ikki bosqichli kirishni olib tashlash | egasi tokeni |
 | `GET` | [`/platform/stats`](#get-platform-stats) | Boshqaruv paneli | egasi tokeni |
 | `GET` | [`/platform/invoices`](#get-platform-invoices) | Barcha do‘konlar hisob-fakturalari | egasi tokeni |
 | `GET` | [`/platform/audit`](#get-platform-audit) | Egasi amallari jurnali | egasi tokeni |
+| `GET` | [`/platform/settings`](#get-platform-settings) | Platforma sozlamasi | egasi tokeni |
+| `PATCH` | [`/platform/settings`](#patch-platform-settings) | Sozlamani o‘zgartirish | egasi tokeni |
 
 <a id="post-platform-auth-login"></a>
 
 ### `POST /platform/auth/login` — Egasi paneliga kirish
 
-> Access token javobda (`kind: platform` — do‘kon yo‘llarida o‘tmaydi), refresh token `platform_refresh` httpOnly cookie’da.
+> Access token javobda (`kind: platform` — do‘kon yo‘llarida o‘tmaydi), refresh token `platform_refresh` httpOnly cookie’da. Ikki bosqichli kirish yoqilgan hisobda `totpCode` majburiy: kodsiz — 401 `AUTH_TOTP_REQUIRED` (parol to‘g‘ri, kod maydonini ko‘rsating), noto‘g‘ri kod — 401 `AUTH_TOTP_INVALID`.
 
 **Qachon / qanday:** Egasi paneli kirish sahifasi. `accessToken` faqat XOTIRADA; `platform_refresh` httpOnly cookie faqat `/api/v1/platform/auth/*` ga boradi (`credentials: "include"`). Daqiqasiga 5 urinish (IP), oshsa — 429.
 
@@ -5635,12 +5666,13 @@ DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do
 |---|---|:-:|---|
 | `email` | `string` | ✔ | misol `owner@workspaces.uz` |
 | `password` | `string` | ✔ |  |
+| `totpCode` | `string` |  | Ikki bosqichli kirish yoqilgan hisobda majburiy: autentifikator ilovasidagi 6 raqam. Yo‘q bo‘lsa — 401 `AUTH_TOTP_REQUIRED` — misol `123456` |
 
 **Xatolar**
 
 | Status | Kod — qachon |
 |---|---|
-| `401` | `AUTH_INVALID_CREDENTIALS` |
+| `401` | `AUTH_INVALID_CREDENTIALS` \| `AUTH_TOTP_REQUIRED` \| `AUTH_TOTP_INVALID` |
 
 Umumiy: 400 `VALIDATION_FAILED`.
 
@@ -5699,13 +5731,157 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 ### `GET /platform/auth/me` — Joriy egasi
 
-**Qachon / qanday:** Ilova ochilganda: avval `refresh`, keyin shu — sarlavhadagi egasi nomi.
+> Rol, ikki bosqichli kirish va Telegram holati ham shu yerda (profil sahifasi).
+
+**Qachon / qanday:** Ilova ochilganda: avval `refresh`, keyin shu — sarlavhadagi egasi nomi. `role` (`owner`/`operator`) bo‘yicha faqat egasiga tegishli tugmalarni (o‘chirish/qaytarish, «Hisoblar», «Sozlamalar») yashiring; `totpEnabled`, `telegramLinked` — profil sahifasi.
 
 | | |
 |---|---|
 | Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
 | Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
 | Javob | `200` → [`PlatformAdminDto`](schemas.md#platformadmindto) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-auth-totp-setup"></a>
+
+### `POST /platform/auth/totp/setup` — Ikki bosqichli kirishni sozlashni boshlash
+
+> Yangi sir: QR (`otpauthUrl`) yoki qo‘lda `secret`. Kirishga hali ta’sir qilmaydi — `totp/enable` da ilovadagi kod bilan tasdiqlanadi. Qayta chaqirish — yangi sir.
+
+**Qachon / qanday:** Profil → «Ikki bosqichli kirish» → «Yoqish»: `otpauthUrl` dan QR kod chizing (masalan `qrcode` paketi), yonida `secret` (qo‘lda kiritish uchun). Keyin kod maydoni → `totp/enable`. Yoqilgan bo‘lsa — 422.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `201` → [`TotpSetupDto`](schemas.md#totpsetupdto) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `422` | `INVALID_STATUS_TRANSITION` — holat bunga yo‘l qo‘ymaydi (yoqilgan/yoqilmagan) |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-auth-totp-enable"></a>
+
+### `POST /platform/auth/totp/enable` — Ikki bosqichli kirishni yoqish
+
+> Ilovadagi kod sozlangan sirga mos kelsa yoqiladi; keyingi kirishdan `totpCode` majburiy.
+
+**Qachon / qanday:** QR skanerlangach ilovadagi 6 raqam. 401 `AUTH_TOTP_INVALID` — «Kod noto‘g‘ri, ilovadagi joriy kodni kiriting». Muvaffaqiyatda `totpEnabled: true` — keyingi kirishda kod so‘raladi. Daqiqasiga 5 urinish.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformAdminDto`](schemas.md#platformadmindto) |
+| Chegara | 5 ta / daqiqa (IP bo‘yicha), oshsa — 429 |
+
+**So‘rov tanasi** — [`TotpCodeDto`](schemas.md#totpcodedto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `code` | `string` | ✔ | Autentifikator ilovasidagi joriy 6 raqam — misol `123456` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_TOTP_INVALID` |
+| `422` | `INVALID_STATUS_TRANSITION` — holat bunga yo‘l qo‘ymaydi (yoqilgan/yoqilmagan) |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-auth-totp-disable"></a>
+
+### `POST /platform/auth/totp/disable` — Ikki bosqichli kirishni o‘chirish
+
+> Ham ilovadagi kod bilan — o‘g‘irlangan sessiya himoyani olib tashlay olmaydi. Qurilma yo‘qolgan bo‘lsa — boshqa egasi `POST /platform/admins/:id/totp/reset`.
+
+**Qachon / qanday:** Profil → «O‘chirish» → kod so‘raladi (parol emas). Qurilma yo‘q — boshqa egasi `POST /platform/admins/:id/totp/reset`.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformAdminDto`](schemas.md#platformadmindto) |
+| Chegara | 5 ta / daqiqa (IP bo‘yicha), oshsa — 429 |
+
+**So‘rov tanasi** — [`TotpCodeDto`](schemas.md#totpcodedto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `code` | `string` | ✔ | Autentifikator ilovasidagi joriy 6 raqam — misol `123456` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_TOTP_INVALID` |
+| `422` | `INVALID_STATUS_TRANSITION` — holat bunga yo‘l qo‘ymaydi (yoqilgan/yoqilmagan) |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-auth-telegram-link"></a>
+
+### `POST /platform/auth/telegram-link` — Telegram botga ulanish havolasi
+
+> Mijozlar kabi shaxsiy havola: ochib Start bosilsa shu hisobga bog‘lanadi va egasi xabarlari (yangi do‘kon, onlayn to‘lov, o‘chirish so‘rovi) shu chatga keladi. Bir martalik, 7 kun.
+
+**Qachon / qanday:** Profil → «Telegram» → «Ulash»: `link` ni QR qilib va «Telegramda ochish» tugmasi bilan ko‘rsating; egasi Start bosgach `GET /platform/auth/me` → `telegramLinked: true` (sahifani qayta so‘rang yoki tugma «Tekshirish»). 422 `RECIPIENT_UNREACHABLE` (`reason: no_channel`) — serverda bot sozlanmagan: tugmani yashiring.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `201` → [`TelegramLinkDto`](schemas.md#telegramlinkdto) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `422` | `RECIPIENT_UNREACHABLE` (`reason: no_channel`) — bot sozlanmagan |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="delete-platform-auth-telegram-link"></a>
+
+### `DELETE /platform/auth/telegram-link` — Telegram ulanishini olib tashlash
+
+> Xabarlar to‘xtaydi; qayta ulash — yangi havola.
+
+**Qachon / qanday:** Profil → «Telegram» → «Uzish». 204; xabarlar to‘xtaydi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `204` — Ulanish olib tashlandi (bo‘lmasa ham 204) |
 
 **Xatolar**
 
@@ -5987,13 +6163,13 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 ### `POST /platform/tenants/:id/delete` — Do‘konni o‘chirish (30 kun muhlat)
 
-> Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.
+> Faqat egasi (operator — 403). Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.
 
 **Qachon / qanday:** Tasdiq oynasi («30 kundan keyin butunlay o‘chadi»). Muhlatdagi do‘kon — 422.
 
 | | |
 |---|---|
-| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
 | Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
 | Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
 | Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -6022,13 +6198,13 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 ### `POST /platform/tenants/:id/restore` — O‘chirishni bekor qilish
 
-> Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.
+> Faqat egasi (operator — 403). Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.
 
 **Qachon / qanday:** Muhlat ichida qaytarish; muhlatda bo‘lmasa — 422.
 
 | | |
 |---|---|
-| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
 | Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
 | Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
 | Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -6165,6 +6341,184 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 ---
 
+<a id="get-platform-admins"></a>
+
+### `GET /platform/admins` — Egasi hisoblari ro‘yxati
+
+> Egasi va operatorlar: rol, faollik, ikki bosqichli kirish va Telegram holati, oxirgi kirish.
+
+**Qachon / qanday:** «Hisoblar» sahifasi (faqat egasi): jadval — nom, email, rol, faol, TOTP, Telegram, oxirgi kirish.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformAdminDto`](schemas.md#platformadmindto)[] |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-admins"></a>
+
+### `POST /platform/admins` — Hisob ochish
+
+> Operator yoki yana bir egasi. Parolni siz aytasiz; u keyin ikki bosqichli kirishni o‘zi yoqadi.
+
+**Qachon / qanday:** «Hisob ochish» oynasi: email, nom, parol (kamida 8 belgi), rol. 409 `ALREADY_EXISTS` — email band. Parolni operatorga egasi o‘zi aytadi; operator keyin TOTP’ni o‘zi yoqadi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `201` → [`PlatformAdminDto`](schemas.md#platformadmindto) |
+| Audit jurnali | ha |
+
+**So‘rov tanasi** — [`CreatePlatformAdminDto`](schemas.md#createplatformadmindto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `email` | `string` | ✔ | misol `operator@workspaces.uz` |
+| `name` | `string` | ✔ | maks. uzunlik `120`, misol `Dilnoza` |
+| `password` | `string` | ✔ | Kamida 8 belgi; ommabop parollar rad etiladi. Operatorga birinchi kirishda aytiladi |
+| `role` | `owner` \| `operator` | ✔ | `operator` — do‘konni o‘chira olmaydi, hisob va sozlamani boshqarmaydi |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `409` | `ALREADY_EXISTS` — bu email bilan hisob bor |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="patch-platform-admins-id"></a>
+
+### `PATCH /platform/admins/:id` — Nom, rol, faollik
+
+> `isActive: false` — hisob kira olmaydi, sessiyalari yopiladi. O‘z rolini o‘zgartirish yoki o‘zini faolsizlantirish — 422.
+
+**Qachon / qanday:** Qator tahriri: nom, rol, faollik (faolsiz — kira olmaydi, sessiyalari yopiladi). O‘z qatorida rol va faollik maydonlarini o‘chiq ko‘rsating (422 `SELF_ROLE_CHANGE` / `SELF_DELETE`).
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformAdminDto`](schemas.md#platformadmindto) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`UpdatePlatformAdminDto`](schemas.md#updateplatformadmindto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `name` | `string` |  | maks. uzunlik `120` |
+| `role` | `owner` \| `operator` |  | O‘z rolini o‘zgartirib bo‘lmaydi (422 `SELF_ROLE_CHANGE`) |
+| `isActive` | `boolean` |  | `false` — kira olmaydi, sessiyalari yopiladi. O‘zini faolsizlantirib bo‘lmaydi (422 `SELF_DELETE`) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+| `422` | `SELF_ROLE_CHANGE` \| `SELF_DELETE` |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-admins-id-reset-password"></a>
+
+### `POST /platform/admins/:id/reset-password` — Hisobga yangi parol
+
+> Barcha sessiyalari yopiladi. O‘z hisobingiz uchun ham ishlaydi (joriy sessiya ham yopiladi — qayta kiring).
+
+**Qachon / qanday:** «Parolni tiklash» oynasi (yangi parol). 204; hisobning barcha sessiyalari yopiladi — o‘ziniki bo‘lsa qayta kiradi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `204` — Parol o‘zgartirildi |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`ResetUserPasswordDto`](schemas.md#resetuserpassworddto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `password` | `string` | ✔ | Yangi parol (kamida 8 belgi); foydalanuvchining barcha sessiyalari yopiladi |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-admins-id-totp-reset"></a>
+
+### `POST /platform/admins/:id/totp/reset` — Ikki bosqichli kirishni olib tashlash
+
+> Qurilma yo‘qolganda: hisob yana faqat parol bilan kiradi va qayta sozlaydi.
+
+**Qachon / qanday:** «TOTP’ni olib tashlash» (qurilma yo‘qolganda), tasdiq oynasi bilan. 204; 422 — yoqilmagan.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `204` — Olib tashlandi |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `422` | `INVALID_STATUS_TRANSITION` — yoqilmagan |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
 <a id="get-platform-stats"></a>
 
 ### `GET /platform/stats` — Boshqaruv paneli
@@ -6249,6 +6603,63 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
 | `tenantId` | query | `string` (uuid) |  | Bitta do‘kon tarixi |
 | `group` | query | `string` |  | Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `user`, `platform` — misol `tenant` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-settings"></a>
+
+### `GET /platform/settings` — Platforma sozlamasi
+
+> Ro‘yxatdan o‘tish ochiq yoki yopiq; kim va qachon o‘zgartirgan.
+
+**Qachon / qanday:** «Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, kim va qachon o‘zgartirgan.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformSettingsDto`](schemas.md#platformsettingsdto) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="patch-platform-settings"></a>
+
+### `PATCH /platform/settings` — Sozlamani o‘zgartirish
+
+> Faqat egasi (operator — 403). `registrationMode: closed` — `POST /tenants/register` darhol 403 `REGISTRATION_CLOSED`, do‘konni faqat panel ochadi. Qayta ishga tushirish shart emas.
+
+**Qachon / qanday:** Almashtirgich (faqat egasi): `closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. Darhol kuchga kiradi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md). Faqat `owner` roli — `operator` uchun 403 `PERMISSION_DENIED` |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformSettingsDto`](schemas.md#platformsettingsdto) |
+| Audit jurnali | ha |
+
+**So‘rov tanasi** — [`UpdatePlatformSettingsDto`](schemas.md#updateplatformsettingsdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `registrationMode` | `open` \| `closed` | ✔ |  |
 
 **Xatolar**
 

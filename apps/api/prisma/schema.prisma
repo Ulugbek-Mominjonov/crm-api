@@ -1135,14 +1135,42 @@ model PlatformAdmin {
   name         String
   /// argon2id — hech qachon ochiq parol
   passwordHash String    @map("password_hash")
+  /// `owner` — hammasi; `operator` — do'konlar bilan ishlaydi, o'chira olmaydi, hisob va sozlamani boshqarmaydi (T-139)
+  role         String    @default("owner")
   isActive     Boolean   @default(true) @map("is_active")
   lastLoginAt  DateTime? @map("last_login_at") @db.Timestamptz
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
-  tokens   PlatformRefreshToken[]
-  auditLog PlatformAuditEntry[]
+  /// TOTP siri (base32); `totpEnabledAt` null — sozlash tasdiqlanmagan. Loglarga tushmaydi
+  totpSecret    String?   @map("totp_secret")
+  totpEnabledAt DateTime? @map("totp_enabled_at") @db.Timestamptz
+  /// Oxirgi qabul qilingan 30 soniyalik qadam — bitta kod ikki marta o'tmaydi
+  totpLastStep  BigInt?   @map("totp_last_step")
+
+  /// Egasining Telegram'i (T-137): mijozlar kabi shaxsiy havola bilan ulanadi; xabarlar shu chatga
+  telegramChatId        BigInt?   @map("telegram_chat_id")
+  telegramLinkedAt      DateTime? @map("telegram_linked_at") @db.Timestamptz
+  telegramLinkHash      String?   @map("telegram_link_hash")
+  telegramLinkExpiresAt DateTime? @map("telegram_link_expires_at") @db.Timestamptz
+
+  tokens          PlatformRefreshToken[]
+  auditLog        PlatformAuditEntry[]
+  settingsUpdates PlatformSettings[]
 
   @@map("platform_admins")
+}
+
+/// Platforma sozlamasi — bitta qator (`id = 1`, CHECK). `registrationMode`:
+/// `closed` — `POST /tenants/register` 403, do'konni faqat egasi ochadi (T-138)
+model PlatformSettings {
+  id               Int      @id @db.SmallInt
+  registrationMode String   @default("open") @map("registration_mode")
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
+  updatedById      String?  @map("updated_by") @db.Uuid
+
+  updatedBy PlatformAdmin? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("platform_settings")
 }
 
 /// Egasi sessiyasi — `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya, qayta ishlatishni aniqlash)
