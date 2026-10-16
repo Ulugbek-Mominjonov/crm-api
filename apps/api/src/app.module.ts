@@ -44,6 +44,7 @@ import { InvariantsModule } from '@/modules/invariants/invariants.module'
 import { BillingModule } from '@/modules/billing/billing.module'
 import { AccountModule } from '@/modules/account/account.module'
 import { BackupModule } from '@/modules/backup/backup.module'
+import { PlatformModule } from '@/modules/platform/platform.module'
 import { RealtimeModule } from '@/modules/realtime/realtime.module'
 import { QueueModule } from '@/modules/queue/queue.module'
 
@@ -108,6 +109,8 @@ import { QueueModule } from '@/modules/queue/queue.module'
     BillingModule,
     AccountModule,
     BackupModule,
+    // Platforma egasi paneli (T-135): do'konlar ustidan nazorat
+    PlatformModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },

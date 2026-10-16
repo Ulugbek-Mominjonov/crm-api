@@ -25,6 +25,8 @@ def collect(api_dir: Path) -> list[dict]:
             sect = s[st:end]
             prefix = re.match(r"@Controller\(\s*(?:'([^']*)')?", sect).group(1) or ''
             cls_public = '@Public()' in cls_head
+            # Egasi paneli controller'i (T-135): egasi tokeni, do'kon tokeni rad etiladi
+            cls_platform = '@PlatformRoute()' in cls_head
             body = sect[sect.index('export class'):]
             # Metod imzolari (2 bo'sh joy chekinish)
             sigs = list(re.finditer(r"\n  (?:async\s+)?([a-zA-Z][a-zA-Z0-9]*)\(", body))
@@ -52,6 +54,7 @@ def collect(api_dir: Path) -> list[dict]:
                     handler=name,
                     perm=f'{perm.group(1)}.{perm.group(2)}' if perm else None,
                     public=cls_public or '@Public()' in block,
+                    platform=cls_platform,
                     idem='@Idempotent()' in block,
                     ifmatch='@ApiIfMatch()' in block,
                     audit=re.findall(r"@AuditAction\('([^']+)'\)", block)
@@ -69,5 +72,5 @@ if __name__ == '__main__':
     found = collect(Path(__file__).resolve().parents[2] / 'apps' / 'api')
     print(len(found))
     for r in found:
-        flags = ' '.join(k for k in ['public', 'idem', 'ifmatch', 'readonly_ok', 'manualtx', 'plan'] if r[k])
+        flags = ' '.join(k for k in ['public', 'platform', 'idem', 'ifmatch', 'readonly_ok', 'manualtx', 'plan'] if r[k])
         print(f"{r['method']:6} {r['path']:48} {r['perm'] or '-':18} {flags} {r['throttle'] or ''}")

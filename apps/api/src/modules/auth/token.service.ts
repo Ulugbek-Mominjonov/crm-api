@@ -25,6 +25,24 @@ export interface AccessTokenPayload {
   jti: string
 }
 
+/**
+ * Platforma egasi tokeni (T-135): `kind` — ATAYLAB do'kon tokenidan farqli
+ * tarkib. Do'kon yo'llari bu tokenni, egasi yo'llari do'kon tokenini rad
+ * etadi — bitta imzo kaliti, lekin ikki hech qachon kesishmaydigan huquq.
+ */
+export interface PlatformTokenPayload {
+  /** platformAdminId */
+  sub: string
+  kind: 'platform'
+  jti: string
+}
+
+export type TokenPayload = AccessTokenPayload | PlatformTokenPayload
+
+export function isPlatformToken(payload: TokenPayload): payload is PlatformTokenPayload {
+  return (payload as PlatformTokenPayload).kind === 'platform'
+}
+
 @Injectable()
 export class TokenService {
   private readonly privateKey: string
@@ -45,7 +63,7 @@ export class TokenService {
 
   /** RS256 — kelajakda boshqa servis faqat OCHIQ kalit bilan tekshira oladi */
   async signAccess(
-    payload: Omit<AccessTokenPayload, 'jti'>,
+    payload: Omit<AccessTokenPayload, 'jti'> | Omit<PlatformTokenPayload, 'jti'>,
   ): Promise<{ token: string; jti: string; expiresIn: number }> {
     const jti = randomUUID()
     // `jti` payload'ga qo'lda yozilmaydi — `jwtid` orqali beriladi, shunda
@@ -59,8 +77,8 @@ export class TokenService {
     return { token, jti, expiresIn: this.accessTtlSec }
   }
 
-  async verifyAccess(token: string): Promise<AccessTokenPayload> {
-    return this.jwt.verifyAsync<AccessTokenPayload>(token, {
+  async verifyAccess(token: string): Promise<TokenPayload> {
+    return this.jwt.verifyAsync<TokenPayload>(token, {
       algorithms: ['RS256'],
       publicKey: this.publicKey,
     })

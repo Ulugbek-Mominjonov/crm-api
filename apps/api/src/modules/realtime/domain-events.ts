@@ -22,6 +22,12 @@ export interface DomainEventMap {
    * `GET /auth/me` ni qayta so'raydi (menyu va tugmalar yangi ruxsatlar bilan)
    */
   'access.changed': Record<string, never>
+  /**
+   * Do'kon holati yoki tarifi platforma tomonidan o'zgardi (T-135): blok,
+   * blokdan chiqarish, qo'lda to'lov — ochiq ilovalar `GET /auth/me` yoki
+   * `GET /tenants/current` ni qayta so'raydi (banner, tarif)
+   */
+  'tenant.status': { status: string; plan: string }
 }
 
 export type DomainEventType = keyof DomainEventMap

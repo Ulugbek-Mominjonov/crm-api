@@ -18,9 +18,22 @@ export interface RequestContext {
   role?: SystemRole | null
   /** Rol ruxsatlari — har so'rovda bazadan (kesh), tokendan emas */
   permissions?: PermissionSet
+  /** Platforma egasi so'rovi (T-135) — tenant yo'q, do'kon ichidagi amal `withTenant` bilan */
+  platformAdminId?: string
 }
 
 const storage = new AsyncLocalStorage<RequestContext>()
+
+/**
+ * Joriy kontekstni berilgan tenant bilan ICHMA-ICH ishga tushiradi (T-135):
+ * egasi paneli bitta do'kon ichida amal qilganda audit jurnali va loglar
+ * o'sha do'konga yoziladi. `userId` ataylab yo'q — jurnalda «Platforma».
+ */
+export function withTenant<T>(tenantId: string, fn: () => T): T {
+  const ctx = storage.getStore()
+  if (!ctx) throw new Error('So‘rov konteksti yo‘q: middleware ishlamagan')
+  return storage.run({ ...ctx, tenantId, userId: undefined, role: undefined, permissions: undefined }, fn)
+}
 
 /** Berilgan kontekstda funksiyani ishga tushiradi */
 export function runWithContext<T>(ctx: RequestContext, fn: () => T): T {

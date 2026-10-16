@@ -9017,6 +9017,1345 @@
           "backup"
         ]
       }
+    },
+    "/api/v1/platform/auth/login": {
+      "post": {
+        "description": "Access token javobda (`kind: platform` — do‘kon yo‘llarida o‘tmaydi), refresh token `platform_refresh` httpOnly cookie’da.",
+        "operationId": "PlatformAuth_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlatformLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformLoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Egasi paneliga kirish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/refresh": {
+      "post": {
+        "description": "Rotatsiya: eski cookie bekor, yangisi beriladi; bekor qilingani qayta ishlatilsa barcha sessiyalar yopiladi.",
+        "operationId": "PlatformAuth_refresh",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformLoginResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_REFRESH | AUTH_TOKEN_REUSE",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "platform_refresh": []
+          }
+        ],
+        "summary": "Egasi access tokenini yangilash",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/logout": {
+      "post": {
+        "operationId": "PlatformAuth_logout",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "ok": true
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Egasi panelidan chiqish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/auth/me": {
+      "get": {
+        "operationId": "PlatformAuth_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformAdminDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Joriy egasi",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants": {
+      "get": {
+        "description": "Nom bo‘yicha qidiruv, holat/tarif filtri, muddati tugayotganlar; har qatorda ishlatilgan resurslar, administrator aloqasi, so‘nggi faollik.",
+        "operationId": "PlatformTenants_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Matn qidiruvi",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "-createdAt",
+              "type": "string",
+              "enum": [
+                "id",
+                "-id",
+                "name",
+                "-name",
+                "createdAt",
+                "-createdAt",
+                "planExpiresAt",
+                "-planExpiresAt"
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "active",
+                "suspended",
+                "blocked",
+                "deleting"
+              ]
+            }
+          },
+          {
+            "name": "plan",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "free",
+                "basic",
+                "pro"
+              ]
+            }
+          },
+          {
+            "name": "expiresWithinDays",
+            "required": false,
+            "in": "query",
+            "description": "Pullik tarifi shuncha kun ichida tugaydiganlar (muddati o‘tganlar ham kiradi); `0` — faqat o‘tganlar",
+            "schema": {
+              "minimum": 0,
+              "maximum": 365,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "total",
+                    "pageCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformTenantDto"
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 137
+                    },
+                    "pageCount": {
+                      "type": "integer",
+                      "example": 7
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘konlar ro‘yxati",
+        "tags": [
+          "platform"
+        ]
+      },
+      "post": {
+        "description": "Ro‘yxatdan o‘tish bilan bir xil: do‘kon, sozlama, sukut ombor, tizim rollari va egasi (administrator) hisobi. Pullik boshlang‘ich tarif — `bonus` hisob-faktura (summa 0).",
+        "operationId": "PlatformTenants_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon ochish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}": {
+      "get": {
+        "operationId": "PlatformTenants_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon kartasi",
+        "tags": [
+          "platform"
+        ]
+      },
+      "patch": {
+        "operationId": "PlatformTenants_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Nom va egasi izohi",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/block": {
+      "post": {
+        "description": "Do‘kon faqat o‘qiydi (423 `TENANT_READ_ONLY`, `meta.status: blocked`), kirish ishlaydi. To‘lov blokni OCHMAYDI, do‘kon o‘zi olib tashlay olmaydi. Sabab — do‘kon administratoriga ko‘rinadi.",
+        "operationId": "PlatformTenants_block",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlockTenantDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘konni bloklash",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/unblock": {
+      "post": {
+        "description": "Tarif muddati o‘tgan bo‘lsa — `suspended`, aks holda `active`.",
+        "operationId": "PlatformTenants_unblock",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — holat bunga yo‘l qo‘ymaydi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Blokdan chiqarish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/plan": {
+      "post": {
+        "description": "Pullik tarif — `paid` hisob-faktura (`provider`: `cash`, `transfer`, `bonus`) va tarif Payme/Click to‘lovi bilan bir xil qoidada uzayadi (o‘sha tarif — joriy muddat oxiridan, boshqa tarif — hozirdan; `suspended` ochiladi, `blocked` ochilmaydi). `free` — tarif darhol bepul, muddat o‘chadi.",
+        "operationId": "PlatformTenants_grantPlan",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantPlanDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Tarif berish / qo‘lda to‘lov",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/delete": {
+      "post": {
+        "description": "Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.",
+        "operationId": "PlatformTenants_requestDeletion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — holat bunga yo‘l qo‘ymaydi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘konni o‘chirish (30 kun muhlat)",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/restore": {
+      "post": {
+        "description": "Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.",
+        "operationId": "PlatformTenants_cancelDeletion",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformTenantDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — holat bunga yo‘l qo‘ymaydi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "O‘chirishni bekor qilish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/users": {
+      "get": {
+        "description": "Qo‘llab-quvvatlash: kim kira oladi, oxirgi kirish; parolni tiklash uchun `userId`.",
+        "operationId": "PlatformTenants_users",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlatformTenantUserDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon kirish hisoblari",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/users/{userId}/reset-password": {
+      "post": {
+        "description": "Foydalanuvchining barcha sessiyalari yopiladi; do‘kon jurnalida «Platforma» yozuvi qoladi.",
+        "operationId": "PlatformTenants_resetPassword",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetUserPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Parol o‘zgartirildi"
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND — do‘kon yoki hisob",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon hisobiga yangi parol",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/tenants/{id}/invoices": {
+      "get": {
+        "description": "Onlayn (Payme/Click) va qo‘lda yozilgan to‘lovlar — bitta ro‘yxat.",
+        "operationId": "PlatformTenants_invoices",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Bitta do‘kon",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "pending",
+                "paid",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "payme",
+                "click",
+                "cash",
+                "transfer",
+                "bonus"
+              ]
+            }
+          },
+          {
+            "name": "dateFrom",
+            "required": false,
+            "in": "query",
+            "description": "Yaratilgan sana, Toshkent kuni (shu kundan)",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dateTo",
+            "required": false,
+            "in": "query",
+            "description": "Shu kungacha (kiradi)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "total",
+                    "pageCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformInvoiceDto"
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 137
+                    },
+                    "pageCount": {
+                      "type": "integer",
+                      "example": 7
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon hisob-fakturalari",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/stats": {
+      "get": {
+        "description": "Do‘konlar holat va tarif bo‘yicha, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy).",
+        "operationId": "Platform_getStats",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformStatsDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Boshqaruv paneli",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/invoices": {
+      "get": {
+        "description": "Holat, provayder (onlayn yoki qo‘lda), sana oralig‘i va do‘kon bo‘yicha filtr; eng yangisi birinchi.",
+        "operationId": "Platform_invoices",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Bitta do‘kon",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "created",
+                "pending",
+                "paid",
+                "cancelled"
+              ]
+            }
+          },
+          {
+            "name": "provider",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "payme",
+                "click",
+                "cash",
+                "transfer",
+                "bonus"
+              ]
+            }
+          },
+          {
+            "name": "dateFrom",
+            "required": false,
+            "in": "query",
+            "description": "Yaratilgan sana, Toshkent kuni (shu kundan)",
+            "schema": {
+              "example": "2026-10-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dateTo",
+            "required": false,
+            "in": "query",
+            "description": "Shu kungacha (kiradi)",
+            "schema": {
+              "example": "2026-10-31",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "total",
+                    "pageCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformInvoiceDto"
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 137
+                    },
+                    "pageCount": {
+                      "type": "integer",
+                      "example": 7
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Barcha do‘konlar hisob-fakturalari",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/audit": {
+      "get": {
+        "description": "Kim, qachon, qaysi do‘konga nima qildi (blok, tarif, parol, ochish, o‘chirish); faqat qo‘shiladi.",
+        "operationId": "Platform_auditLog",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Bitta do‘kon tarixi",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "group",
+            "required": false,
+            "in": "query",
+            "description": "Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `user`, `platform`",
+            "schema": {
+              "example": "tenant",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "total",
+                    "pageCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformAuditEntryDto"
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 137
+                    },
+                    "pageCount": {
+                      "type": "integer",
+                      "example": 7
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Egasi amallari jurnali",
+        "tags": [
+          "platform"
+        ]
+      }
     }
   },
   "info": {
@@ -9133,6 +10472,10 @@
     {
       "name": "audit",
       "description": "Amallar jurnali (faqat o‘qish)"
+    },
+    {
+      "name": "platform",
+      "description": "Platforma egasi paneli: do‘konlar, bloklash, tarif va to‘lovlar, jurnal (alohida kirish)"
     }
   ],
   "servers": [],
@@ -9275,9 +10618,10 @@
             "enum": [
               "active",
               "suspended",
+              "blocked",
               "deleting"
             ],
-            "description": "`suspended` (to‘lov kutilmoqda) va `deleting` (o‘chirish muhlatida) — kirish mumkin, yozish yo‘q (423 `TENANT_READ_ONLY`)"
+            "description": "`suspended` (to‘lov kutilmoqda), `blocked` (platforma to‘xtatgan) va `deleting` (o‘chirish muhlatida) — kirish mumkin, yozish yo‘q (423 `TENANT_READ_ONLY`)"
           }
         },
         "required": [
@@ -17142,8 +18486,12 @@
             "nullable": true,
             "enum": [
               "payme",
-              "click"
-            ]
+              "click",
+              "cash",
+              "transfer",
+              "bonus"
+            ],
+            "description": "`payme`/`click` — onlayn; `cash`/`transfer`/`bonus` — platforma qo‘lda yozgan (naqd, o‘tkazma, bonus muddat)"
           },
           "createdAt": {
             "type": "string",
@@ -17344,9 +18692,10 @@
             "enum": [
               "active",
               "suspended",
+              "blocked",
               "deleting"
             ],
-            "description": "`suspended`/`deleting` — faqat o‘qish"
+            "description": "`suspended`/`blocked`/`deleting` — faqat o‘qish"
           },
           "planExpiresAt": {
             "type": "string",
@@ -17358,6 +18707,11 @@
             "nullable": true,
             "format": "date-time",
             "description": "Shu vaqtdan keyin ma’lumot to‘liq o‘chadi"
+          },
+          "blockedReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Platforma bloklagan bo‘lsa — sababi (bannerda ko‘rsating); to‘lov blokni ochmaydi"
           },
           "limits": {
             "$ref": "#/components/schemas/PlanLimitsDto"
@@ -17373,6 +18727,7 @@
           "status",
           "planExpiresAt",
           "deletionScheduledAt",
+          "blockedReason",
           "limits",
           "usage"
         ]
@@ -17421,6 +18776,684 @@
           "sizeBytes",
           "url",
           "expiresAt"
+        ]
+      },
+      "PlatformLoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "example": "owner@workspaces.uz"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "PlatformAdminDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "example": "owner@workspaces.uz"
+          },
+          "name": {
+            "type": "string",
+            "example": "Ulug‘bek"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "lastLoginAt"
+        ]
+      },
+      "PlatformLoginResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "number",
+            "example": 900,
+            "description": "Soniyada"
+          },
+          "admin": {
+            "$ref": "#/components/schemas/PlatformAdminDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "expiresIn",
+          "admin"
+        ]
+      },
+      "TenantUsageDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "number",
+            "description": "Faol kirish hisoblari"
+          },
+          "warehouses": {
+            "type": "number",
+            "description": "Arxivlanmagan omborlar"
+          },
+          "storageBytes": {
+            "type": "number",
+            "description": "S3 da band hajm (bayt)"
+          }
+        },
+        "required": [
+          "users",
+          "warehouses",
+          "storageBytes"
+        ]
+      },
+      "TenantAdminContactDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ali Valiyev"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@dokon.uz"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+998901234567"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "phone"
+        ]
+      },
+      "TenantActivityDto": {
+        "type": "object",
+        "properties": {
+          "lastSaleAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Oxirgi chek"
+          },
+          "sales30d": {
+            "type": "number",
+            "description": "So‘nggi 30 kundagi cheklar soni"
+          }
+        },
+        "required": [
+          "lastSaleAt",
+          "sales30d"
+        ]
+      },
+      "PlatformTenantDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Qurilish Mollari"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "basic",
+              "pro"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended",
+              "blocked",
+              "deleting"
+            ],
+            "description": "`active` dan boshqasi — do‘kon faqat o‘qiydi"
+          },
+          "planExpiresAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Pullik tarif muddati (`free` — null)"
+          },
+          "deletionScheduledAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Shu vaqtda ma’lumot to‘liq o‘chadi"
+          },
+          "blockedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Egasi bloklagan payt (holat `deleting` bo‘lsa ham saqlanadi)"
+          },
+          "blockedReason": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true,
+            "description": "Egasi izohi — do‘kon ko‘rmaydi"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimitsDto"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/TenantUsageDto"
+          },
+          "admin": {
+            "nullable": true,
+            "description": "Birinchi administrator (egasi)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TenantAdminContactDto"
+              }
+            ]
+          },
+          "activity": {
+            "$ref": "#/components/schemas/TenantActivityDto"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "plan",
+          "status",
+          "planExpiresAt",
+          "deletionScheduledAt",
+          "blockedAt",
+          "blockedReason",
+          "notes",
+          "createdAt",
+          "limits",
+          "usage",
+          "admin",
+          "activity"
+        ]
+      },
+      "CreateTenantDto": {
+        "type": "object",
+        "properties": {
+          "storeName": {
+            "type": "string",
+            "example": "Ali Qurilish Mollari",
+            "maxLength": 120
+          },
+          "ownerName": {
+            "type": "string",
+            "example": "Ali Valiyev",
+            "maxLength": 120
+          },
+          "phone": {
+            "type": "string",
+            "example": "+998901234567"
+          },
+          "email": {
+            "type": "string",
+            "example": "ali@dokon.uz"
+          },
+          "password": {
+            "type": "string",
+            "example": "Qurilish2026!",
+            "description": "Kamida 8 belgi; ommabop parollar rad etiladi"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "basic",
+              "pro"
+            ],
+            "default": "free",
+            "description": "Boshlang‘ich tarif; pullik bo‘lsa `months` shart (bonus sifatida yoziladi)"
+          },
+          "months": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Pullik tarif muddati (oy) — pullik tarifda SHART"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Egasi izohi"
+          }
+        },
+        "required": [
+          "storeName",
+          "ownerName",
+          "phone",
+          "email",
+          "password"
+        ]
+      },
+      "UpdateTenantDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true,
+            "description": "Bo‘sh satr — izoh o‘chadi"
+          }
+        }
+      },
+      "BlockTenantDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Sabab — do‘kon administratori `GET /tenants/current` da ko‘radi"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "GrantPlanDto": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "free",
+              "basic",
+              "pro"
+            ]
+          },
+          "months": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 12,
+            "description": "Pullik tarifda SHART"
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "transfer",
+              "bonus"
+            ],
+            "description": "Pullik tarifda SHART: `cash` naqd, `transfer` o‘tkazma, `bonus` — bepul muddat (summa 0)"
+          },
+          "amount": {
+            "type": "number",
+            "description": "Olingan summa (so‘m). Berilmasa — tarif narxi × oy; `bonus` — 0"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Kvitansiya raqami, kelishuv …"
+          }
+        },
+        "required": [
+          "plan"
+        ]
+      },
+      "PlatformTenantUserDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string",
+            "example": "Bobur Toshmatov"
+          },
+          "email": {
+            "type": "string",
+            "example": "kassir@crm.uz"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "manager",
+              "sotuvchi",
+              "omborchi"
+            ],
+            "nullable": true,
+            "description": "Tizim roli kaliti; do‘kon yaratgan rolda — `null`"
+          },
+          "roleName": {
+            "type": "string",
+            "example": "Sotuvchi"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "lastLoginAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email",
+          "role",
+          "roleName",
+          "isActive",
+          "lastLoginAt",
+          "createdAt"
+        ]
+      },
+      "ResetUserPasswordDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "Yangi parol (kamida 8 belgi); foydalanuvchining barcha sessiyalari yopiladi"
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "PlatformInvoiceDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantName": {
+            "type": "string",
+            "example": "Qurilish Mollari"
+          },
+          "plan": {
+            "type": "string",
+            "enum": [
+              "basic",
+              "pro"
+            ]
+          },
+          "months": {
+            "type": "number"
+          },
+          "amount": {
+            "type": "number",
+            "description": "So‘m"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "created",
+              "pending",
+              "paid",
+              "cancelled"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "payme",
+              "click",
+              "cash",
+              "transfer",
+              "bonus"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "paidAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "tenantName",
+          "plan",
+          "months",
+          "amount",
+          "state",
+          "provider",
+          "note",
+          "createdAt",
+          "paidAt"
+        ]
+      },
+      "TenantCountsDto": {
+        "type": "object",
+        "properties": {
+          "total": {
+            "type": "number",
+            "description": "Barcha do‘konlar"
+          },
+          "byStatus": {
+            "type": "object",
+            "example": {
+              "active": 10,
+              "suspended": 2,
+              "blocked": 1,
+              "deleting": 0
+            },
+            "description": "Holat bo‘yicha"
+          },
+          "byPlan": {
+            "type": "object",
+            "example": {
+              "free": 8,
+              "basic": 3,
+              "pro": 2
+            },
+            "description": "Tarif bo‘yicha"
+          },
+          "newThisMonth": {
+            "type": "number",
+            "description": "Shu oyda ochilganlar (Toshkent oyi)"
+          },
+          "expiringIn7Days": {
+            "type": "number",
+            "description": "Pullik tarifi 7 kun ichida tugaydiganlar"
+          },
+          "overdue": {
+            "type": "number",
+            "description": "Muddati o‘tgan, hali to‘xtatilmagan (3 kunlik imtiyozda)"
+          }
+        },
+        "required": [
+          "total",
+          "byStatus",
+          "byPlan",
+          "newThisMonth",
+          "expiringIn7Days",
+          "overdue"
+        ]
+      },
+      "RevenueMonthDto": {
+        "type": "object",
+        "properties": {
+          "month": {
+            "type": "string",
+            "example": "2026-10-01",
+            "description": "Oy boshi"
+          },
+          "amount": {
+            "type": "number",
+            "description": "To‘langan summa (so‘m)"
+          },
+          "invoices": {
+            "type": "number",
+            "description": "To‘langan hisob-fakturalar soni"
+          }
+        },
+        "required": [
+          "month",
+          "amount",
+          "invoices"
+        ]
+      },
+      "RevenueDto": {
+        "type": "object",
+        "properties": {
+          "thisMonth": {
+            "type": "number",
+            "description": "Joriy oy (so‘m)"
+          },
+          "lastMonth": {
+            "type": "number",
+            "description": "O‘tgan oy (so‘m)"
+          },
+          "months": {
+            "description": "So‘nggi 12 oy — to‘lov bo‘lmagan oy ro‘yxatda yo‘q",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevenueMonthDto"
+            }
+          }
+        },
+        "required": [
+          "thisMonth",
+          "lastMonth",
+          "months"
+        ]
+      },
+      "PlatformStatsDto": {
+        "type": "object",
+        "properties": {
+          "tenants": {
+            "$ref": "#/components/schemas/TenantCountsDto"
+          },
+          "revenue": {
+            "$ref": "#/components/schemas/RevenueDto"
+          }
+        },
+        "required": [
+          "tenants",
+          "revenue"
+        ]
+      },
+      "PlatformAuditAdminDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "email"
+        ]
+      },
+      "PlatformAuditEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "example": "tenant.block"
+          },
+          "admin": {
+            "nullable": true,
+            "description": "`null` — tizim (ishga tushishdagi bootstrap)",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlatformAuditAdminDto"
+              }
+            ]
+          },
+          "targetTenantId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Qaysi do‘kon (o‘chirilgan bo‘lsa ham id qoladi)"
+          },
+          "targetTenantName": {
+            "type": "string",
+            "nullable": true,
+            "example": "Qurilish Mollari",
+            "description": "Do‘kon nomi (o‘chirilgan bo‘lsa `null`)"
+          },
+          "entityType": {
+            "type": "string",
+            "nullable": true
+          },
+          "entityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "diff": {
+            "type": "object",
+            "nullable": true,
+            "description": "Amal tafsiloti (sabab, tarif, summa …)"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "admin",
+          "targetTenantId",
+          "targetTenantName",
+          "entityType",
+          "entityId",
+          "diff",
+          "createdAt"
         ]
       }
     }

@@ -7,8 +7,9 @@ savol qolmasligi.
 | Fayl | Nima bor |
 |------|----------|
 | **README.md** (shu fayl) | Umumiy qoidalar, auth oqimi, xatolar, rollar, realtime, biznes qoidalari, ekran → endpoint xaritasi, qadam-baqadam oqimlar, frontend vazifalari, ma’lum muammolar |
-| [endpoints.md](endpoints.md) | **150 ta endpoint** — har biri: nima uchun/qachon, huquq, sarlavhalar, parametrlar, so‘rov tanasi, javob, xatolar, realtime hodisa |
-| [schemas.md](schemas.md) | **193 ta DTO** — har bir maydon: tip, majburiymi, izoh, cheklovlar |
+| [endpoints.md](endpoints.md) | **179 ta endpoint** — har biri: nima uchun/qachon, huquq, sarlavhalar, parametrlar, so‘rov tanasi, javob, xatolar, realtime hodisa |
+| [schemas.md](schemas.md) | **222 ta DTO** — har bir maydon: tip, majburiymi, izoh, cheklovlar |
+| [owner-panel.md](owner-panel.md) | **Egasi paneli** — ALOHIDA ilova (`owner.workspaces.uz`, repo `crm-owner`): platforma egasining do‘konlar ustidan nazorati; do‘kon ilovasi uchun emas |
 
 **Haqiqat manbai** — kod. `endpoints.md` va `schemas.md` `apps/api/openapi.json` dan generatsiya
 qilingan (`npm run docs:api`, generator — `scripts/api-docs/`); `openapi.json` esa kodning o‘zidan
@@ -73,12 +74,13 @@ login’da do‘kon tanlash).
 | Migratsiya | Brauzerdagi eski (localStorage) ma’lumotni serverga ko‘chirish: dry-run + import |
 | Tarif / to‘lov | `free`/`basic`/`pro` chegaralari, hisob-faktura, Payme va Click webhook’lari, muddati o‘tgan do‘kon — faqat o‘qish |
 | Hayot sikli | Do‘konni o‘chirish (30 kun muhlat, bekor qilish mumkin) |
+| Egasi paneli | Platforma egasi uchun alohida kirish va API (`/platform/*`): do‘konlar ro‘yxati, ochish, bloklash (`blocked` — faqat o‘qish), tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali — [owner-panel.md](owner-panel.md) |
 | Realtime | `/events` — sotuv, qoldiq, smena, qarz, yetkazish, kirim, sozlama, huquq hodisalari |
 | Audit | Har bir pul/ombor/spravochnik amali jurnalga yoziladi |
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
 Uni serverga ulash — frontend vazifasi ([13-bo‘lim](#tasks)). Backend tomoni tayyor va sinalgan
-(267 unit + 577 e2e test).
+(267 unit + 592 e2e test).
 
 ---
 
@@ -466,9 +468,9 @@ foydalanuvchi ma’lumoti login/refresh javobidagi `user` da:
 - **401 `AUTH_INVALID_CREDENTIALS`** — email yoki parol xato (qaysi biri — aytilmaydi).
 - **409 `AUTH_TENANT_REQUIRED`** — bu email + parol bir nechta do‘konda bor. `errors[]` da
   `meta: { tenantId, tenantName }` ro‘yxati → do‘kon tanlash oynasi → xuddi shu so‘rov + `tenantId`.
-- **423 `AUTH_ACCOUNT_LOCKED`** — xodim ishdan bo‘shatilgan. To‘xtatilgan (`suspended`) yoki
-  o‘chirilayotgan (`deleting`) do‘konga kirish MUMKIN — `user.tenant.status` bo‘yicha faqat-o‘qish
-  bannerini ko‘rsating ([8.1](#tenant)).
+- **423 `AUTH_ACCOUNT_LOCKED`** — xodim ishdan bo‘shatilgan. To‘xtatilgan (`suspended`), bloklangan
+  (`blocked`) yoki o‘chirilayotgan (`deleting`) do‘konga kirish MUMKIN — `user.tenant.status` bo‘yicha
+  faqat-o‘qish bannerini ko‘rsating ([8.1](#tenant)).
 - **429** — daqiqasiga 10 urinishdan oshdi.
 
 Yangi do‘kon — `POST /tenants/register` (javob login bilan bir xil, foydalanuvchi darhol kirgan,
@@ -1033,6 +1035,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 |----------|--------|-------------|
 | `active` | Oddiy holat | Hammasi |
 | `suspended` | Pullik tarif muddati (`planExpiresAt`) + 3 kun imtiyoz o‘tdi (har kecha 01:00 da tekshiriladi) | Faqat O‘QISH + to‘lov (`POST /billing/invoices`), zaxira, chiqish, parol |
+| `blocked` | Platforma egasi do‘konni blokladi (sabab — `GET /tenants/current` → `blockedReason`) | Faqat O‘QISH, zaxira, chiqish, parol. To‘lov blokni OCHMAYDI (tarif uzayadi, holat qoladi); do‘kon o‘zi blokni olib tashlay olmaydi — platformaga murojaat |
 | `deleting` | Admin do‘konni o‘chirishni so‘radi (`POST /tenants/current/delete`) | Faqat O‘QISH + o‘chirishni bekor qilish, zaxira, chiqish, parol. 30 kundan keyin hamma ma’lumot va fayllar o‘chadi |
 
 Faqat-o‘qish holatida har yozuvchi so‘rov (POST/PATCH/DELETE) → **423 `TENANT_READ_ONLY`**
@@ -1046,9 +1049,13 @@ uchun batafsil — `GET /tenants/current` (`planExpiresAt`, `deletionScheduledAt
 
 UI: `status` bo‘yicha butun ilova tepasida banner, yozuvchi tugmalar o‘chirilgan:
 `suspended` — «Tarif muddati tugagan — to‘lovdan keyin yozish ochiladi» + «To‘lash» (admin);
+`blocked` — «Do‘kon platforma tomonidan to‘xtatilgan — faqat o‘qish» + admin uchun `blockedReason` va
+«Platforma bilan bog‘laning» (to‘lash tugmasi blokni ochmaydi);
 `deleting` — «Do‘kon {deletionScheduledAt} da o‘chiriladi» + «Bekor qilish» (admin). To‘lov yoki
 bekor qilishdan keyin holatni yangilash uchun `POST /auth/refresh` yoki `GET /auth/me` ni qayta
-chaqiring (yoki 423 dagi `meta.status` ga tayaning).
+chaqiring (yoki 423 dagi `meta.status` ga tayaning). Platforma holatni o‘zgartirganda (blok, tarif)
+`tenant.status` realtime hodisasi keladi ([9.2](#realtime)) — `GET /auth/me` va `GET /tenants/current`
+ni qayta so‘rang. O‘chirishdan qaytganda (`restore`) blok bo‘lsa holat `blocked` ga qaytadi.
 
 ### 8.2 Tariflar va chegaralar
 
@@ -1083,6 +1090,8 @@ Manba — `packages/shared/src/plans.ts`. Narx — oyiga.
    `GET /billing/invoices` (`state`) va `GET /tenants/current` — realtime hodisa YO‘Q.
 
 Hisob-faktura holatlari: `created` → `pending` (provayder boshladi) → `paid` / `cancelled`.
+`GET /billing/invoices` da `provider` `payme`/`click` dan tashqari `cash`, `transfer`, `bonus` ham bo‘lishi
+mumkin — platforma egasi qo‘lda yozgan to‘lov (naqd, o‘tkazma, bonus muddat); ro‘yxatda shunday ko‘rsating.
 
 ### 8.4 Do‘konni o‘chirish
 
@@ -1145,6 +1154,7 @@ COMMIT’dan keyin, do‘konning BARCHA ulanishlariga (amalni qilgan foydalanuvc
 | `po.received` | `{ orderId, productIds }` | Kirim buyurtmasini qabul qilish | buyurtmalar (ro‘yxat, summary, karta), mahsulotlar (`productIds`), ta’minotchilar (qarz), harakatlar |
 | `settings.updated` | `{}` | `PATCH /settings` (rang, logotip, nom …), logotip faylini o‘chirish | `GET /settings` (brend rangi va logotip sahifa yangilanmasdan o‘zgaradi) |
 | `access.changed` | `{}` | Rol ruxsatlari tahriri (`PATCH /roles/:id`), rolni o‘chirish, foydalanuvchiga boshqa rol (`PATCH /users/:id`) | `GET /auth/me` (o‘z `permissions` i — menyu va tugmalar), `GET /roles`, `GET /users`. Refresh CHAQIRILMAYDI ([6.5](#access-changed)) |
+| `tenant.status` | `{ status, plan }` | Platforma egasi: blok / blokdan chiqarish, tarif yoki qo‘lda to‘lov, o‘chirish / qaytarish ([8.1](#tenant)) | `GET /auth/me` (`user.tenant.status` — banner), `GET /tenants/current` (tarif, `blockedReason`), `GET /billing/invoices` |
 
 Hodisa kelmaydigan amallar (masalan spravochnik tahriri, xarajat, naqd harakat, SMS, migratsiya)
 — o‘z mutatsiyasidan keyin kesh bekor qilinadi; boshqa foydalanuvchilarda ma’lumot sahifa
@@ -2063,6 +2073,14 @@ tanlangan ombor, til, mavzu, offline navbat.
    bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da kimga ruxsat berishni hal qiling.
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-17** — platforma egasi paneli (T-135): alohida ilova ([owner-panel.md](owner-panel.md)); do‘kon ilovasiga ta’siri:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Holatlar: `active`, `suspended`, `deleting` | + `blocked` — platforma egasi bloklagan: faqat o‘qish (423, `meta.status: blocked`), to‘lov ochmaydi; `GET /tenants/current` → `blockedReason` ([8.1](#tenant)) | Banner matni va admin uchun sabab; «To‘lash» blokni ochmasligi aytilsin |
+| Holat faqat do‘kon amali bilan o‘zgarardi | Platforma o‘zgartirsa `tenant.status` hodisasi ([9.2](#realtime)) | `GET /auth/me`, `GET /tenants/current` qayta so‘rash |
+| `InvoiceDto.provider`: `payme`, `click` | + `cash`, `transfer`, `bonus` (egasi qo‘lda yozgan) | To‘lovlar ro‘yxatida nom |
 
 **2026-10-16** — do‘kon rollari va ruxsatlar (T-134), frontendga ta’sir qiladi ([6](#roles)):
 

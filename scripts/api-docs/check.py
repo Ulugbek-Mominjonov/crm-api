@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 DOCS = Path(__file__).resolve().parents[2] / 'docs' / 'api'
-FILES = ['README.md', 'endpoints.md', 'schemas.md']
+FILES = ['README.md', 'endpoints.md', 'schemas.md', 'owner-panel.md']
 PIPE = re.compile(r'(?<!\\)\|')
 SEPARATOR = re.compile(r'^\|[\s:|-]+\|$')
 

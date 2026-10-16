@@ -3,7 +3,7 @@ import {
   WebSocketGateway, WebSocketServer, type OnGatewayConnection, type OnGatewayDisconnect, type OnGatewayInit,
 } from '@nestjs/websockets'
 import type { Namespace, Socket } from 'socket.io'
-import { TokenService } from '@/modules/auth/token.service'
+import { isPlatformToken, TokenService } from '@/modules/auth/token.service'
 import { EVENTS_NAMESPACE, tenantRoom, type DomainEventMap, type DomainEventType } from './domain-events'
 
 /** Ulanish xatosi mijozga shu matn bilan (`connect_error`) — sabab aytilmaydi */
@@ -62,6 +62,8 @@ export class EventsGateway
     const payload = (await this.tokens.verifyAccess(token)) as Awaited<ReturnType<TokenService['verifyAccess']>> & {
       exp: number
     }
+    // Egasi tokenida do'kon yo'q — realtime xonasi ham yo'q (T-135)
+    if (isPlatformToken(payload)) throw new Error(UNAUTHORIZED)
     const expiry = setTimeout(() => socket.disconnect(true), Math.min(payload.exp * 1000 - Date.now(), MAX_TIMER_MS))
     expiry.unref()
     socket.data = { tenantId: payload.tid, userId: payload.sub, expiry } satisfies SocketData

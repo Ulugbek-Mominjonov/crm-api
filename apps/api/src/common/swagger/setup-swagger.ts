@@ -55,6 +55,7 @@ export function buildDocument(app: INestApplication, version: string): OpenAPIOb
     .addTag('account', 'Do‘kon hisobi: tarif, chegaralar, o‘chirish')
     .addTag('backup', 'Do‘kon zaxirasi: butun ma’lumot JSON (gzip), havola 1 soat')
     .addTag('audit', 'Amallar jurnali (faqat o‘qish)')
+    .addTag('platform', 'Platforma egasi paneli: do‘konlar, bloklash, tarif va to‘lovlar, jurnal (alohida kirish)')
     .build()
 
   return SwaggerModule.createDocument(app, config, {

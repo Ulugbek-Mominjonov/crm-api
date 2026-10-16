@@ -2,7 +2,7 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **160** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **179** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
@@ -35,6 +35,7 @@ Jami **160** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Eksport (CSV/JSON)](#exports) — 3 ta
 - [Do‘kon zaxirasi](#backup) — 1 ta
 - [Migratsiya (brauzerdagi eski ma’lumotni serverga ko‘chirish)](#migration) — 2 ta
+- [Platforma egasi paneli](#platform) — 19 ta
 - [Sog‘liq tekshiruvi](#health) — 2 ta
 
 <a id="auth"></a>
@@ -549,7 +550,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 | `400` | `VALIDATION_FAILED` — jumladan `brandColor` (#RRGGBB emas) va `logoFileId` (begona, tasdiqlanmagan yoki boshqa turdagi fayl) |
 | `403` | `PERMISSION_DENIED` |
 
-Umumiy: 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#settings)
 
@@ -632,7 +633,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
 | `409` | `ALREADY_EXISTS` — bunday nomli ombor bor |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#warehouses)
 
@@ -723,7 +724,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `404` | `NOT_FOUND` |
 | `409` | `ALREADY_EXISTS` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#warehouses)
 
@@ -757,7 +758,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 | `404` | `NOT_FOUND` |
 | `422` | `WAREHOUSE_DEFAULT_LOCKED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#warehouses)
 
@@ -789,7 +790,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#warehouses)
 
@@ -869,7 +870,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `409` | `ALREADY_EXISTS` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#categories)
 
@@ -940,7 +941,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `404` | `NOT_FOUND` |
 | `409` | `ALREADY_EXISTS` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#categories)
 
@@ -972,7 +973,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 | `404` | `NOT_FOUND` |
 | `409` | `CATEGORY_IN_USE` — kategoriyada mahsulot bor |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#categories)
 
@@ -1003,7 +1004,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#categories)
 
@@ -1127,7 +1128,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `409` | `DUPLICATE_SKU` \| `ALREADY_EXISTS` (shtrix-kod) |
 | `422` | `REFERENCE_NOT_FOUND` — kategoriya/ta’minotchi |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#products)
 
@@ -1243,7 +1244,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `409` | `DUPLICATE_SKU` \| `ALREADY_EXISTS` |
 | `422` | `REFERENCE_NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#products)
 
@@ -1274,7 +1275,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#products)
 
@@ -1308,7 +1309,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 |---|---|
 | `400` | `VALIDATION_FAILED` — so‘rov shakli |
 
-Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#products)
 
@@ -1344,7 +1345,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 |---|---|
 | `400` | `VALIDATION_FAILED` |
 
-Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#products)
 
@@ -1376,7 +1377,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 | `404` | `NOT_FOUND` |
 | `409` | `ALREADY_EXISTS` — shtrix-kod boshqa mahsulotda |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#products)
 
@@ -1431,7 +1432,7 @@ Kirim, hisobdan chiqarish, inventarizatsiya, omborlar orasida ko‘chirish, hara
 | `409` | `IDEMPOTENCY_MISMATCH` |
 | `422` | `REFERENCE_NOT_FOUND` \| `WAREHOUSE_ARCHIVED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#stock)
 
@@ -1468,7 +1469,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 |---|---|
 | `422` | `STOCK_INSUFFICIENT` — qaysi omborda yetmagani bilan |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#stock)
 
@@ -1504,7 +1505,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 |---|---|
 | `400` | `VALIDATION_FAILED` — masalan takror mahsulot |
 
-Umumiy: 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#stock)
 
@@ -1542,7 +1543,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana b
 |---|---|
 | `422` | `WAREHOUSE_SAME` \| `STOCK_INSUFFICIENT` \| `WAREHOUSE_ARCHIVED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#stock)
 
@@ -1689,7 +1690,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#clients)
 
@@ -1800,7 +1801,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#clients)
 
@@ -1832,7 +1833,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 | `404` | `NOT_FOUND` |
 | `409` | `CLIENT_HAS_DEBT` — to‘lanmagan nasiya bor |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#clients)
 
@@ -1863,7 +1864,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#clients)
 
@@ -1897,7 +1898,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | `404` | `NOT_FOUND` |
 | `422` | `RECIPIENT_UNREACHABLE` (`meta.reason: no_channel`) — bot sozlanmagan |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#clients)
 
@@ -1983,7 +1984,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `400` | `VALIDATION_FAILED` — masalan STIR 9 raqam emas |
 
-Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#suppliers)
 
@@ -2081,7 +2082,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#suppliers)
 
@@ -2113,7 +2114,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 | `404` | `NOT_FOUND` |
 | `409` | `SUPPLIER_HAS_OPEN_ORDERS` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#suppliers)
 
@@ -2144,7 +2145,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#suppliers)
 
@@ -2221,7 +2222,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#employees)
 
@@ -2296,7 +2297,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `404` | `NOT_FOUND` |
 | `422` | `LAST_ADMIN` — oxirgi administratorni bo‘shatib bo‘lmaydi |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#employees)
 
@@ -2328,7 +2329,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `VERSION_CONFLICT`
 | `404` | `NOT_FOUND` |
 | `409` | `EMPLOYEE_HAS_USER` — avval kirish hisobini o‘chiring |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#employees)
 
@@ -2359,7 +2360,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#employees)
 
@@ -2450,7 +2451,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `409` | `EMPLOYEE_HAS_USER` (`meta.userId`, `meta.deleted` — o‘chirilgan bo‘lsa uni tiklang) \| `ALREADY_EXISTS` (email) |
 | `422` | `REFERENCE_NOT_FOUND` — xodim (`employeeId`) yoki rol (`roleId`) yo‘q |
 
-Umumiy: 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#users)
 
@@ -2528,7 +2529,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `409` | `ALREADY_EXISTS` (email) |
 | `422` | `LAST_ADMIN` \| `SELF_ROLE_CHANGE` \| `SELF_DELETE` \| `REFERENCE_NOT_FOUND` (`roleId`) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#users)
 
@@ -2560,7 +2561,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan —
 | `404` | `NOT_FOUND` |
 | `422` | `LAST_ADMIN` \| `SELF_DELETE` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#users)
 
@@ -2595,7 +2596,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | `404` | `NOT_FOUND` |
 | `422` | `REFERENCE_NOT_FOUND` — xodim o‘chirilgan (avval uni tiklang) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#users)
 
@@ -2667,7 +2668,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 | `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
 | `409` | `ALREADY_EXISTS` (`name`) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#roles)
 
@@ -2763,7 +2764,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `409` | `ALREADY_EXISTS` (`name`) \| `VERSION_CONFLICT` |
 | `422` | `ROLE_PROTECTED` — `admin` roli yoki tizim rolining nomi |
 
-Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan — javobda `current`); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#roles)
 
@@ -2801,7 +2802,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan —
 | `409` | `ROLE_IN_USE` — `replaceWith` berilmagan (`meta.users` — nechta) |
 | `422` | `ROLE_PROTECTED` — tizim roli \| `REFERENCE_NOT_FOUND` (`replaceWith`) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#roles)
 
@@ -2865,7 +2866,7 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 | `422` | `STOCK_INSUFFICIENT` \| `DISCOUNT_LIMIT` \| `TOTAL_MISMATCH` \| `PAYMENT_EXCEEDS_TOTAL` \| `CREDIT_REQUIRES_CUSTOMER` \| `CREDIT_LIMIT_EXCEEDED` \| `CREDIT_OVERDUE` \| `PRODUCT_ARCHIVED` \| `WAREHOUSE_ARCHIVED` \| `REFERENCE_NOT_FOUND` |
 | `423` | `SHIFT_REQUIRED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -3001,7 +3002,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `422` | `RECIPIENT_UNREACHABLE` |
 | `503` | Telegram javob bermadi — qayta urinib ko‘ring |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -3043,7 +3044,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | `409` | `SALE_ALREADY_CANCELLED` |
 | `422` | `RETURN_EXCEEDS_SOLD` \| `SALE_NOT_RETURNABLE` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -3077,7 +3078,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `
 |---|---|
 | `409` | `SALE_ALREADY_CANCELLED` \| `SALE_NOT_CANCELLABLE` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#sales)
 
@@ -3180,7 +3181,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `409` | `SHIFT_ALREADY_OPEN` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#cash)
 
@@ -3216,7 +3217,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 |---|---|
 | `409` | `SHIFT_NOT_OPEN` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#cash)
 
@@ -3283,7 +3284,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `423` | `SHIFT_REQUIRED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#cash)
 
@@ -3427,7 +3428,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `422` | `PAYMENT_EXCEEDS_DEBT` \| `REFERENCE_NOT_FOUND` |
 | `423` | `SHIFT_REQUIRED` (naqd) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#debts)
 
@@ -3519,7 +3520,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `403` | `PERMISSION_DENIED` — sotuvchiga ulgurji narx yopiq |
 | `422` | `DISCOUNT_LIMIT` \| `PRODUCT_ARCHIVED` \| `REFERENCE_NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3618,7 +3619,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `403` | `PERMISSION_DENIED` — sotuvchiga ulgurji narx yopiq |
 | `409` | `QUOTE_ALREADY_CONVERTED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3649,7 +3650,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘k
 |---|---|
 | `409` | `QUOTE_ALREADY_CONVERTED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3680,7 +3681,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3722,7 +3723,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | `409` | `QUOTE_ALREADY_CONVERTED` |
 | `422` | `QUOTE_STOCK_SHORT` \| `CREDIT_REQUIRES_CUSTOMER` \| `CREDIT_*` \| `WAREHOUSE_ARCHIVED` \| `REFERENCE_NOT_FOUND` (ombor) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#quotes)
 
@@ -3813,7 +3814,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `422` | `REFERENCE_NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -3907,7 +3908,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `409` | `PO_ALREADY_RECEIVED` \| `PO_CANCELLED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -3936,7 +3937,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -3969,7 +3970,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 |---|---|
 | `409` | `PO_ALREADY_RECEIVED` \| `PO_CANCELLED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -4000,7 +4001,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -4041,7 +4042,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 | `409` | `PO_ALREADY_RECEIVED` \| `PO_CANCELLED` |
 | `422` | `PO_OVER_RECEIVE` \| `WAREHOUSE_ARCHIVED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -4082,7 +4083,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `
 | `422` | `PAYMENT_EXCEEDS_DEBT` |
 | `423` | `SHIFT_REQUIRED` (naqd) |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#purchase-orders)
 
@@ -4172,7 +4173,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#deliveries)
 
@@ -4317,7 +4318,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#deliveries)
 
@@ -4344,7 +4345,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#deliveries)
 
@@ -4385,7 +4386,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 | `403` | Boshqa haydovchining yetkazishi |
 | `422` | `INVALID_STATUS_TRANSITION` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#deliveries)
 
@@ -4416,7 +4417,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘k
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#deliveries)
 
@@ -4507,7 +4508,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `423` | `SHIFT_REQUIRED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4611,7 +4612,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4640,7 +4641,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4669,7 +4670,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4723,7 +4724,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4746,7 +4747,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 **Xatolar**
 
-Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4786,7 +4787,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4813,7 +4814,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
 
@@ -4939,7 +4940,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 |---|---|
 | `429` | `MESSAGE_LIMIT_EXCEEDED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#messages)
 
@@ -4969,7 +4970,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 **Xatolar**
 
-Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#messages)
 
@@ -5167,7 +5168,7 @@ Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g�
 | `413` | `PAYLOAD_TOO_LARGE` \| `STORAGE_QUOTA_EXCEEDED` |
 | `422` | `FILE_REJECTED` — shu tarkib avval rad etilgan |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#files)
 
@@ -5203,7 +5204,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 | `413` | `STORAGE_QUOTA_EXCEEDED` |
 | `422` | `FILE_REJECTED` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#files)
 
@@ -5317,7 +5318,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 |---|---|
 | `404` | `NOT_FOUND` |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#files)
 
@@ -5541,7 +5542,7 @@ Eski (localStorage) versiyadan ko‘chirish sehrgari uchun: avval tekshirish (dr
 |---|---|
 | `403` | Faqat administrator |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#migration)
 
@@ -5580,9 +5581,684 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 | `402` | `PLAN_LIMIT_EXCEEDED` — tarif chegarasi (`meta.resource`, `limit`, `used`); tarif oshirilgach darhol ochiladi |
 | `403` | Faqat administrator |
 
-Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#migration)
+
+---
+
+<a id="platform"></a>
+
+## Platforma egasi paneli
+
+DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali. O‘z kirishi (`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).
+
+| Amal | Yo‘l | Nima uchun | Huquq |
+|---|---|---|---|
+| `POST` | [`/platform/auth/login`](#post-platform-auth-login) 🔓 | Egasi paneliga kirish | ochiq |
+| `POST` | [`/platform/auth/refresh`](#post-platform-auth-refresh) 🔓 | Egasi access tokenini yangilash | ochiq |
+| `POST` | [`/platform/auth/logout`](#post-platform-auth-logout) 🔓 | Egasi panelidan chiqish | ochiq |
+| `GET` | [`/platform/auth/me`](#get-platform-auth-me) | Joriy egasi | egasi tokeni |
+| `GET` | [`/platform/tenants`](#get-platform-tenants) | Do‘konlar ro‘yxati | egasi tokeni |
+| `POST` | [`/platform/tenants`](#post-platform-tenants) | Do‘kon ochish | egasi tokeni |
+| `GET` | [`/platform/tenants/:id`](#get-platform-tenants-id) | Do‘kon kartasi | egasi tokeni |
+| `PATCH` | [`/platform/tenants/:id`](#patch-platform-tenants-id) | Nom va egasi izohi | egasi tokeni |
+| `POST` | [`/platform/tenants/:id/block`](#post-platform-tenants-id-block) 📡 | Do‘konni bloklash | egasi tokeni |
+| `POST` | [`/platform/tenants/:id/unblock`](#post-platform-tenants-id-unblock) 📡 | Blokdan chiqarish | egasi tokeni |
+| `POST` | [`/platform/tenants/:id/plan`](#post-platform-tenants-id-plan) 📡 | Tarif berish / qo‘lda to‘lov | egasi tokeni |
+| `POST` | [`/platform/tenants/:id/delete`](#post-platform-tenants-id-delete) 📡 | Do‘konni o‘chirish (30 kun muhlat) | egasi tokeni |
+| `POST` | [`/platform/tenants/:id/restore`](#post-platform-tenants-id-restore) 📡 | O‘chirishni bekor qilish | egasi tokeni |
+| `GET` | [`/platform/tenants/:id/users`](#get-platform-tenants-id-users) | Do‘kon kirish hisoblari | egasi tokeni |
+| `POST` | [`/platform/tenants/:id/users/:userId/reset-password`](#post-platform-tenants-id-users-userid-reset-password) | Do‘kon hisobiga yangi parol | egasi tokeni |
+| `GET` | [`/platform/tenants/:id/invoices`](#get-platform-tenants-id-invoices) | Do‘kon hisob-fakturalari | egasi tokeni |
+| `GET` | [`/platform/stats`](#get-platform-stats) | Boshqaruv paneli | egasi tokeni |
+| `GET` | [`/platform/invoices`](#get-platform-invoices) | Barcha do‘konlar hisob-fakturalari | egasi tokeni |
+| `GET` | [`/platform/audit`](#get-platform-audit) | Egasi amallari jurnali | egasi tokeni |
+
+<a id="post-platform-auth-login"></a>
+
+### `POST /platform/auth/login` — Egasi paneliga kirish
+
+> Access token javobda (`kind: platform` — do‘kon yo‘llarida o‘tmaydi), refresh token `platform_refresh` httpOnly cookie’da.
+
+**Qachon / qanday:** Egasi paneli kirish sahifasi. `accessToken` faqat XOTIRADA; `platform_refresh` httpOnly cookie faqat `/api/v1/platform/auth/*` ga boradi (`credentials: "include"`). Daqiqasiga 5 urinish (IP), oshsa — 429.
+
+| | |
+|---|---|
+| Huquq | ochiq — token shart emas |
+| Javob | `201` → [`PlatformLoginResponseDto`](schemas.md#platformloginresponsedto) |
+| Chegara | 5 ta / daqiqa (IP bo‘yicha), oshsa — 429 |
+
+**So‘rov tanasi** — [`PlatformLoginDto`](schemas.md#platformlogindto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `email` | `string` | ✔ | misol `owner@workspaces.uz` |
+| `password` | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-auth-refresh"></a>
+
+### `POST /platform/auth/refresh` — Egasi access tokenini yangilash
+
+> Rotatsiya: eski cookie bekor, yangisi beriladi; bekor qilingani qayta ishlatilsa barcha sessiyalar yopiladi.
+
+**Qachon / qanday:** 401 da BIR marta (parallel 401’lar bitta refresh’ni kutadi). `AUTH_TOKEN_REUSE` — barcha sessiyalar yopilgan: kirish sahifasiga.
+
+| | |
+|---|---|
+| Huquq | ochiq — token shart emas |
+| Sarlavhalar | cookie `platform_refresh` (brauzer o‘zi yuboradi: `credentials: "include"`) |
+| Javob | `201` → [`PlatformLoginResponseDto`](schemas.md#platformloginresponsedto) |
+| Chegara | 30 ta / daqiqa (IP bo‘yicha), oshsa — 429 |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_REFRESH` \| `AUTH_TOKEN_REUSE` |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-auth-logout"></a>
+
+### `POST /platform/auth/logout` — Egasi panelidan chiqish
+
+**Qachon / qanday:** Chiqish tugmasi; keyin xotiradagi tokenni o‘chiring.
+
+| | |
+|---|---|
+| Huquq | ochiq — token shart emas |
+| Sarlavhalar | cookie `platform_refresh` (brauzer o‘zi yuboradi: `credentials: "include"`) |
+| Javob | `201` → `{"ok": true}` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-auth-me"></a>
+
+### `GET /platform/auth/me` — Joriy egasi
+
+**Qachon / qanday:** Ilova ochilganda: avval `refresh`, keyin shu — sarlavhadagi egasi nomi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformAdminDto`](schemas.md#platformadmindto) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-tenants"></a>
+
+### `GET /platform/tenants` — Do‘konlar ro‘yxati
+
+> Nom bo‘yicha qidiruv, holat/tarif filtri, muddati tugayotganlar; har qatorda ishlatilgan resurslar, administrator aloqasi, so‘nggi faollik.
+
+**Qachon / qanday:** Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, `sort` (`-createdAt` sukut, `name`, `planExpiresAt`). Har qator: `usage`, `admin` (aloqa), `activity` (so‘nggi chek).
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → `application/json` |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `page` | query | `number` |  | min `1`, sukut `1` |
+| `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
+| `q` | query | `string` |  | Matn qidiruvi — maks. uzunlik `100` |
+| `sort` | query | `id` \| `-id` \| `name` \| `-name` \| `createdAt` \| `-createdAt` \| `planExpiresAt` \| `-planExpiresAt` |  | sukut `"-createdAt"` |
+| `status` | query | `active` \| `suspended` \| `blocked` \| `deleting` |  |  |
+| `plan` | query | `free` \| `basic` \| `pro` |  |  |
+| `expiresWithinDays` | query | `number` |  | Pullik tarifi shuncha kun ichida tugaydiganlar (muddati o‘tganlar ham kiradi); `0` — faqat o‘tganlar — min `0`, max `365` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants"></a>
+
+### `POST /platform/tenants` — Do‘kon ochish
+
+> Ro‘yxatdan o‘tish bilan bir xil: do‘kon, sozlama, sukut ombor, tizim rollari va egasi (administrator) hisobi. Pullik boshlang‘ich tarif — `bonus` hisob-faktura (summa 0).
+
+**Qachon / qanday:** «Do‘kon ochish» formasi — ro‘yxatdan o‘tish maydonlari + boshlang‘ich tarif (`plan`, `months`; pullik bo‘lsa `months` shart). Parolni egasi do‘kon egasiga o‘zi yetkazadi — API uni qaytarmaydi. Email do‘kon ichida noyob (boshqa do‘konda takror bo‘lishi mumkin).
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `201` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Audit jurnali | ha |
+
+**So‘rov tanasi** — [`CreateTenantDto`](schemas.md#createtenantdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `storeName` | `string` | ✔ | maks. uzunlik `120`, misol `Ali Qurilish Mollari` |
+| `ownerName` | `string` | ✔ | maks. uzunlik `120`, misol `Ali Valiyev` |
+| `phone` | `string` | ✔ | misol `+998901234567` |
+| `email` | `string` | ✔ | misol `ali@dokon.uz` |
+| `password` | `string` | ✔ | Kamida 8 belgi; ommabop parollar rad etiladi — misol `Qurilish2026!` |
+| `plan` | `free` \| `basic` \| `pro` |  | Boshlang‘ich tarif; pullik bo‘lsa `months` shart (bonus sifatida yoziladi) — sukut `"free"` |
+| `months` | `number` |  | Pullik tarif muddati (oy) — pullik tarifda SHART — min `1`, max `12` |
+| `notes` | `string` |  | Egasi izohi — maks. uzunlik `500` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-tenants-id"></a>
+
+### `GET /platform/tenants/:id` — Do‘kon kartasi
+
+**Qachon / qanday:** Do‘kon kartasi: sarlavha, holat (`blockedReason` bilan), tarif va muddati, ko‘rsatkichlar, administrator aloqasi, izoh.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="patch-platform-tenants-id"></a>
+
+### `PATCH /platform/tenants/:id` — Nom va egasi izohi
+
+**Qachon / qanday:** Nom va egasi izohi; `notes: ""` — izoh o‘chadi. `If-Match` YO‘Q.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`UpdateTenantDto`](schemas.md#updatetenantdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `name` | `string` |  | maks. uzunlik `120` |
+| `notes` | `string` \| `null` |  | Bo‘sh satr — izoh o‘chadi — maks. uzunlik `500` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants-id-block"></a>
+
+### `POST /platform/tenants/:id/block` — Do‘konni bloklash
+
+> Do‘kon faqat o‘qiydi (423 `TENANT_READ_ONLY`, `meta.status: blocked`), kirish ishlaydi. To‘lov blokni OCHMAYDI, do‘kon o‘zi olib tashlay olmaydi. Sabab — do‘kon administratoriga ko‘rinadi.
+
+**Qachon / qanday:** Tasdiq oynasi + sabab (majburiy, do‘kon administratori ko‘radi). Do‘kondagi ochiq ilovalar `tenant.status` hodisasi bilan bannerni darhol ko‘rsatadi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`BlockTenantDto`](schemas.md#blocktenantdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `reason` | `string` | ✔ | Sabab — do‘kon administratori `GET /tenants/current` da ko‘radi — maks. uzunlik `500` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants-id-unblock"></a>
+
+### `POST /platform/tenants/:id/unblock` — Blokdan chiqarish
+
+> Tarif muddati o‘tgan bo‘lsa — `suspended`, aks holda `active`.
+
+**Qachon / qanday:** Blok bo‘lmasa — 422 `INVALID_STATUS_TRANSITION`.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `422` | `INVALID_STATUS_TRANSITION` — holat bunga yo‘l qo‘ymaydi |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants-id-plan"></a>
+
+### `POST /platform/tenants/:id/plan` — Tarif berish / qo‘lda to‘lov
+
+> Pullik tarif — `paid` hisob-faktura (`provider`: `cash`, `transfer`, `bonus`) va tarif Payme/Click to‘lovi bilan bir xil qoidada uzayadi (o‘sha tarif — joriy muddat oxiridan, boshqa tarif — hozirdan; `suspended` ochiladi, `blocked` ochilmaydi). `free` — tarif darhol bepul, muddat o‘chadi.
+
+**Qachon / qanday:** «Tarif / to‘lov» oynasi: tarif, oy, usul (`cash` naqd, `transfer` o‘tkazma, `bonus` bepul), summa (sukut — narx × oy; UI `PLAN_MONTHLY_PRICE` dan hisoblab ko‘rsatsin, egasi o‘zgartira oladi), izoh (kvitansiya). `free` — faqat tarif, qolgani yuborilmaydi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`GrantPlanDto`](schemas.md#grantplandto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `plan` | `free` \| `basic` \| `pro` | ✔ |  |
+| `months` | `number` |  | Pullik tarifda SHART — min `1`, max `12` |
+| `provider` | `cash` \| `transfer` \| `bonus` |  | Pullik tarifda SHART: `cash` naqd, `transfer` o‘tkazma, `bonus` — bepul muddat (summa 0) |
+| `amount` | `number` |  | Olingan summa (so‘m). Berilmasa — tarif narxi × oy; `bonus` — 0 |
+| `note` | `string` |  | Kvitansiya raqami, kelishuv … — maks. uzunlik `500` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants-id-delete"></a>
+
+### `POST /platform/tenants/:id/delete` — Do‘konni o‘chirish (30 kun muhlat)
+
+> Muhlatda faqat o‘qish; keyin ma’lumot va fayllar to‘liq o‘chadi. Muhlat ichida `restore` qaytaradi.
+
+**Qachon / qanday:** Tasdiq oynasi («30 kundan keyin butunlay o‘chadi»). Muhlatdagi do‘kon — 422.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `422` | `INVALID_STATUS_TRANSITION` — holat bunga yo‘l qo‘ymaydi |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants-id-restore"></a>
+
+### `POST /platform/tenants/:id/restore` — O‘chirishni bekor qilish
+
+> Qaytadigan holat: blok bo‘lsa `blocked`, tarif muddati o‘tgan bo‘lsa `suspended`, aks holda `active`.
+
+**Qachon / qanday:** Muhlat ichida qaytarish; muhlatda bo‘lmasa — 422.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantDto`](schemas.md#platformtenantdto) |
+| Realtime | `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `422` | `INVALID_STATUS_TRANSITION` — holat bunga yo‘l qo‘ymaydi |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-tenants-id-users"></a>
+
+### `GET /platform/tenants/:id/users` — Do‘kon kirish hisoblari
+
+> Qo‘llab-quvvatlash: kim kira oladi, oxirgi kirish; parolni tiklash uchun `userId`.
+
+**Qachon / qanday:** Do‘kon kartasidagi «Hisoblar» jadvali (parolni tiklash tugmasi shu yerda).
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformTenantUserDto`](schemas.md#platformtenantuserdto)[] |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-tenants-id-users-userid-reset-password"></a>
+
+### `POST /platform/tenants/:id/users/:userId/reset-password` — Do‘kon hisobiga yangi parol
+
+> Foydalanuvchining barcha sessiyalari yopiladi; do‘kon jurnalida «Platforma» yozuvi qoladi.
+
+**Qachon / qanday:** Yangi parol oynasi (kamida 8 belgi, ommabop parol — 400). 204 — tana yo‘q. Parolni egasi do‘kon xodimiga o‘zi yetkazadi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `204` — Parol o‘zgartirildi |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+| `userId` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`ResetUserPasswordDto`](schemas.md#resetuserpassworddto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `password` | `string` | ✔ | Yangi parol (kamida 8 belgi); foydalanuvchining barcha sessiyalari yopiladi |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` — do‘kon yoki hisob |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-tenants-id-invoices"></a>
+
+### `GET /platform/tenants/:id/invoices` — Do‘kon hisob-fakturalari
+
+> Onlayn (Payme/Click) va qo‘lda yozilgan to‘lovlar — bitta ro‘yxat.
+
+**Qachon / qanday:** Do‘kon kartasidagi «To‘lovlar» jadvali — onlayn va qo‘lda yozilganlar birga.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → `application/json` |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+| `page` | query | `number` |  | min `1`, sukut `1` |
+| `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
+| `tenantId` | query | `string` (uuid) |  | Bitta do‘kon |
+| `state` | query | `created` \| `pending` \| `paid` \| `cancelled` |  |  |
+| `provider` | query | `payme` \| `click` \| `cash` \| `transfer` \| `bonus` |  |  |
+| `dateFrom` | query | `string` |  | Yaratilgan sana, Toshkent kuni (shu kundan) — misol `2026-10-01` |
+| `dateTo` | query | `string` |  | Shu kungacha (kiradi) — misol `2026-10-31` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-stats"></a>
+
+### `GET /platform/stats` — Boshqaruv paneli
+
+> Do‘konlar holat va tarif bo‘yicha, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy).
+
+**Qachon / qanday:** Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar) va 12 oylik tushum grafigi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformStatsDto`](schemas.md#platformstatsdto) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-invoices"></a>
+
+### `GET /platform/invoices` — Barcha do‘konlar hisob-fakturalari
+
+> Holat, provayder (onlayn yoki qo‘lda), sana oralig‘i va do‘kon bo‘yicha filtr; eng yangisi birinchi.
+
+**Qachon / qanday:** «To‘lovlar» sahifasi: `state`, `provider`, `dateFrom`/`dateTo` (Toshkent kuni), `tenantId`; eng yangisi birinchi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → `application/json` |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `page` | query | `number` |  | min `1`, sukut `1` |
+| `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
+| `tenantId` | query | `string` (uuid) |  | Bitta do‘kon |
+| `state` | query | `created` \| `pending` \| `paid` \| `cancelled` |  |  |
+| `provider` | query | `payme` \| `click` \| `cash` \| `transfer` \| `bonus` |  |  |
+| `dateFrom` | query | `string` |  | Yaratilgan sana, Toshkent kuni (shu kundan) — misol `2026-10-01` |
+| `dateTo` | query | `string` |  | Shu kungacha (kiradi) — misol `2026-10-31` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-audit"></a>
+
+### `GET /platform/audit` — Egasi amallari jurnali
+
+> Kim, qachon, qaysi do‘konga nima qildi (blok, tarif, parol, ochish, o‘chirish); faqat qo‘shiladi.
+
+**Qachon / qanday:** «Jurnal» sahifasi: `group` (`tenant`, `user`, `platform`), `tenantId`; `diff` — amal tafsiloti (sabab, tarif, summa).
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → `application/json` |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `page` | query | `number` |  | min `1`, sukut `1` |
+| `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
+| `tenantId` | query | `string` (uuid) |  | Bitta do‘kon tarixi |
+| `group` | query | `string` |  | Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `user`, `platform` — misol `tenant` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
 
 ---
 
