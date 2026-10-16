@@ -82,7 +82,12 @@ const CATALOG = {
   users: {
     group: 'admin',
     label: 'Foydalanuvchilar (kirish hisoblari)',
-    actions: { view: 'Ko‘rish va rollar ro‘yxati', create: 'Qo‘shish', edit: 'Tahrirlash, rol berish, parolni tiklash', delete: 'O‘chirish' },
+    actions: { view: 'Ko‘rish', create: 'Qo‘shish', edit: 'Tahrirlash, rol berish, parolni tiklash', delete: 'O‘chirish' },
+  },
+  roles: {
+    group: 'admin',
+    label: 'Rollar va ruxsatlar',
+    actions: { view: 'Ko‘rish', create: 'Yaratish', edit: 'Ruxsat berish va olib tashlash, nomini o‘zgartirish', delete: 'O‘chirish' },
   },
   audit: {
     group: 'admin',
@@ -204,6 +209,9 @@ const IMPLIES: Partial<Record<Permission, readonly Permission[]>> = {
   'purchases.view': ['suppliers.view', 'products.view'],
   // Xabar — mijozlarga: auditoriya tanlash va bot holati (`GET /telegram`) mijozlar bo'limida
   'messages.view': ['customers.view'],
+  // Hisobga rol berish — rollar ro'yxatisiz bo'lmaydi
+  'users.create': ['roles.view'],
+  'users.edit': ['roles.view'],
   'profit.view': ['cost.view'],
 }
 

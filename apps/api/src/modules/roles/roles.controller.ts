@@ -11,9 +11,9 @@ import { CreateRoleDto, DeleteRoleQueryDto, PermissionCatalogDto, RoleDto, Updat
 import { RolesService } from './roles.service'
 
 /**
- * Rollar (T-134). O'qish — foydalanuvchilarni ko'radigan rolga (hisobga rol
- * tanlash uchun); yaratish, tahrirlash, o'chirish — faqat administrator
- * (RolesService tekshiradi).
+ * Rollar (T-134) — `roles.*` ruxsatlari (hisob formasidagi rol tanlovi uchun
+ * `users.create/edit` `roles.view` ni o'zi qo'shadi). Administrator bo'lmagan
+ * egasi faqat o'zida bor ruxsatlar doirasida ishlaydi (RolesService).
  */
 @ApiTags('roles')
 @ApiBearerAuth()
@@ -22,7 +22,7 @@ export class RolesController {
   constructor(private readonly roles: RolesService) {}
 
   @Get()
-  @RequirePermission('users', 'view')
+  @RequirePermission('roles', 'view')
   @ApiOperation({
     summary: 'Do‘kon rollari',
     description: 'Hammasi, sahifasiz: avval tizim rollari (admin, manager, sotuvchi, omborchi), keyin nom bo‘yicha.',
@@ -33,7 +33,7 @@ export class RolesController {
   }
 
   @Get('catalog')
-  @RequirePermission('users', 'view')
+  @RequirePermission('roles', 'view')
   @ApiOperation({
     summary: 'Ruxsatlar katalogi',
     description: 'Rol oynasi shundan quriladi: guruhlar → bo‘limlar (modullar) → amallar. Statik — keshlash mumkin.',
@@ -44,7 +44,7 @@ export class RolesController {
   }
 
   @Get(':id')
-  @RequirePermission('users', 'view')
+  @RequirePermission('roles', 'view')
   @ApiOperation({ summary: 'Bitta rol' })
   @ApiOkResponse({ type: RoleDto })
   @ApiNotFoundResponse({ type: ApiErrorDto })
@@ -53,27 +53,30 @@ export class RolesController {
   }
 
   @Post()
+  @RequirePermission('roles', 'create')
   @AuditedInService()
-  @ApiOperation({ summary: 'Rol yaratish (faqat administrator)' })
+  @ApiOperation({ summary: 'Rol yaratish', description: 'Administrator bo‘lmagan — faqat o‘zida bor ruxsatlardan.' })
   @ApiCreatedResponse({ type: RoleDto })
-  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — administrator emas', type: ApiErrorDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat', type: ApiErrorDto })
   @ApiConflictResponse({ description: 'ALREADY_EXISTS (`name`)', type: ApiErrorDto })
   create(@Body() dto: CreateRoleDto): Promise<RoleDto> {
     return this.roles.create(dto)
   }
 
   @Patch(':id')
+  @RequirePermission('roles', 'edit')
   @AuditedInService()
   @ApiOperation({
-    summary: 'Rolni tahrirlash (faqat administrator)',
+    summary: 'Rolni tahrirlash: ruxsat berish va olib tashlash',
     description:
       '`permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga ' +
-      'keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi.',
+      'keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi. Administrator bo‘lmagan — faqat o‘zidan ' +
+      'keng bo‘lmagan rolni va faqat o‘zida bor ruxsatlar bilan.',
   })
   @ApiIfMatch()
   @ApiOkResponse({ type: RoleDto })
   @ApiNotFoundResponse({ type: ApiErrorDto })
-  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — administrator emas', type: ApiErrorDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat', type: ApiErrorDto })
   @ApiConflictResponse({ description: 'ALREADY_EXISTS (`name`) | VERSION_CONFLICT', type: ApiErrorDto })
   @ApiUnprocessableEntityResponse({ description: 'ROLE_PROTECTED — `admin` roli yoki tizim rolining nomi', type: ApiErrorDto })
   update(
@@ -86,14 +89,15 @@ export class RolesController {
 
   @Delete(':id')
   @HttpCode(204)
+  @RequirePermission('roles', 'delete')
   @AuditedInService()
   @ApiOperation({
-    summary: 'Rolni o‘chirish (faqat administrator)',
+    summary: 'Rolni o‘chirish',
     description: 'Faqat do‘kon yaratgan rol. Foydalanuvchilari bo‘lsa — `replaceWith` rolga o‘tkaziladi (o‘chirilgan hisoblar ham).',
   })
   @ApiNoContentResponse()
   @ApiNotFoundResponse({ type: ApiErrorDto })
-  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — administrator emas', type: ApiErrorDto })
+  @ApiForbiddenResponse({ description: 'PERMISSION_DENIED — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat', type: ApiErrorDto })
   @ApiConflictResponse({ description: 'ROLE_IN_USE — `replaceWith` berilmagan (`meta.users` — nechta)', type: ApiErrorDto })
   @ApiUnprocessableEntityResponse({
     description: 'ROLE_PROTECTED — tizim roli | REFERENCE_NOT_FOUND (`replaceWith`)',

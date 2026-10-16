@@ -70,7 +70,7 @@ def permission_text(method: str, path: str, route: dict | None) -> str:
     if perm:
         return f'`{perm}` — sukut bo‘yicha: {", ".join(roles_with(perm))} (do‘kon rollarida — administrator belgilaydi)'
     p = short(path)
-    if p.startswith(('/tenants/current', '/billing/invoices', '/backup', '/migration', '/roles')):
+    if p.startswith(('/tenants/current', '/billing/invoices', '/backup', '/migration')):
         return ADMIN_ONLY
     if p.startswith('/files'):
         return FILE_PERM
@@ -144,8 +144,9 @@ GROUPS = [
      'Administrator bo‘lmagan boshqaruvchi o‘zidan kengroq rolga tegolmaydi (403). Tarif foydalanuvchi sonini cheklaydi (402).'),
     ('roles', 'Rollar va ruxsatlar', [r'^/roles'],
      'Ruxsatlar ROLGA beriladi (foydalanuvchiga emas), foydalanuvchi — bitta rolda. Har do‘konda 4 ta tizim roli '
-     '(`admin`, `manager`, `sotuvchi`, `omborchi`) + administrator yaratgan rollar. Ko‘rish — `users.view`, '
-     'boshqarish — faqat administrator. Katalog, qoidalar va frontend oqimi — [README → Rollar](README.md#roles).'),
+     '(`admin`, `manager`, `sotuvchi`, `omborchi`) + do‘kon yaratgan rollar. Boshqarish — `roles.*` ruxsatlari '
+     '(sukut — faqat administrator); administrator bo‘lmagan egasi faqat o‘zida bor ruxsatlarni beradi (403). '
+     'Katalog, qoidalar va frontend oqimi — [README → Rollar](README.md#roles).'),
     ('sales', 'Sotuvlar (chek, qaytarish, bekor qilish)', [r'^/sales'],
      'POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qayta hisoblaydi. '
      'Qoidalar (QQS, chegirma, bonus, yaxlitlash, nasiya, qaytim) — [README → Kassa (POS)](README.md#pos).'),
@@ -381,7 +382,9 @@ NOTES = {
         '«Yangi rol». `permissions` — katalog kalitlari; server normallashtiradi (bo‘lim amali → uning `view` i, '
         '`profit.view` → `cost.view`), javobdagi ro‘yxatni ko‘rsating. Nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`).',
     ('PATCH', '/roles/:id'):
-        'Rol tahriri. `permissions` — TO‘LIQ ro‘yxat (almashtiriladi). `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — '
+        'Ruxsat berish va olib tashlash: `permissions` — TO‘LIQ ro‘yxat (almashtiriladi — berish uchun kalitni qo‘shing, '
+        'olish uchun chiqaring). O‘zida yo‘q ruxsat yoki o‘zidan kengroq rol (administrator bo‘lmaganda) — 403. '
+        '`admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — '
         '422 (`field: name`), ruxsatlari o‘zgaradi. `If-Match` qo‘llanadi. Shu rol egalariga keyingi so‘rovdanoq kuchga kiradi.',
     ('DELETE', '/roles/:id'):
         'Faqat do‘kon yaratgan rol (tizim roli — 422 `ROLE_PROTECTED`). Rolda hisob bo‘lsa — 409 `ROLE_IN_USE` '

@@ -2605,16 +2605,16 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 ## Rollar va ruxsatlar
 
-Ruxsatlar ROLGA beriladi (foydalanuvchiga emas), foydalanuvchi — bitta rolda. Har do‘konda 4 ta tizim roli (`admin`, `manager`, `sotuvchi`, `omborchi`) + administrator yaratgan rollar. Ko‘rish — `users.view`, boshqarish — faqat administrator. Katalog, qoidalar va frontend oqimi — [README → Rollar](README.md#roles).
+Ruxsatlar ROLGA beriladi (foydalanuvchiga emas), foydalanuvchi — bitta rolda. Har do‘konda 4 ta tizim roli (`admin`, `manager`, `sotuvchi`, `omborchi`) + do‘kon yaratgan rollar. Boshqarish — `roles.*` ruxsatlari (sukut — faqat administrator); administrator bo‘lmagan egasi faqat o‘zida bor ruxsatlarni beradi (403). Katalog, qoidalar va frontend oqimi — [README → Rollar](README.md#roles).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `GET` | [`/roles`](#get-roles) | Do‘kon rollari | `users.view` |
-| `POST` | [`/roles`](#post-roles) | Rol yaratish (faqat administrator) | faqat `admin` |
-| `GET` | [`/roles/catalog`](#get-roles-catalog) | Ruxsatlar katalogi | `users.view` |
-| `GET` | [`/roles/:id`](#get-roles-id) | Bitta rol | `users.view` |
-| `PATCH` | [`/roles/:id`](#patch-roles-id) 🔒 📡 | Rolni tahrirlash (faqat administrator) | faqat `admin` |
-| `DELETE` | [`/roles/:id`](#delete-roles-id) 📡 | Rolni o‘chirish (faqat administrator) | faqat `admin` |
+| `GET` | [`/roles`](#get-roles) | Do‘kon rollari | `roles.view` |
+| `POST` | [`/roles`](#post-roles) | Rol yaratish | `roles.create` |
+| `GET` | [`/roles/catalog`](#get-roles-catalog) | Ruxsatlar katalogi | `roles.view` |
+| `GET` | [`/roles/:id`](#get-roles-id) | Bitta rol | `roles.view` |
+| `PATCH` | [`/roles/:id`](#patch-roles-id) 🔒 📡 | Rolni tahrirlash: ruxsat berish va olib tashlash | `roles.edit` |
+| `DELETE` | [`/roles/:id`](#delete-roles-id) 📡 | Rolni o‘chirish | `roles.delete` |
 
 <a id="get-roles"></a>
 
@@ -2626,7 +2626,7 @@ Ruxsatlar ROLGA beriladi (foydalanuvchiga emas), foydalanuvchi — bitta rolda. 
 
 | | |
 |---|---|
-| Huquq | `users.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `roles.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`RoleDto`](schemas.md#roledto)[] |
 
@@ -2640,13 +2640,15 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 <a id="post-roles"></a>
 
-### `POST /roles` — Rol yaratish (faqat administrator)
+### `POST /roles` — Rol yaratish
+
+> Administrator bo‘lmagan — faqat o‘zida bor ruxsatlardan.
 
 **Qachon / qanday:** «Yangi rol». `permissions` — katalog kalitlari; server normallashtiradi (bo‘lim amali → uning `view` i, `profit.view` → `cost.view`), javobdagi ro‘yxatni ko‘rsating. Nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`).
 
 | | |
 |---|---|
-| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | `roles.create` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `201` → [`RoleDto`](schemas.md#roledto) |
 | Audit jurnali | ha |
@@ -2656,13 +2658,13 @@ Umumiy: 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `name` | `string` | ✔ | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
-| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
 
 **Xatolar**
 
 | Status | Kod — qachon |
 |---|---|
-| `403` | `PERMISSION_DENIED` — administrator emas |
+| `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
 | `409` | `ALREADY_EXISTS` (`name`) |
 
 Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/o‘chirilmoqda).
@@ -2681,7 +2683,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `users.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `roles.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PermissionCatalogDto`](schemas.md#permissioncatalogdto) |
 
@@ -2701,7 +2703,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `users.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `roles.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`RoleDto`](schemas.md#roledto) |
 
@@ -2725,15 +2727,15 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 <a id="patch-roles-id"></a>
 
-### `PATCH /roles/:id` — Rolni tahrirlash (faqat administrator)
+### `PATCH /roles/:id` — Rolni tahrirlash: ruxsat berish va olib tashlash
 
-> `permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi.
+> `permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi. Administrator bo‘lmagan — faqat o‘zidan keng bo‘lmagan rolni va faqat o‘zida bor ruxsatlar bilan.
 
-**Qachon / qanday:** Rol tahriri. `permissions` — TO‘LIQ ro‘yxat (almashtiriladi). `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — 422 (`field: name`), ruxsatlari o‘zgaradi. `If-Match` qo‘llanadi. Shu rol egalariga keyingi so‘rovdanoq kuchga kiradi.
+**Qachon / qanday:** Ruxsat berish va olib tashlash: `permissions` — TO‘LIQ ro‘yxat (almashtiriladi — berish uchun kalitni qo‘shing, olish uchun chiqaring). O‘zida yo‘q ruxsat yoki o‘zidan kengroq rol (administrator bo‘lmaganda) — 403. `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — 422 (`field: name`), ruxsatlari o‘zgaradi. `If-Match` qo‘llanadi. Shu rol egalariga keyingi so‘rovdanoq kuchga kiradi.
 
 | | |
 |---|---|
-| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | `roles.edit` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>`, `If-Match` (ixtiyoriy) |
 | Javob | `200` → [`RoleDto`](schemas.md#roledto) |
 | Realtime | `access.changed` (ruxsatlar o‘zgarsa) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -2750,13 +2752,13 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `name` | `string` |  | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
-| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
 
 **Xatolar**
 
 | Status | Kod — qachon |
 |---|---|
-| `403` | `PERMISSION_DENIED` — administrator emas |
+| `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
 | `404` | `NOT_FOUND` |
 | `409` | `ALREADY_EXISTS` (`name`) \| `VERSION_CONFLICT` |
 | `422` | `ROLE_PROTECTED` — `admin` roli yoki tizim rolining nomi |
@@ -2769,7 +2771,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan —
 
 <a id="delete-roles-id"></a>
 
-### `DELETE /roles/:id` — Rolni o‘chirish (faqat administrator)
+### `DELETE /roles/:id` — Rolni o‘chirish
 
 > Faqat do‘kon yaratgan rol. Foydalanuvchilari bo‘lsa — `replaceWith` rolga o‘tkaziladi (o‘chirilgan hisoblar ham).
 
@@ -2777,7 +2779,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan —
 
 | | |
 |---|---|
-| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Huquq | `roles.delete` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Realtime | `access.changed` (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
@@ -2794,7 +2796,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `VERSION_CONFLICT` (`If-Match` eskirgan —
 
 | Status | Kod — qachon |
 |---|---|
-| `403` | `PERMISSION_DENIED` — administrator emas |
+| `403` | `PERMISSION_DENIED` — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat |
 | `404` | `NOT_FOUND` |
 | `409` | `ROLE_IN_USE` — `replaceWith` berilmagan (`meta.users` — nechta) |
 | `422` | `ROLE_PROTECTED` — tizim roli \| `REFERENCE_NOT_FOUND` (`replaceWith`) |

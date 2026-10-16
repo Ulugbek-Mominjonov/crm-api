@@ -3,11 +3,12 @@ import type { Prisma } from '@prisma/client'
 import { effectivePermissions } from '@crm/shared'
 import { currentContext, currentTenantId } from '@/common/context/request-context'
 import { crudDelegate, SoftDeleteCrudService, type CrudDelegate } from '@/common/crud/crud.service'
-import { DomainError, NotFoundError, PermissionDeniedError } from '@/common/errors/domain.error'
+import { DomainError, NotFoundError } from '@/common/errors/domain.error'
 import { PasswordService } from '@/modules/auth/password.service'
 import { RefreshTokenService } from '@/modules/auth/refresh-token.service'
 import { DomainEvents } from '@/modules/realtime/domain-events.service'
 import { AccessService } from '@/modules/roles/access.service'
+import { assertWithinActor } from '@/modules/roles/actor-scope'
 import { RolesService, type RoleRef } from '@/modules/roles/roles.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import { PlanService } from '@/modules/tenants/plan.service'
@@ -235,18 +236,4 @@ export class UsersService extends SoftDeleteCrudService<
 
 function roleRef(role: Prisma.RoleGetPayload<typeof ROLE_REF_SELECT>): RoleRef {
   return { id: role.id, key: role.key, permissions: effectivePermissions(role.key, role.permissions) }
-}
-
-/**
- * Huquq oshirishdan himoya: administrator bo'lmagan boshqaruvchi (masalan
- * `users` ruxsati berilgan menejer) o'zidan kengroq rolni bera olmaydi va
- * bunday rol egasining hisobiga (parol, faollik, o'chirish) tegolmaydi —
- * aks holda o'ziga yoki sherigiga administrator huquqini olib berardi.
- */
-function assertWithinActor(target: RoleRef): void {
-  const actor = currentContext()
-  if (actor.role === 'admin') return
-  const own = actor.permissions ?? new Set()
-  if (target.key !== 'admin' && target.permissions.every((p) => own.has(p))) return
-  throw new PermissionDeniedError('O‘zingizdan kengroq huquqli rol bilan ishlab bo‘lmaydi — administratorga murojaat qiling')
 }

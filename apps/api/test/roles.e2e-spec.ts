@@ -77,12 +77,44 @@ describe('Rollar va ruxsatlar (/roles)', () => {
     ]) })
   })
 
-  it('rollarni faqat administrator boshqaradi; ko‘rish — `users.view`', async () => {
+  it('rollarni boshqarish — `roles.*` ruxsati bilan: ruxsatsiz rol — 403', async () => {
     const manager = await bearer(app, a, 'manager')
     expect((await createRole('Kassir', ['sales.create'], manager).expect(403)).body.code).toBe('PERMISSION_DENIED')
     await http().get('/api/v1/roles').set('Authorization', manager).expect(403)
     const seller = await roleIdOf(a.tenantId, 'sotuvchi')
     await http().patch(`/api/v1/roles/${seller}`).set('Authorization', manager).send({ permissions: [] }).expect(403)
+  })
+
+  it('`roles.*` berilgan menejer — faqat o‘zida bor ruxsatlar doirasida: berish, olish, o‘chirish, ko‘chirish', async () => {
+    const managerRole = await roleIdOf(a.tenantId, 'manager')
+    const current = (await http().get(`/api/v1/roles/${managerRole}`).set('Authorization', auth).expect(200)).body
+    await http().patch(`/api/v1/roles/${managerRole}`).set('Authorization', auth)
+      .send({ permissions: [...current.permissions, 'roles.create', 'roles.edit', 'roles.delete'] }).expect(200)
+    const manager = await bearer(app, a, 'manager')
+    const patch = (id: string, body: Record<string, unknown>) =>
+      http().patch(`/api/v1/roles/${id}`).set('Authorization', manager).send(body)
+
+    // Yaratish: o'zida bor ruxsatlar — mumkin, yo'g'i (`users`) — 403
+    const kassir = (await createRole('Kassir', ['sales.create'], manager).expect(201)).body
+    await createRole('Kadrlar', ['users.view'], manager).expect(403)
+    // Ruxsat berish va olib tashlash — o'zida borlari bilan
+    await patch(kassir.id, { permissions: ['sales.create', 'sales.cancel'] }).expect(200)
+    await patch(kassir.id, { permissions: ['sales.create'] }).expect(200)
+    expect((await patch(kassir.id, { permissions: ['sales.create', 'audit.view'] }).expect(403)).body.code).toBe('PERMISSION_DENIED')
+    // O'z roliga o'zida yo'q ruxsat — 403; tizim roli (o'zidan tor) — mumkin; administrator — 422
+    await patch(managerRole, { permissions: [...current.permissions, 'roles.edit', 'users.view'] }).expect(403)
+    await patch(await roleIdOf(a.tenantId, 'sotuvchi'), { permissions: ['sales.create'] }).expect(200)
+    await patch(await roleIdOf(a.tenantId, 'admin'), { permissions: [] }).expect(422)
+
+    // Kengroq rolga tegolmaydi
+    const wide = (await createRole('Kadrlar', ['users.view']).expect(201)).body
+    await patch(wide.id, { name: 'Kadr' }).expect(403)
+    await http().delete(`/api/v1/roles/${wide.id}`).set('Authorization', manager).expect(403)
+
+    // O'chirishda hisoblarni kengroq rolga ko'chira olmaydi
+    await createUser('Ali', kassir.id)
+    await http().delete(`/api/v1/roles/${kassir.id}?replaceWith=${await roleIdOf(a.tenantId, 'admin')}`).set('Authorization', manager).expect(403)
+    await http().delete(`/api/v1/roles/${kassir.id}?replaceWith=${await roleIdOf(a.tenantId, 'sotuvchi')}`).set('Authorization', manager).expect(204)
   })
 
   it('do‘kon roli: ruxsatlar normallashadi, nom noyob (harf farqsiz)', async () => {

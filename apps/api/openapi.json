@@ -403,6 +403,7 @@
         ]
       },
       "post": {
+        "description": "Administrator bo‘lmagan — faqat o‘zida bor ruxsatlardan.",
         "operationId": "Roles_create",
         "parameters": [],
         "requestBody": {
@@ -427,7 +428,7 @@
             }
           },
           "403": {
-            "description": "PERMISSION_DENIED — administrator emas",
+            "description": "PERMISSION_DENIED — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat",
             "content": {
               "application/json": {
                 "schema": {
@@ -452,7 +453,7 @@
             "bearer": []
           }
         ],
-        "summary": "Rol yaratish (faqat administrator)",
+        "summary": "Rol yaratish",
         "tags": [
           "roles"
         ]
@@ -532,7 +533,7 @@
         ]
       },
       "patch": {
-        "description": "`permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi.",
+        "description": "`permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi). Ruxsat o‘zgarsa — shu rol foydalanuvchilariga keyingi so‘rovdanoq kuchga kiradi, do‘konga `access.changed` hodisasi. Administrator bo‘lmagan — faqat o‘zidan keng bo‘lmagan rolni va faqat o‘zida bor ruxsatlar bilan.",
         "operationId": "Roles_update",
         "parameters": [
           {
@@ -575,7 +576,7 @@
             }
           },
           "403": {
-            "description": "PERMISSION_DENIED — administrator emas",
+            "description": "PERMISSION_DENIED — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat",
             "content": {
               "application/json": {
                 "schema": {
@@ -620,7 +621,7 @@
             "bearer": []
           }
         ],
-        "summary": "Rolni tahrirlash (faqat administrator)",
+        "summary": "Rolni tahrirlash: ruxsat berish va olib tashlash",
         "tags": [
           "roles"
         ]
@@ -652,7 +653,7 @@
             "description": ""
           },
           "403": {
-            "description": "PERMISSION_DENIED — administrator emas",
+            "description": "PERMISSION_DENIED — ruxsat yo‘q yoki o‘zingizdan kengroq rol/ruxsat",
             "content": {
               "application/json": {
                 "schema": {
@@ -697,7 +698,7 @@
             "bearer": []
           }
         ],
-        "summary": "Rolni o‘chirish (faqat administrator)",
+        "summary": "Rolni o‘chirish",
         "tags": [
           "roles"
         ]
@@ -9376,6 +9377,10 @@
                 "users.create",
                 "users.edit",
                 "users.delete",
+                "roles.view",
+                "roles.create",
+                "roles.edit",
+                "roles.delete",
                 "audit.view",
                 "settings.view",
                 "settings.edit",
@@ -9637,6 +9642,10 @@
                 "users.create",
                 "users.edit",
                 "users.delete",
+                "roles.view",
+                "roles.create",
+                "roles.edit",
+                "roles.delete",
                 "audit.view",
                 "settings.view",
                 "settings.edit",
@@ -9754,6 +9763,10 @@
               "users.create",
               "users.edit",
               "users.delete",
+              "roles.view",
+              "roles.create",
+              "roles.edit",
+              "roles.delete",
               "audit.view",
               "settings.view",
               "settings.edit",
@@ -9909,6 +9922,10 @@
                 "users.create",
                 "users.edit",
                 "users.delete",
+                "roles.view",
+                "roles.create",
+                "roles.edit",
+                "roles.delete",
                 "audit.view",
                 "settings.view",
                 "settings.edit",
@@ -9997,6 +10014,10 @@
                 "users.create",
                 "users.edit",
                 "users.delete",
+                "roles.view",
+                "roles.create",
+                "roles.edit",
+                "roles.delete",
                 "audit.view",
                 "settings.view",
                 "settings.edit",

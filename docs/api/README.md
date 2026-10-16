@@ -59,7 +59,7 @@ login’da do‘kon tanlash).
 | Bo‘lim | Imkoniyat |
 |--------|-----------|
 | Auth | Kirish (bir email bir necha do‘konda), JWT access token (15 daq) + httpOnly refresh cookie (30 kun, rotatsiya, o‘g‘irlik aniqlash), chiqish, barcha qurilmalardan chiqish, parol o‘zgartirish, yangi do‘kon ro‘yxatdan o‘tishi |
-| Rollar | Ruxsatlar ROLGA beriladi: 59 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
+| Rollar | Ruxsatlar ROLGA beriladi: 63 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
 | Spravochniklar | Omborlar (arxiv), kategoriyalar, mahsulotlar (qo‘shimcha birlik, import, ommaviy narx, rasm), mijozlar, ta’minotchilar, xodimlar, foydalanuvchilar — sahifalash, saralash, qidiruv, yumshoq o‘chirish + tiklash, optimistik qulf |
 | Ombor | Kirim (o‘rtacha tannarx), chiqim, inventarizatsiya, ko‘chirish, harakatlar jurnali, buyurtma taklifi; qoldiq manfiy bo‘lmaydi |
 | Sotuv | Chek (bitta tranzaksiya: qoldiq, kassa, bonus, yetkazish), qaytarish, bekor qilish, chop etish uchun chek (JSON yoki tayyor 80 mm PDF), OFD fiskal chek (navbat orqali) |
@@ -78,7 +78,7 @@ login’da do‘kon tanlash).
 
 **Frontend ahvoli:** frontend (`crm-qurilish`) hozir brauzerda (localStorage/zustand) ishlaydi.
 Uni serverga ulash — frontend vazifasi ([13-bo‘lim](#tasks)). Backend tomoni tayyor va sinalgan
-(267 unit + 576 e2e test).
+(267 unit + 577 e2e test).
 
 ---
 
@@ -531,7 +531,7 @@ Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FA
 
 ### 6.1 Qanday ishlaydi
 
-- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (59 ta, 21 bo‘lim) —
+- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (63 ta, 22 bo‘lim) —
   [6.2](#permissions), kodda — `packages/shared/src/permissions.ts` (`PERMISSIONS`, `PERMISSION_CATALOG`),
   API’da — `GET /roles/catalog`.
 - **Rol** — ruxsatlar to‘plami. Ruxsat **ROLGA** beriladi, foydalanuvchiga emas: bitta foydalanuvchi —
@@ -539,8 +539,11 @@ Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FA
   («Katta kassir», «Haydovchi»).
 - **Har do‘konda 4 ta tizim roli** (`key`: `admin`, `manager`, `sotuvchi`, `omborchi`) — o‘chirilmaydi.
   Ularning sukut ruxsatlari avvalgi qat’iy matritsa bilan **aynan bir xil** (mavjud do‘konlarda hech
-  kimning huquqi o‘zgarmadi). Administrator ularning ruxsatlarini o‘zgartira oladi (`admin` dan tashqari).
-- **Do‘kon rollari** — administrator yaratadi (`key: null`), nomi va ruxsatlari erkin.
+  kimning huquqi o‘zgarmadi). Ularning ruxsatlarini o‘zgartirish mumkin (`admin` dan tashqari).
+- **Do‘kon rollari** — do‘kon yaratadi (`key: null`), nomi va ruxsatlari erkin.
+- **Rollarni boshqarishning o‘zi ham ruxsat** — `roles.view/create/edit/delete` (sukut — faqat administratorda,
+  istalgan rolga berish mumkin). Administrator bo‘lmagan egasi faqat O‘ZIDA bor ruxsatlarni bera oladi
+  ([6.4](#roles-api)).
 - **`admin` roli** — doim katalogdagi HAMMA ruxsat (keyin qo‘shiladigan yangilari ham), o‘zgarmaydi.
   Bundan tashqari faqat administrator qila oladigan amallar bor ([6.3](#admin-only)).
 - **Server huquqni har so‘rovda bazadan o‘qiydi** (keshlangan), tokendan emas: rol tahriri, foydalanuvchiga
@@ -569,6 +572,7 @@ Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FA
 | `sales.create`, `quotes.create`, `quotes.edit`, `stock.view` → `products.view` (kassa, smeta va ombor katalogsiz ishlamaydi) | `stock.operate` → + `stock.view`, `products.view` |
 | `purchases.view` → `suppliers.view`, `products.view` | `purchases.pay` → + `purchases.view`, `suppliers.view`, `products.view` |
 | `messages.view` → `customers.view` (auditoriya va bot holati mijozlar bo‘limida) | `messages.send` → + `messages.view`, `customers.view` |
+| `users.create`, `users.edit` → `roles.view` (hisobga rol tanlash) | `users.edit` → + `users.view`, `roles.view` |
 | `profit.view` → `cost.view` (foydadan tannarx tiklanadi) | — |
 | Takrorlar olib tashlanadi, tartib — katalog tartibi | — |
 
@@ -640,10 +644,14 @@ yo‘q bo‘lsa `label` ni ko‘rsating).
 | `employees.create` | Xodimlar: Qo‘shish | `POST /employees` | ✔ |  |  |
 | `employees.edit` | Xodimlar: Tahrirlash | `PATCH /employees/:id` | ✔ |  |  |
 | `employees.delete` | Xodimlar: O‘chirish | `DELETE /employees/:id`, `POST /employees/:id/restore` |  |  |  |
-| `users.view` | Foydalanuvchilar (kirish hisoblari): Ko‘rish va rollar ro‘yxati | `GET /roles`, `GET /roles/catalog`, `GET /roles/:id`, `GET /users`, `GET /users/:id` |  |  |  |
+| `users.view` | Foydalanuvchilar (kirish hisoblari): Ko‘rish | `GET /users`, `GET /users/:id` |  |  |  |
 | `users.create` | Foydalanuvchilar (kirish hisoblari): Qo‘shish | `POST /users` |  |  |  |
 | `users.edit` | Foydalanuvchilar (kirish hisoblari): Tahrirlash, rol berish, parolni tiklash | `PATCH /users/:id` |  |  |  |
 | `users.delete` | Foydalanuvchilar (kirish hisoblari): O‘chirish | `DELETE /users/:id`, `POST /users/:id/restore` |  |  |  |
+| `roles.view` | Rollar va ruxsatlar: Ko‘rish | `GET /roles`, `GET /roles/catalog`, `GET /roles/:id` |  |  |  |
+| `roles.create` | Rollar va ruxsatlar: Yaratish | `POST /roles` |  |  |  |
+| `roles.edit` | Rollar va ruxsatlar: Ruxsat berish va olib tashlash, nomini o‘zgartirish | `PATCH /roles/:id` |  |  |  |
+| `roles.delete` | Rollar va ruxsatlar: O‘chirish | `DELETE /roles/:id` |  |  |  |
 | `audit.view` | Amallar jurnali: Ko‘rish | `GET /audit` |  |  |  |
 | `settings.view` | Sozlamalar: Fayl saqlash hajmi | `GET /files/usage` | ✔ |  |  |
 | `settings.edit` | Sozlamalar: O‘zgartirish (brend, chek, QQS …) | `PATCH /settings` | ✔ |  |  |
@@ -661,16 +669,15 @@ yo‘q bo‘lsa `label` ni ko‘rsating).
 
 ### 6.3 Faqat administrator
 
-Bu amallar katalogda YO‘Q — hech qaysi rolga berib bo‘lmaydi, faqat `role === 'admin'` (boshqasiga — 403):
+Bu amallar katalogda YO‘Q — hech qaysi rolga berib bo‘lmaydi, faqat `role === 'admin'` (boshqasiga — 403).
+Rollarni boshqarish esa — ODDIY ruxsat (`roles.*`, [6.4](#roles-api)), istalgan rolga beriladi:
 
 | Amal | Endpointlar | Nega rolga berilmaydi |
 |------|-------------|------------------------|
-| Rollarni yaratish, tahrirlash, o‘chirish | `POST /roles`, `PATCH /roles/:id`, `DELETE /roles/:id` | Egasi o‘ziga istalgan ruxsatni qo‘shib, administratorga aylanardi |
 | Tarif, to‘lov, do‘kon holati, do‘konni o‘chirish | `GET /tenants/current`, `POST /tenants/current/delete`, `/restore`, `GET/POST /billing/invoices` | Pul va do‘konning mavjudligi |
 | Zaxira | `GET /backup/export` | Butun do‘kon ma’lumoti bitta faylda |
 | Migratsiya | `POST /migration/validate`, `/import` | Ommaviy yozuv |
 
-Rollarni KO‘RISH (`GET /roles`, `/roles/catalog`) — `users.view` bilan (hisobga rol tanlash uchun).
 
 <a id="roles-api"></a>
 
@@ -678,13 +685,13 @@ Rollarni KO‘RISH (`GET /roles`, `/roles/catalog`) — `users.view` bilan (hiso
 
 | Amal | So‘rov | Javob va xatolar |
 |------|--------|------------------|
-| Ro‘yxat | `GET /roles` | `RoleDto[]` — sahifasiz, avval tizim rollari (`admin`, `manager`, `sotuvchi`, `omborchi`), keyin nom bo‘yicha |
-| Katalog | `GET /roles/catalog` | `{ groups: [{ key, label }], resources: [{ key, group, label, actions: [{ key, permission, label }] }] }` — statik, ilova versiyasi bilan keshlang |
-| Bitta rol | `GET /roles/:id` | `RoleDto`; yo‘q yoki boshqa do‘konniki — 404 |
-| Yaratish | `POST /roles { name, permissions }` | 201 `RoleDto`; nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`); noma’lum ruxsat — 400 (`field: permissions`); administrator emas — 403 |
-| Tahrirlash | `PATCH /roles/:id { name?, permissions? }` + `If-Match: <updatedAt>` | 200 `RoleDto`; `permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi); `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — 422 `ROLE_PROTECTED` (`field: name`); eskirgan versiya — 409 `VERSION_CONFLICT` (`current` bilan) |
-| O‘chirish | `DELETE /roles/:id` | 204; tizim roli — 422 `ROLE_PROTECTED`; rolda hisob bor — 409 `ROLE_IN_USE` (`errors[0].meta.users` — nechta) |
-| O‘chirish (hisoblarni ko‘chirib) | `DELETE /roles/:id?replaceWith=<roleId>` | 204 — rolning BARCHA hisoblari (o‘chirilganlari ham) shu rolga o‘tadi; `replaceWith` yo‘q/boshqa do‘konniki/o‘zi — 422 `REFERENCE_NOT_FOUND` (`field: replaceWith`) |
+| Ro‘yxat (`roles.view`) | `GET /roles` | `RoleDto[]` — sahifasiz, avval tizim rollari (`admin`, `manager`, `sotuvchi`, `omborchi`), keyin nom bo‘yicha |
+| Katalog (`roles.view`) | `GET /roles/catalog` | `{ groups: [{ key, label }], resources: [{ key, group, label, actions: [{ key, permission, label }] }] }` — statik, ilova versiyasi bilan keshlang |
+| Bitta rol (`roles.view`) | `GET /roles/:id` | `RoleDto`; yo‘q yoki boshqa do‘konniki — 404 |
+| Yaratish (`roles.create`) | `POST /roles { name, permissions }` | 201 `RoleDto`; nom band (harf farqsiz) — 409 `ALREADY_EXISTS` (`field: name`); noma’lum ruxsat — 400 (`field: permissions`); o‘zida yo‘q ruxsat — 403 |
+| Ruxsat berish / olib tashlash, nom (`roles.edit`) | `PATCH /roles/:id { name?, permissions? }` + `If-Match: <updatedAt>` | 200 `RoleDto`; `permissions` — TO‘LIQ ro‘yxat (almashtiriladi, qo‘shilmaydi): berish — kalitni qo‘shib, olib tashlash — chiqarib yuboring; o‘zidan kengroq rol yoki o‘zida yo‘q ruxsat — 403; `admin` — 422 `ROLE_PROTECTED`; tizim rolining nomi — 422 `ROLE_PROTECTED` (`field: name`); eskirgan versiya — 409 `VERSION_CONFLICT` (`current` bilan) |
+| O‘chirish (`roles.delete`) | `DELETE /roles/:id` | 204; tizim roli — 422 `ROLE_PROTECTED`; rolda hisob bor — 409 `ROLE_IN_USE` (`errors[0].meta.users` — nechta) |
+| O‘chirish (hisoblarni ko‘chirib) | `DELETE /roles/:id?replaceWith=<roleId>` | 204 — rolning BARCHA hisoblari (o‘chirilganlari ham) shu rolga o‘tadi; o‘zidan kengroq rolga ko‘chirish — 403; `replaceWith` yo‘q/boshqa do‘konniki/o‘zi — 422 `REFERENCE_NOT_FOUND` (`field: replaceWith`) |
 
 `RoleDto`: `{ id, name, key, permissions, usersCount, updatedAt }` — `key`: tizim roli kaliti yoki `null`;
 `permissions`: `admin` da — katalogdagi hammasi; `usersCount` — o‘chirilmagan hisoblar.
@@ -705,12 +712,21 @@ Rollarni KO‘RISH (`GET /roles`, `/roles/catalog`) — `users.view` bilan (hiso
   `GET /users?role=` hali ishlaydi — shu kalitli tizim roli beriladi. Yangi kodda faqat `roleId`; frontend
   o‘tgach `role` kiritmasi olib tashlanadi (javobdagi `role` maydoni qoladi).
 
-**Huquq oshirishdan himoya.** Administrator `users.*` ruxsatini boshqa rolga bersa (masalan menejerga), u
-foydalanuvchilarni boshqaradi, lekin **o‘zidan kengroq** rol bilan ishlay olmaydi: `admin` rolini yoki o‘zida
-yo‘q ruxsati bor rolni bera olmaydi, shunday roldagi hisobni tahrirlay/o‘chira/tiklay olmaydi (parolini ham
-tiklay olmaydi) — 403 `PERMISSION_DENIED`. UI’da: administrator bo‘lmagan foydalanuvchiga rol tanlovida faqat
-`role.permissions ⊆ user.permissions` bo‘lgan (va `admin` bo‘lmagan) rollarni ko‘rsating, kengroq roldagi
-hisoblarda tahrir tugmalarini yashiring.
+**Huquq oshirishdan himoya.** `roles.*` va `users.*` ruxsatlarini istalgan rolga berish mumkin (masalan
+menejerga). Administrator bo‘lmagan egasi faqat **o‘zida bor ruxsatlar** doirasida ishlaydi, aks holda 403
+`PERMISSION_DENIED`:
+
+- rolga faqat o‘zida bor ruxsatni bera oladi (yaratishda ham, tahrirda ham); olib tashlash — o‘zidan keng
+  bo‘lmagan rollarda;
+- o‘zidan kengroq rolni (yoki `admin` ni) tahrirlay, o‘chira olmaydi, hisoblarni unga ko‘chira olmaydi;
+- hisobga `admin` yoki o‘zidan kengroq rolni bera olmaydi, shunday roldagi hisobni tahrirlay/o‘chira/tiklay
+  olmaydi (parolini ham tiklay olmaydi).
+
+Shu qoida tufayli `roles.edit` egasi o‘z roliga yangi ruxsat qo‘shib «administrator bo‘lib» ololmaydi.
+UI’da administrator bo‘lmaganga: rol oynasida o‘zida yo‘q ruxsat katakchalarini o‘chiq ko‘rsating; rol va hisob
+ro‘yxatida `role.key === 'admin'` yoki `role.permissions ⊄ user.permissions` bo‘lgan qatorlarda tahrir/o‘chirish
+tugmalarini yashiring; rol tanlovida (hisob formasi, `replaceWith`) faqat `role.permissions ⊆ user.permissions`
+bo‘lgan rollar.
 
 Rol amallari jurnalga tushadi (`GET /audit`): `role.create`, `role.update` (`diff`: `name: { from, to }`,
 `permissions: { added, removed }`), `role.delete` (`movedUsers`, `replaceWith`).
@@ -797,7 +813,7 @@ va bloklar — o‘ng ustundagi. Ruxsat yo‘q tugma umuman ko‘rsatilmaydi (se
 | Xabarlar (`/messages`) | `messages.view` | yuborish (preview ham) — `messages.send` |
 | Xodimlar (`/employees`) | `employees.view` | qo‘shish — `employees.create`; tahrir — `employees.edit`; o‘chirish — `employees.delete`; maosh — `salary.view` |
 | Foydalanuvchilar (`/users`) | `users.view` | qo‘shish — `users.create`; tahrir, rol, parol — `users.edit`; o‘chirish/tiklash — `users.delete`; «Rollar» — pastda |
-| Rollar (`/users/roles` yoki «Foydalanuvchilar» ichida tab) | `users.view` (ko‘rish) | yaratish, tahrir, o‘chirish — faqat `role === 'admin'`; boshqasiga — faqat o‘qish |
+| Rollar (`/users/roles` yoki «Foydalanuvchilar» ichida tab) | `roles.view` | yaratish — `roles.create`; ruxsat berish/olib tashlash, nom — `roles.edit`; o‘chirish — `roles.delete` (har biri — o‘zidan kengroq rolda yashirin, [6.4](#roles-api)) |
 | Audit (`/audit`) | `audit.view` | eksport — `users.view` |
 | Sozlamalar (`/settings`) | `settings.view` | saqlash — `settings.edit`; «Tarif va hisob», zaxira, do‘konni o‘chirish, migratsiya — `role === 'admin'` |
 | Bildirishnomalar | — | kam qolgan tovar — `products.view`; muddati o‘tgan qarz — `debts.view` |
@@ -816,7 +832,7 @@ Frontenddagi `src/lib/permissions.ts` (rol → resurs → amal matritsasining nu
 manba `user.permissions`. Qadamlar (fayllar — `crm-qurilish`):
 
 1. **Tiplar:** `npm run gen:api` → `components['schemas']['AuthUserDto']['permissions'][number]` — `Permission` tipi
-   (59 ta kalit birlashmasi). `RoleDto`, `PermissionCatalogDto` ham shu yerda.
+   (63 ta kalit birlashmasi). `RoleDto`, `PermissionCatalogDto` ham shu yerda.
 2. **`src/lib/permissions.ts`** — matritsa o‘rniga:
 
    ```ts
@@ -837,7 +853,7 @@ manba `user.permissions`. Qadamlar (fayllar — `crm-qurilish`):
    Shu bilan `QuoteForm.tsx` (`user?.role !== 'sotuvchi' || …`), `ProductForm.tsx`, `BulkPriceModal.tsx` dagi rol
    tekshiruvlari ham ruxsatga o‘tadi.
 7. **`role === 'admin'`** faqat [6.3](#admin-only) dagi joylarda qoladi (`AppLayout`, `StatusBanners`, Sozlamalar
-   ichidagi «Tarif va hisob», zaxira, migratsiya, rollarni tahrirlash).
+   ichidagi «Tarif va hisob», zaxira, migratsiya). Rollar sahifasi — `roles.*` ruxsatlari bilan.
 8. **Rol nomini ko‘rsatish** (`UserMenu`, foydalanuvchilar jadvali): `user.role ? t(\`enum.role.${user.role}\`) : user.roleName`.
    `MigrationWizard` dagi eski nusxa rollari — tizim kalitlari, o‘zgarmaydi.
 9. **`UserForm`, `OnboardingWizard`** — rol tanlovi `GET /roles` dan (`value: roleId`, nomi — 8-banddagidek), so‘rovda
@@ -868,18 +884,20 @@ Eski kalit → yangi ruxsat (qidirib almashtirish uchun):
 
 **«Rollar» sahifasi — talablar:**
 
-- Ro‘yxat (`GET /roles`): nom (tizim roli — tarjima), turi («Tizim» / «Do‘kon»), foydalanuvchilar soni
-  (`usersCount`), amallar. Administrator bo‘lmaganga — faqat ko‘rish.
+- Ro‘yxat (`GET /roles`, `roles.view`): nom (tizim roli — tarjima), turi («Tizim» / «Do‘kon»), foydalanuvchilar
+  soni (`usersCount`), amallar — `roles.create/edit/delete` ga qarab; administrator bo‘lmaganda o‘zidan kengroq
+  rollarda tahrir/o‘chirish yo‘q ([6.4](#roles-api)).
 - «Yangi rol» / «Tahrirlash» oynasi: nom maydoni (tizim rolida — o‘chiq), ruxsatlar jadvali `GET /roles/catalog`
   dan: `groups` tartibida bo‘limlar, har bo‘lim — qator, amallar — katakchalar (`label`/tarjima). Bo‘lim
   qatorida «hammasi» katakchasi qulay. Bog‘liqliklar [6.1](#roles-model) dagidek avtomatik belgilanadi.
-  `admin` roli — hamma katakcha belgilangan va o‘chiq, «Saqlash» yo‘q.
+  `admin` roli — hamma katakcha belgilangan va o‘chiq, «Saqlash» yo‘q. Administrator bo‘lmaganda o‘zida yo‘q
+  ruxsat katakchalari o‘chiq (server baribir 403 qaytaradi).
 - Saqlash — `POST` / `PATCH` (`If-Match: role.updatedAt`); 409 `VERSION_CONFLICT` — «Rolni boshqa administrator
   o‘zgartirdi» + `current` ni ko‘rsatib qayta tahrirlash. Javobdagi `permissions` ni ko‘rsating.
 - O‘chirish — faqat do‘kon rolida. `usersCount > 0` bo‘lsa oldindan «Foydalanuvchilarni qaysi rolga o‘tkazamiz?»
   tanlovi (boshqa rollar) → `DELETE …?replaceWith=`. `usersCount` o‘chirilgan hisoblarni sanamaydi — 0 bo‘lsa ham
   409 `ROLE_IN_USE` kelishi mumkin (o‘chirilgan hisob rolda): xatoda xuddi shu tanlovni ochib qayta yuboring.
-- Hisob formasida rol tanlovi yonida «Rollarni boshqarish» havolasi (administratorga).
+- Hisob formasida rol tanlovi yonida «Rollarni boshqarish» havolasi (`roles.view` bo‘lsa).
 - Qabul mezoni: do‘kon roli yaratilib hisobga berilgach, o‘sha foydalanuvchida menyu va tugmalar FAQAT rol
   ruxsatlari bo‘yicha ko‘rinadi; rol tahrirlansa ochiq ilovada sahifa yangilanmasdan o‘zgaradi
   (`access.changed`); hech bir sahifa 403 bilan «bo‘sh» qolmaydi.
@@ -954,7 +972,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `AUTH_INVALID_REFRESH` | 401 | Refresh cookie yo‘q, noma’lum yoki muddati o‘tgan | Login sahifasi |
 | `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh cookie ishlatildi (parallel refresh, logout-all / parol almashishidan keyin boshqa qurilmada) — barcha sessiyalar yopildi | «Sessiya tugadi» → login sahifasi |
 | `PLAN_LIMIT_EXCEEDED` | 402 | Tarif chegarasi (foydalanuvchi, ombor): `meta.resource`, `plan`, `limit`, `used` | Tarifni oshirish taklifi |
-| `PERMISSION_DENIED` | 403 | Rolda kerakli ruxsat yo‘q (`detail`: «Rolingizda «sales.cancel» ruxsati yo‘q»); faqat administrator amali ([6.3](#admin-only)); o‘zidan kengroq rol bilan ishlash ([6.4](#roles-api)); `wholesale.view` siz rol `priceTier: "wholesale"` yubordi, `sellerWholesaleEnabled` o‘chiq | «Ruxsat yo‘q» + `GET /auth/me` |
+| `PERMISSION_DENIED` | 403 | Rolda kerakli ruxsat yo‘q (`detail`: «Rolingizda «sales.cancel» ruxsati yo‘q»); faqat administrator amali ([6.3](#admin-only)); o‘zidan kengroq rol yoki o‘zida yo‘q ruxsat bilan ishlash ([6.4](#roles-api)); `wholesale.view` siz rol `priceTier: "wholesale"` yubordi, `sellerWholesaleEnabled` o‘chiq | «Ruxsat yo‘q» + `GET /auth/me` |
 | `NOT_FOUND` | 404 | Yo‘ldagi yozuv yo‘q / o‘chirilgan / boshqa do‘konniki | Ro‘yxatga qaytish |
 | `AUTH_TENANT_REQUIRED` | 409 | Email bir necha do‘konda — `errors[].meta.{tenantId, tenantName}` | Do‘kon tanlash |
 | `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field` | Maydon ostida |
@@ -1721,7 +1739,7 @@ Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. Qavsdagi r
 | **Xabarlar** (`/messages`, `messages.view`) | `GET /messages`, `GET /telegram` (bot holati) | `POST /messages/preview` (kanal bo‘yicha son), `POST /messages`; ulanmaganlar — `GET /clients?telegramStatus=none` | — |
 | **Xodimlar** (`/employees`, `employees.view`) | `GET /employees` | CRUD, `.../restore` | — |
 | **Foydalanuvchilar** (`/users`, `users.view`) | `GET /users`, `GET /roles` (rol tanlovi va nomi), `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD (`roleId`), «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | `access.changed` |
-| **Rollar** (yangi; `/users/roles` yoki tab, `users.view`) | `GET /roles`, `GET /roles/catalog` | admin: `POST /roles`, `PATCH /roles/:id` (`If-Match`), `DELETE /roles/:id?replaceWith=` ([6.8](#roles-migration)) | `access.changed` |
+| **Rollar** (yangi; `/users/roles` yoki tab, `roles.view`) | `GET /roles`, `GET /roles/catalog` | `POST /roles` (`roles.create`), `PATCH /roles/:id` (`roles.edit`, `If-Match`), `DELETE /roles/:id?replaceWith=` (`roles.delete`) ([6.8](#roles-migration)) | `access.changed` |
 | **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
 | **Audit** (`/audit`, `audit.view`) | `GET /audit` (kursor) | filtrlar, `GET /exports/audit` | — |
 | **Migratsiya sehrgari** (yangi, admin) | brauzer `localStorage` | `POST /migration/validate`, `POST /migration/import` | — |
@@ -2021,7 +2039,7 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 | T-107 | Realtime va uzilishga chidamlilik | Boshqa kassir sotgan tovar qoldig‘i darhol yangilanadi; internet uzilganda ogohlantirish va navbat; tiklanganda avtomatik yuborish — [9](#realtime), [12.4](#flow-offline) |
 | T-112 | Migratsiya sehrgari (UI) | 4 qadam (hisob → tekshirish → yuborish → natija); jarayon ko‘rsatkichi; xato bo‘lsa localStorage **o‘chirilmaydi** — [10.19](#migration) |
 | T-113 | Orqaga qaytish yo‘li | Migratsiyadan keyin ham localStorage nusxasi 30 kun saqlanadi; JSON zaxira yuklab olinadi — [10.19](#migration) |
-| T-134 | Ruxsatlar va «Rollar» sahifasi | Menyu, yo‘l himoyasi, tugmalar va yashirin maydonlar FAQAT `user.permissions` bo‘yicha (rol nomiga qarab shart yo‘q, `role === 'admin'` — faqat [6.3](#admin-only)); hisob formasida rol — `GET /roles` dan, `roleId` yuboriladi; «Rollar» sahifasi (yaratish, ruxsatlar jadvali katalogdan, tahrir `If-Match` bilan, o‘chirishda hisoblarni ko‘chirish); `access.changed` → `GET /auth/me`, ochiq ilovada menyu sahifa yangilanmasdan o‘zgaradi; ruxsatsiz sahifadan bosh sahifaga — [6](#roles), [6.8](#roles-migration) |
+| T-134 | Ruxsatlar va «Rollar» sahifasi | Menyu, yo‘l himoyasi, tugmalar va yashirin maydonlar FAQAT `user.permissions` bo‘yicha (rol nomiga qarab shart yo‘q, `role === 'admin'` — faqat [6.3](#admin-only)); hisob formasida rol — `GET /roles` dan, `roleId` yuboriladi; «Rollar» sahifasi `roles.*` ruxsatlari bilan (yaratish, ruxsatlar jadvali katalogdan, tahrir `If-Match` bilan, o‘chirishda hisoblarni ko‘chirish; administrator bo‘lmaganda faqat o‘zida bor ruxsatlar); `access.changed` → `GET /auth/me`, ochiq ilovada menyu sahifa yangilanmasdan o‘zgaradi; ruxsatsiz sahifadan bosh sahifaga — [6](#roles), [6.8](#roles-migration) |
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
 sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
@@ -2050,13 +2068,13 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 | Avval | Endi | Frontendda |
 |-------|------|-----------|
-| 4 ta qat’iy rol, matritsa kodda (`packages/shared` va frontend nusxasi), administrator o‘zgartira olmasdi | Ruxsatlar rolga beriladi: 59 ta `bo‘lim.amal` ruxsati, 4 ta tizim roli (sukut — avvalgi matritsa bilan aynan bir xil) + administrator yaratadigan rollar; `GET/POST/PATCH/DELETE /roles`, `GET /roles/catalog` | Yangi «Rollar» sahifasi ([6.8](#roles-migration)) |
+| 4 ta qat’iy rol, matritsa kodda (`packages/shared` va frontend nusxasi), administrator o‘zgartira olmasdi | Ruxsatlar rolga beriladi: 63 ta `bo‘lim.amal` ruxsati, 4 ta tizim roli (sukut — avvalgi matritsa bilan aynan bir xil) + do‘kon yaratadigan rollar; `GET/POST/PATCH/DELETE /roles`, `GET /roles/catalog`; rollarni boshqarishning o‘zi ham ruxsat (`roles.*`, sukut — faqat admin) | Yangi «Rollar» sahifasi ([6.8](#roles-migration)) |
 | Huquq — `user.role` + frontenddagi matritsa nusxasi | `user.permissions` (login, refresh, `/auth/me`), `roleId`, `roleName`; `role` — tizim kaliti yoki `null` | `src/lib/permissions.ts` matritsasi o‘rniga `user.permissions`; `useCan('sales.return')` ([6.8](#roles-migration)) |
 | Bo‘limlar: `finance`, `products` ichida ombor, `suppliers` ichida xaridlar, `customers` ichida xabarlar, `users` ichida audit | Alohida: `cash`, `debts`, `reports`, `stock`, `purchases` (`receive`, `pay`), `messages`, `audit`; `sales.return`, `sales.cancel` | Eski kalit → yangi jadvali ([6.8](#roles-migration)) |
 | Yashirin maydonlar rol nomiga bog‘liq edi | `cost.view`, `wholesale.view`, `profit.view`, `salary.view` ruxsatlari ([6.6](#hidden)) | `hiddenFields.ts` — ruxsat bo‘yicha |
 | `POST/PATCH /users { role }`, `GET /users?role=` | `roleId`, `?roleId=`; `role` kaliti hali qabul qilinadi (eskirgan) | Rol tanlovi `GET /roles` dan |
 | Rol o‘zgarishi ≤ 15 daqiqada (token muddati), faolsizlantirilgan hisobning tokeni ham shuncha ishlardi | Huquq tokenda yo‘q — keyingi so‘rovdanoq; faolsiz hisob — darhol 401; `access.changed` hodisasi | Hodisada `GET /auth/me` (refresh EMAS) ([6.5](#access-changed)) |
-| — | Yangi xato kodlari `ROLE_PROTECTED` (422), `ROLE_IN_USE` (409); `users.*` berilgan rol o‘zidan kengroq rol bilan ishlay olmaydi (403) | [7.3](#errors) |
+| — | Yangi xato kodlari `ROLE_PROTECTED` (422), `ROLE_IN_USE` (409); `users.*`/`roles.*` berilgan rol faqat o‘zida bor ruxsatlar doirasida (403) | [7.3](#errors) |
 | Zaxirada `users[].role` — rol kaliti | `role` — tizim kaliti yoki `null` (do‘kon roli), `roleName`; import do‘kon rolidagi hisobni o‘tkazib yuboradi (`CUSTOM_ROLE` ogohlantirishi) | — |
 
 **2026-09-29** — frontendga ta’sir qiladi:

@@ -47,11 +47,6 @@ const AUTH_ONLY = new Set([
   'POST /api/v1/tenants/current/restore',
   // Zaxira — faqat administrator (BackupService tekshiradi, tenant-export testi)
   'GET /api/v1/backup/export',
-  // Rollarni boshqarish — faqat administrator: `roles` ruxsati bo'lsa, egasi o'ziga
-  // istalgan ruxsatni qo'shib olardi (RolesService tekshiradi, roles testi)
-  'POST /api/v1/roles',
-  'PATCH /api/v1/roles/:id',
-  'DELETE /api/v1/roles/:id',
 ])
 
 describe('Har bir endpoint himoyalangan', () => {

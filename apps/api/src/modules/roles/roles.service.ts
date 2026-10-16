@@ -3,13 +3,14 @@ import type { Prisma, SystemRole } from '@prisma/client'
 import {
   effectivePermissions, normalizePermissions, PERMISSION_CATALOG, PERMISSION_GROUPS, type Permission,
 } from '@crm/shared'
-import { currentContext, currentTenantId } from '@/common/context/request-context'
+import { currentTenantId } from '@/common/context/request-context'
 import { isRecordNotFound, rethrowAsDomain } from '@/common/crud/prisma-errors'
-import { DomainError, NotFoundError, PermissionDeniedError, VersionConflictError } from '@/common/errors/domain.error'
+import { DomainError, NotFoundError, VersionConflictError } from '@/common/errors/domain.error'
 import { AuditService } from '@/modules/audit/audit.service'
 import { DomainEvents } from '@/modules/realtime/domain-events.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import { AccessService } from './access.service'
+import { assertWithinActor } from './actor-scope'
 import type { CreateRoleDto, PermissionCatalogDto, RoleDto, UpdateRoleDto } from './dto/role.dto'
 
 const RESOURCE = 'Rol'
@@ -35,8 +36,9 @@ export interface RoleRef {
 
 /**
  * Do'kon rollari (T-134). Ruxsatlar ROLGA beriladi; foydalanuvchi — bitta
- * rolda. Rollarni faqat administrator boshqaradi: `roles` huquqi boshqa rolga
- * berilsa, egasi o'ziga istalgan ruxsatni qo'shib olardi.
+ * rolda. Boshqarish — `roles.*` ruxsati bilan; administrator bo'lmagan egasi
+ * faqat O'ZIDA bor ruxsatlar doirasida (`assertWithinActor`): kengroq rolni
+ * yarata, tahrirlay, o'chira olmaydi, hisoblarni unga ko'chira olmaydi.
  *
  * Tizim rollari: `admin` — o'zgarmaydi (doim hammasi); qolganlarida faqat
  * ruxsatlar o'zgaradi. Ular o'chirilmaydi — eski mijoz (`role` kaliti) va
@@ -75,9 +77,9 @@ export class RolesService {
   }
 
   async create(dto: CreateRoleDto): Promise<RoleDto> {
-    assertAdmin()
-    await this.assertNameFree(dto.name)
     const permissions = normalizePermissions(dto.permissions)
+    assertWithinActor({ key: null, permissions })
+    await this.assertNameFree(dto.name)
     const row = await this.prisma.scoped.role
       .create({ data: { tenantId: currentTenantId(), name: dto.name, permissions }, select: ROLE_SELECT })
       .catch((err: unknown) => rethrowAsDomain(err, { resource: RESOURCE, unique: { name: 'ALREADY_EXISTS' } }))
@@ -87,15 +89,17 @@ export class RolesService {
 
   /** `version` (`If-Match`) eskirgan bo'lsa — 409 `VERSION_CONFLICT` joriy holat bilan */
   async update(id: string, dto: UpdateRoleDto, version?: Date): Promise<RoleDto> {
-    assertAdmin()
     const current = await this.find(id)
     assertEditable(current, dto)
+    assertWithinActor(scopeOf(current))
+    const permissions = dto.permissions && normalizePermissions(dto.permissions)
+    if (permissions) assertWithinActor({ key: current.key, permissions })
     if (dto.name !== undefined) await this.assertNameFree(dto.name, id)
 
     const row = await this.prisma.scoped.role
       .update({
         where: { id, ...(version && { updatedAt: { gte: version, lt: new Date(version.getTime() + 1) } }) },
-        data: { name: dto.name, permissions: dto.permissions && normalizePermissions(dto.permissions) },
+        data: { name: dto.name, permissions },
         select: ROLE_SELECT,
       })
       .catch(async (err: unknown) => {
@@ -116,12 +120,12 @@ export class RolesService {
    * foydalanuvchi bog'lanmaydi (FK tekshiruvi qulfni kutadi).
    */
   async remove(id: string, replaceWith?: string): Promise<void> {
-    assertAdmin()
     const tx = this.prisma.scoped
-    const [role] = await tx.$queryRaw<{ name: string; key: SystemRole | null }[]>`
-      SELECT name, key FROM roles WHERE tenant_id = ${currentTenantId()}::uuid AND id = ${id}::uuid FOR UPDATE`
+    const [role] = await tx.$queryRaw<{ name: string; key: SystemRole | null; permissions: string[] }[]>`
+      SELECT name, key, permissions FROM roles WHERE tenant_id = ${currentTenantId()}::uuid AND id = ${id}::uuid FOR UPDATE`
     if (!role) throw new NotFoundError(RESOURCE, id)
     if (role.key) throw new DomainError('ROLE_PROTECTED', 'Tizim rolini o‘chirib bo‘lmaydi')
+    assertWithinActor(scopeOf(role))
 
     const holders = await tx.user.count({ where: { roleId: id } })
     if (holders > 0) await this.moveUsers(id, holders, replaceWith)
@@ -157,12 +161,14 @@ export class RolesService {
     }
     const target = replaceWith === id
       ? null
-      : await this.prisma.scoped.role.findFirst({ where: { id: replaceWith }, select: { id: true } })
+      : await this.prisma.scoped.role.findFirst({ where: { id: replaceWith }, select: { key: true, permissions: true } })
     if (!target) {
       throw new DomainError('REFERENCE_NOT_FOUND', 'O‘tkaziladigan rol topilmadi', [
         { field: 'replaceWith', code: 'REFERENCE_NOT_FOUND' },
       ])
     }
+    // Ko'chirilganlar (o'zi ham bo'lishi mumkin) kengroq rolga o'tmasin
+    assertWithinActor(scopeOf(target))
     await this.prisma.scoped.user.updateMany({ where: { roleId: id }, data: { roleId: replaceWith } })
   }
 
@@ -189,8 +195,9 @@ export class RolesService {
   }
 }
 
-function assertAdmin(): void {
-  if (currentContext().role !== 'admin') throw new PermissionDeniedError('Rollarni faqat administrator boshqaradi')
+/** Saqlangan rol → amaldagi ruxsatlari (administrator — hammasi) */
+function scopeOf(role: { key: SystemRole | null; permissions: string[] }): { key: SystemRole | null; permissions: Permission[] } {
+  return { key: role.key, permissions: effectivePermissions(role.key, role.permissions) }
 }
 
 /** `admin` — hech narsa o'zgarmaydi; boshqa tizim rolining nomi doimiy (mijoz uni tarjima qiladi) */

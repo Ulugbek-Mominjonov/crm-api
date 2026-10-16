@@ -63,6 +63,8 @@ function legacyCheck(p: Permission): (role: Exclude<Role, 'admin'>) => boolean {
     'users.view': can('users', 'view'), 'users.create': can('users', 'create'),
     'users.edit': can('users', 'edit'), 'users.delete': can('users', 'delete'),
     'audit.view': can('users', 'view'),
+    // Rollarni boshqarish avval faqat administratorda edi
+    'roles.view': () => false, 'roles.create': () => false, 'roles.edit': () => false, 'roles.delete': () => false,
     'settings.view': can('settings', 'view'), 'settings.edit': can('settings', 'edit'),
     'cost.view': seesField(['sotuvchi']),
     'wholesale.view': seesField(['sotuvchi']),
@@ -95,6 +97,7 @@ describe('ruxsatlar katalogi', () => {
     expect(normalizePermissions(['purchases.pay'])).toEqual(['products.view', 'purchases.view', 'purchases.pay', 'suppliers.view'])
     expect(normalizePermissions(['stock.operate'])).toEqual(['products.view', 'stock.view', 'stock.operate'])
     expect(normalizePermissions(['messages.send'])).toEqual(['customers.view', 'messages.view', 'messages.send'])
+    expect(normalizePermissions(['users.edit'])).toEqual(['users.view', 'users.edit', 'roles.view'])
     expect(normalizePermissions([])).toEqual([])
   })
 
