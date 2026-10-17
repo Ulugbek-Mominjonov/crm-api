@@ -12,7 +12,13 @@ const CATALOG = {
   sales: {
     group: 'sales',
     label: 'Sotuvlar',
-    actions: { view: 'Sotuvlar tarixi va cheklar', create: 'Sotish (kassa)', return: 'Qaytarish', cancel: 'Chekni bekor qilish' },
+    actions: {
+      view: 'Sotuvlar tarixi va cheklar',
+      create: 'Sotish (kassa)',
+      return: 'Qaytarish',
+      cancel: 'Chekni bekor qilish',
+      belowCost: 'Minimal narxdan (tannarx + marja) past sotish',
+    },
   },
   quotes: {
     group: 'sales',
@@ -203,6 +209,8 @@ export function hasPermission<R extends Resource>(
  */
 const IMPLIES: Partial<Record<Permission, readonly Permission[]>> = {
   'sales.create': ['products.view'],
+  // Minimal narxdan past sotish — sotish huquqisiz ma'nosiz (T-141)
+  'sales.belowCost': ['sales.create'],
   'quotes.create': ['products.view'],
   'quotes.edit': ['products.view'],
   'stock.view': ['products.view'],
@@ -237,7 +245,11 @@ export function effectivePermissions(key: Role | null, stored: readonly string[]
   return PERMISSIONS.filter((p) => stored.includes(p))
 }
 
-const ALL_OF = (resource: Resource): Permission[] => PERMISSIONS.filter((p) => p.startsWith(`${resource}.`))
+/** Sukut rollarga berilmaydigan ruxsatlar — administrator rol oynasida aniq beradi (T-141) */
+const OWNER_DECIDES: readonly Permission[] = ['sales.belowCost']
+
+const ALL_OF = (resource: Resource): Permission[] =>
+  PERMISSIONS.filter((p) => p.startsWith(`${resource}.`) && !OWNER_DECIDES.includes(p))
 
 /**
  * Tizim rollari — har do'konda yaratiladi. Ruxsatlari sukut (T-134 gacha

@@ -192,7 +192,7 @@ describe('Sotuv yaratish (POST /sales)', () => {
     await testDb.settings.update({ where: { tenantId: a.tenantId }, data: { maxDiscountPct: 5 } })
     const res = await sale({ items: [{ productId: p, qty: 1 }], discount: 3_001, paid: cashOnly(70_000) }).expect(422)
     expect(res.body.code).toBe('DISCOUNT_LIMIT')
-    expect(res.body.errors[0].meta).toEqual({ max: 3_000, requested: 3_001 })
+    expect(res.body.errors[0].meta).toEqual({ max: 3_000, requested: 3_001, reason: 'policy' })
   })
 
   it('mijoz ko‘rsatgan jami farq qilsa — 422 TOTAL_MISMATCH; mos bo‘lsa — o‘tadi', async () => {

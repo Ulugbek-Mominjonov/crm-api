@@ -631,7 +631,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 
 > Faqat yuborilgan maydonlar o‘zgaradi. Foizlar 0–100 oralig‘ida. `storeName` do‘kon nomini ham o‘zgartiradi (kirishdagi tanlov, `/auth/me`). `logoFileId` — tasdiqlangan `store_logo` fayli; almashtirilsa yoki `null` bo‘lsa eski fayl o‘chiriladi. Muvaffaqiyatdan keyin do‘kon xonasiga `settings.updated` hodisasi.
 
-**Qachon / qanday:** Sozlamalar sahifasi va dastlabki sozlash sehrgari. Faqat o‘zgargan maydonlarni yuboring. Foizlar butun son 0–100. Server keshi darhol yangilanadi. `sellerWholesaleEnabled` o‘zgarsa — sotuvchilar katalogni qayta so‘rasin (`wholesalePrice` paydo bo‘ladi/yo‘qoladi).
+**Qachon / qanday:** Sozlamalar sahifasi va dastlabki sozlash sehrgari. Faqat o‘zgargan maydonlarni yuboring. Foizlar butun son 0–100. Server keshi darhol yangilanadi. `sellerWholesaleEnabled` o‘zgarsa — sotuvchilar katalogni qayta so‘rasin (`wholesalePrice` paydo bo‘ladi/yo‘qoladi). `minMarginPct` — minimal marja (minimal narx = tannarx × (1 + %); T-141), `maxDiscountPct` — chegirma foizi (endi qator chegirmasi va qo‘lda narxga ham).
 
 | | |
 |---|---|
@@ -654,6 +654,7 @@ Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek
 | `loyaltyEnabled` | `boolean` |  |  |
 | `loyaltyRate` | `number` |  | min `0`, max `100` |
 | `maxDiscountPct` | `number` |  | min `0`, max `100` |
+| `minMarginPct` | `number` |  | Minimal marja, % (0 — tannarxning o‘zi) — min `0`, max `100` |
 | `receiptPhone` | `string` |  | maks. uzunlik `40` |
 | `receiptAddress` | `string` |  | maks. uzunlik `200` |
 | `receiptFooter` | `string` |  | maks. uzunlik `500` |
@@ -1153,7 +1154,7 @@ Katalog, mahsulot kartasi, POS qidiruvi, CSV import, ommaviy narx. Qoldiq mahsul
 
 > Faol turlar, kam qolganlar, ombor qiymati (tannarxda; sotuvchiga chiqmaydi).
 
-**Qachon / qanday:** Katalog tepasidagi kartalar: faol turlar, kam qolganlar, ombor qiymati (sotuvchiga qiymat chiqmaydi).
+**Qachon / qanday:** Katalog tepasidagi kartalar: faol turlar, kam qolganlar, tannarxsizlar (`withoutCost` — bosilsa `?noCost=true`), ombor qiymati (sotuvchiga qiymat chiqmaydi).
 
 | | |
 |---|---|
@@ -1175,7 +1176,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 > Qidiruv: nom va SKU bo‘yicha qism, shtrix-kod bo‘yicha aniq moslik. Har mahsulotda ombor bo‘yicha qoldiq (`stocks`). Sotuvchi rolida `cost` va `wholesalePrice` qaytmaydi. So‘rov byudjeti — 2.
 
-**Qachon / qanday:** Katalog jadvali (server sahifalash/saralash), POS qidiruvi va mahsulot tanlash oynalari. `q` — nom/SKU bo‘yicha qism + shtrix-kod bo‘yicha aniq moslik (skaner shu bilan ishlaydi). `lowStock=true` — kam qolganlar (`stock ≤ minStock`). `warehouseId` — faqat shu omborda qoldig‘i BOR (> 0) mahsulotlar, `warehouseStock` — o‘sha ombor qoldig‘i (inventarizatsiya varag‘i uchun filtrsiz ro‘yxat + `stocks[warehouseId] ?? 0`). Har qatorda `stock` (jami) va `stocks` (`{warehouseId: qty}`). Sotuvchida `cost`, `wholesalePrice` YO‘Q.
+**Qachon / qanday:** Katalog jadvali (server sahifalash/saralash), POS qidiruvi va mahsulot tanlash oynalari. `q` — nom/SKU bo‘yicha qism + shtrix-kod bo‘yicha aniq moslik (skaner shu bilan ishlaydi). `lowStock=true` — kam qolganlar (`stock ≤ minStock`). `warehouseId` — faqat shu omborda qoldig‘i BOR (> 0) mahsulotlar, `warehouseStock` — o‘sha ombor qoldig‘i (inventarizatsiya varag‘i uchun filtrsiz ro‘yxat + `stocks[warehouseId] ?? 0`). Har qatorda `stock` (jami) va `stocks` (`{warehouseId: qty}`). Sotuvchida `cost`, `wholesalePrice` YO‘Q. `noCost=true` — tannarxi kiritilmaganlar (minimal narx himoyasi ishlamaydi, T-141) — «Tannarxsiz» filtri.
 
 | | |
 |---|---|
@@ -1195,6 +1196,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 | `supplierId` | query | `string` (uuid) |  |  |
 | `warehouseId` | query | `string` (uuid) |  | Faqat shu omborda qoldig‘i bor tovarlar; har birida `warehouseStock` qaytadi |
 | `lowStock` | query | `boolean` |  | Faqat kam qolganlar: qoldiq ≤ minimal |
+| `noCost` | query | `boolean` |  | Faqat tannarxi kiritilmaganlar (0) — ularda minimal narx himoyasi ishlamaydi (T-141) |
 | `archived` | query | `boolean` |  | `true` — faqat arxivlanganlar — sukut `false` |
 
 **Xatolar**
@@ -2777,7 +2779,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `name` | `string` | ✔ | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
-| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `sales.belowCost` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
 
 **Xatolar**
 
@@ -2871,7 +2873,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `name` | `string` |  | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
-| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `sales.belowCost` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
 
 **Xatolar**
 
@@ -2948,7 +2950,7 @@ POS va cheklar jurnali. Chek BITTA so‘rov bilan yoziladi, summalarni server qa
 
 > Bitta tranzaksiya: qoldiq (qulf bilan), chek, ombor harakatlari, kassa, bonus, yetkazish, audit. Ochiq smena shart (I8). Idempotent.
 
-**Qachon / qanday:** POS «To‘lash» (F9). Savat brauzerda turadi, chek BITTA so‘rov bilan yoziladi. `total` — ekranda ko‘rsatilgan jami: yuboring, farq bo‘lsa 422 `TOTAL_MISMATCH` (`meta.client/server`) — chek yozilmaydi, pul noto‘g‘ri olinmaydi. `paid.cash` — mijoz BERGAN naqd (qaytim server hisoblaydi → `change`). To‘lanmagan qismi — nasiya (`customerId` shart). Smena yopiq — 423 `SHIFT_REQUIRED` → smena ochish oynasi. Muvaffaqiyatda chek: `GET /sales/:id/receipt`. Offline navbatga tushsa — XUDDI SHU `Idempotency-Key` bilan qayta yuboriladi. `priceTier: "wholesale"` — sotuvchiga faqat `sellerWholesaleEnabled` bilan (aks holda 403 `PERMISSION_DENIED`).
+**Qachon / qanday:** POS «To‘lash» (F9). Savat brauzerda turadi, chek BITTA so‘rov bilan yoziladi. `total` — ekranda ko‘rsatilgan jami: yuboring, farq bo‘lsa 422 `TOTAL_MISMATCH` (`meta.client/server`) — chek yozilmaydi, pul noto‘g‘ri olinmaydi. `paid.cash` — mijoz BERGAN naqd (qaytim server hisoblaydi → `change`). To‘lanmagan qismi — nasiya (`customerId` shart). Smena yopiq — 423 `SHIFT_REQUIRED` → smena ochish oynasi. Muvaffaqiyatda chek: `GET /sales/:id/receipt`. Offline navbatga tushsa — XUDDI SHU `Idempotency-Key` bilan qayta yuboriladi. `priceTier: "wholesale"` — sotuvchiga faqat `sellerWholesaleEnabled` bilan (aks holda 403 `PERMISSION_DENIED`). Chegirma va qo‘lda narx chegaralari (T-141): 422 `DISCOUNT_LIMIT` — `meta.reason` `cost` (minimal narx, `meta.minPrice`) yoki `policy` (`maxDiscountPct`), `meta.max` — shu maydonga mumkin bo‘lgan chegirma; `sales.belowCost` ruxsati bilan minimal narx chegarasi o‘tiladi (chek jurnalga `sale.belowCost` bilan tushadi) — README → 10.1.
 
 | | |
 |---|---|
@@ -3610,7 +3612,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Raqam `TKLF-…` (I12); summalar sotuv bilan bir xil qoidada.
 
-**Qachon / qanday:** Taklif (smeta). Summalar sotuv qoidasida hisoblanadi; qoldiq band QILINMAYDI. `priceTier` berilmasa: `wholesaleEnabled` bo‘lsa — `retail` bo‘lmagan har qanday guruh (`wholesale`, `vip`) ulgurji, aks holda chakana. Aniq berilgan `priceTier` `wholesaleEnabled=false` da ham qo‘llanadi (sotuvdan farqli).
+**Qachon / qanday:** Taklif (smeta). Summalar sotuv qoidasida hisoblanadi; qoldiq band QILINMAYDI. `priceTier` berilmasa: `wholesaleEnabled` bo‘lsa — `retail` bo‘lmagan har qanday guruh (`wholesale`, `vip`) ulgurji, aks holda chakana. Aniq berilgan `priceTier` `wholesaleEnabled=false` da ham qo‘llanadi (sotuvdan farqli). Chegirma va minimal narx chegaralari sotuvdagidek (422 `DISCOUNT_LIMIT`, T-141) — yaratishda tekshiriladi, aylantirishda emas.
 
 | | |
 |---|---|

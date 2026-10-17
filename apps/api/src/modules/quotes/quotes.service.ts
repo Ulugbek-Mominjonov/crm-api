@@ -13,7 +13,7 @@ import { CashRegisterService } from '@/modules/cash/cash-register.service'
 import { DocNumberService } from '@/modules/doc-numbers/doc-number.service'
 import type { SaleDto, SaleItemInputDto } from '@/modules/sales/dto/sale.dto'
 import {
-  computeTotals, priceLines, resolvePriceTier, type PricedLine, type PricingProduct,
+  computeTotals, policyOf, priceLines, resolvePriceTier, type PricedLine, type PricingProduct,
 } from '@/modules/sales/sale-totals'
 import { SalesService } from '@/modules/sales/sales.service'
 import { SettingsService } from '@/modules/settings/settings.service'
@@ -273,8 +273,9 @@ export class QuotesService {
           paid,
           date: businessDate(),
           taxRate: quote.taxRate,
-          // Chegirma taklif yaratilganda tekshirilgan — qayta cheklanmaydi
-          maxDiscountPct: 100,
+          // Chegirma va minimal narx taklif yaratilganda (yaratuvchining huquqi bilan) tekshirilgan —
+          // qayta cheklanmaydi: mijozga va'da qilingan narx; tannarx o'zgargan bo'lsa chek jurnalga belgi bilan tushadi
+          policy: { minMarginPct: settings.minMarginPct, maxDiscountPct: 100, belowCostAllowed: true },
           loyalty: settings,
           clientTotal: total,
           link: (saleId) => [
@@ -352,9 +353,10 @@ export class QuotesService {
       ]),
     )
     const tier = resolvePriceTier(priceTier, tierOf(customer?.group ?? null), settings, permissions)
-    const lines = priceLines(items, pricing, tier)
+    const policy = policyOf(settings, permissions)
+    const lines = priceLines(items, pricing, tier, policy)
     const taxRate = settings.taxEnabled ? settings.taxRate : 0
-    const totals = computeTotals(lines, { discount, taxRate, maxDiscountPct: settings.maxDiscountPct })
+    const totals = computeTotals(lines, { discount, taxRate, maxDiscountPct: policy.maxDiscountPct, belowCostAllowed: policy.belowCostAllowed })
     return {
       header: {
         subtotal: BigInt(totals.subtotal),

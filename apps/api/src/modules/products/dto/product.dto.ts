@@ -184,6 +184,12 @@ export class ProductListQueryDto extends ListQueryDto {
   @IsBoolean()
   lowStock?: boolean
 
+  @ApiPropertyOptional({ description: 'Faqat tannarxi kiritilmaganlar (0) — ularda minimal narx himoyasi ishlamaydi (T-141)' })
+  @IsOptional()
+  @ToBoolean()
+  @IsBoolean()
+  noCost?: boolean
+
   @ApiPropertyOptional({ default: false, description: '`true` — faqat arxivlanganlar' })
   @IsOptional()
   @ToBoolean()
@@ -199,6 +205,8 @@ export class CategoryValueDto {
 export class ProductSummaryDto {
   @ApiProperty({ example: 137, description: 'Faol (arxivlanmagan) mahsulot turlari' }) active!: number
   @ApiProperty({ example: 6, description: 'Kam qolganlar: qoldiq ≤ minimal' }) lowStock!: number
+  @ApiProperty({ example: 3, description: 'Tannarxi kiritilmaganlar (0): minimal narx himoyasi ishlamaydi — `GET /products?noCost=true` (T-141)' })
+  withoutCost!: number
   @ApiPropertyOptional({ example: 84_500_000, description: 'Ombor qiymati tannarxda. Sotuvchi rolida yo‘q' }) stockValue?: number
   @ApiPropertyOptional({ type: [CategoryValueDto], description: 'Ombor qiymati kategoriyalar bo‘yicha (eng kattasi 8 ta). Sotuvchi rolida yo‘q' })
   stockValueByCategory?: CategoryValueDto[]

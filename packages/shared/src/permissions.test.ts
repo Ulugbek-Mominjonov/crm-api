@@ -38,6 +38,8 @@ function legacyCheck(p: Permission): (role: Exclude<Role, 'admin'>) => boolean {
   const map: Record<Permission, (role: Exclude<Role, 'admin'>) => boolean> = {
     'sales.view': can('sales', 'view'), 'sales.create': can('sales', 'create'),
     'sales.return': can('sales', 'create'), 'sales.cancel': can('sales', 'delete'),
+    // T-141: minimal narxdan past sotish — sukut rollarda yo'q (administrator beradi)
+    'sales.belowCost': () => false,
     'quotes.view': can('quotes', 'view'), 'quotes.create': can('quotes', 'create'),
     'quotes.edit': can('quotes', 'edit'), 'quotes.delete': can('quotes', 'delete'),
     'deliveries.view': can('deliveries', 'view'), 'deliveries.create': can('deliveries', 'create'),

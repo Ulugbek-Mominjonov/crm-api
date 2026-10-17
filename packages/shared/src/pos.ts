@@ -52,6 +52,17 @@ export function lineTotal(price: number, qty: number, discount = 0): number {
   return Math.round(price * qty) - Math.max(0, discount)
 }
 
+/**
+ * Minimal narx (T-141): tannarx × (1 + minimal marja %). Undan past sotish
+ * do'konga zarar — qo'lda narx, qator va umumiy chegirma shu chegaraga
+ * bo'ysunadi (`sales.belowCost` ruxsati bilan istisno). Tannarx noma'lum
+ * (0) bo'lsa chegara yo'q. Kassa chegirma maydonini shu bilan oldindan cheklaydi.
+ */
+export function floorPrice(cost: number, minMarginPct: number): number {
+  if (!(cost > 0)) return 0
+  return Math.round(cost * (1 + Math.max(0, minMarginPct) / 100))
+}
+
 export function saleTotals({
   subtotal,
   discount,

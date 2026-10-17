@@ -112,6 +112,8 @@ export class ProductsService extends SoftDeleteCrudService<
       ...(query.supplierId && { supplierId: query.supplierId }),
       // `products_low_stock` qisman indeksi aynan shu shartga mos
       ...(query.lowStock && { stock: { lte: this.prisma.product.fields.minStock } }),
+      // Tannarxsiz tovarlar — minimal narx himoyasi ishlamaydi (T-141)
+      ...(query.noCost && { cost: 0 }),
       ...(query.warehouseId && {
         stocks: { some: { warehouseId: query.warehouseId, qty: { gt: 0 } } },
       }),
@@ -126,9 +128,10 @@ export class ProductsService extends SoftDeleteCrudService<
   async summary(): Promise<ProductSummaryDto> {
     const { tenantId } = requireTenantTx()
     const [[row], byCategory] = await Promise.all([
-      this.prisma.scoped.$queryRaw<{ active: bigint; low: bigint; value: Prisma.Decimal }[]>`
+      this.prisma.scoped.$queryRaw<{ active: bigint; low: bigint; nocost: bigint; value: Prisma.Decimal }[]>`
         SELECT COUNT(*) AS active,
                COUNT(*) FILTER (WHERE stock <= min_stock) AS low,
+               COUNT(*) FILTER (WHERE cost = 0) AS nocost,
                COALESCE(SUM(stock * cost), 0) AS value
           FROM products
          WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL AND NOT archived`,
@@ -144,6 +147,7 @@ export class ProductsService extends SoftDeleteCrudService<
     return {
       active: Number(row!.active),
       lowStock: Number(row!.low),
+      withoutCost: Number(row!.nocost),
       stockValue: Math.round(row!.value.toNumber()),
       stockValueByCategory: byCategory.map((c) => ({ name: c.name ?? '', value: Math.round(c.value.toNumber()) })),
     }

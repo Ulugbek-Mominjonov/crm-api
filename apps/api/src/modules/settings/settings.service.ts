@@ -31,6 +31,7 @@ const SETTINGS_SELECT = {
   loyaltyEnabled: true,
   loyaltyRate: true,
   maxDiscountPct: true,
+  minMarginPct: true,
   receiptPhone: true,
   receiptAddress: true,
   receiptFooter: true,

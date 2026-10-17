@@ -332,6 +332,7 @@ COLUMNS = {
     'target': 'Kimga: bitta mijoz, guruh, qarzdorlar, hamma',
     'action': "Amal (masalan `sale.create`)",
     'request_id': 'Murojaat',
+    'min_margin_pct': "Minimal marja, %: minimal narx = tannarx × (1 + shu/100); undan past sotish faqat `sales.belowCost` bilan",
     'author': "Kim yozdi: `store` — do'kon administratori, `platform` — egasi yoki operator",
     'author_name': "Yozilgan paytdagi ism",
     'body': 'Xabar matni',

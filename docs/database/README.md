@@ -128,6 +128,7 @@ erDiagram
         boolean seller_wholesale_enabled
         varchar brand_color
         uuid logo_file_id FK
+        integer min_margin_pct
     }
     employees {
         uuid id PK
@@ -281,6 +282,7 @@ Do'kon sozlamalari — bitta qator: nom, valyuta, QQS, ulgurji savdo (va sotuvch
 | `seller_wholesale_enabled` | boolean | — | Sotuvchi ham ulgurji narxda sotadi va ulgurji narxni ko'radi (sukut — yo'q) |
 | `brand_color` | varchar(7) | ha | Brend rangi `#RRGGBB` (katta harf); null — standart |
 | `logo_file_id` | uuid | ha | → `files` · Logotip — `store_logo` fayli (do'konda bitta); fayl o'chsa uziladi |
+| `min_margin_pct` | integer | — | Minimal marja, % (T-141): minimal narx = tannarx × (1 + shu / 100); undan past sotish — faqat `sales.belowCost` bilan |
 
 ### `employees`
 

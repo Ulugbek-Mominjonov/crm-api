@@ -378,7 +378,8 @@ NOTES = {
     ('PATCH', '/settings'):
         'Sozlamalar sahifasi va dastlabki sozlash sehrgari. Faqat o‘zgargan maydonlarni yuboring. '
         'Foizlar butun son 0–100. Server keshi darhol yangilanadi. `sellerWholesaleEnabled` o‘zgarsa — sotuvchilar '
-        'katalogni qayta so‘rasin (`wholesalePrice` paydo bo‘ladi/yo‘qoladi).',
+        'katalogni qayta so‘rasin (`wholesalePrice` paydo bo‘ladi/yo‘qoladi). `minMarginPct` — minimal marja (minimal narx = '
+        'tannarx × (1 + %); T-141), `maxDiscountPct` — chegirma foizi (endi qator chegirmasi va qo‘lda narxga ham).',
     # warehouses
     ('GET', '/warehouses'):
         'Omborlar sahifasi va har qanday «ombor tanlash» ro‘yxati (POS, kirim, ko‘chirish, buyurtma). '
@@ -403,8 +404,11 @@ NOTES = {
         'bo‘yicha qism + shtrix-kod bo‘yicha aniq moslik (skaner shu bilan ishlaydi). `lowStock=true` — kam qolganlar (`stock ≤ minStock`). '
         '`warehouseId` — faqat shu omborda qoldig‘i BOR (> 0) mahsulotlar, `warehouseStock` — o‘sha ombor qoldig‘i '
         '(inventarizatsiya varag‘i uchun filtrsiz ro‘yxat + `stocks[warehouseId] ?? 0`). Har qatorda `stock` (jami) va `stocks` '
-        '(`{warehouseId: qty}`). Sotuvchida `cost`, `wholesalePrice` YO‘Q.',
-    ('GET', '/products/summary'): 'Katalog tepasidagi kartalar: faol turlar, kam qolganlar, ombor qiymati (sotuvchiga qiymat chiqmaydi).',
+        '(`{warehouseId: qty}`). Sotuvchida `cost`, `wholesalePrice` YO‘Q. `noCost=true` — tannarxi kiritilmaganlar (minimal narx himoyasi '
+        'ishlamaydi, T-141) — «Tannarxsiz» filtri.',
+    ('GET', '/products/summary'):
+        'Katalog tepasidagi kartalar: faol turlar, kam qolganlar, tannarxsizlar (`withoutCost` — bosilsa `?noCost=true`), ombor qiymati '
+        '(sotuvchiga qiymat chiqmaydi).',
     ('GET', '/products/:id'): 'Mahsulot kartasi / tahrir formasi (ombor qoldiqlari bilan).',
     ('GET', '/products/:id/stats'): 'Mahsulot kartasidagi raqamlar: sof sotilgan miqdor (asosiy birlikda) va oxirgi sotuv sanasi.',
     ('POST', '/products'):
@@ -503,7 +507,10 @@ NOTES = {
         '`paid.cash` — mijoz BERGAN naqd (qaytim server hisoblaydi → `change`). To‘lanmagan qismi — nasiya '
         '(`customerId` shart). Smena yopiq — 423 `SHIFT_REQUIRED` → smena ochish oynasi. Muvaffaqiyatda chek: '
         '`GET /sales/:id/receipt`. Offline navbatga tushsa — XUDDI SHU `Idempotency-Key` bilan qayta yuboriladi. '
-        '`priceTier: "wholesale"` — sotuvchiga faqat `sellerWholesaleEnabled` bilan (aks holda 403 `PERMISSION_DENIED`).',
+        '`priceTier: "wholesale"` — sotuvchiga faqat `sellerWholesaleEnabled` bilan (aks holda 403 `PERMISSION_DENIED`). '
+        'Chegirma va qo‘lda narx chegaralari (T-141): 422 `DISCOUNT_LIMIT` — `meta.reason` `cost` (minimal narx, `meta.minPrice`) yoki '
+        '`policy` (`maxDiscountPct`), `meta.max` — shu maydonga mumkin bo‘lgan chegirma; `sales.belowCost` ruxsati bilan minimal narx '
+        'chegarasi o‘tiladi (chek jurnalga `sale.belowCost` bilan tushadi) — README → 10.1.',
     ('GET', '/sales'):
         'Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — chek raqami yoki mijoz nomi; '
         '`relatedSaleId` — shu chek bo‘yicha qaytarish hujjatlari (chek kartasidagi «Qaytarishlar»). '
@@ -558,7 +565,8 @@ NOTES = {
     ('POST', '/quotes'):
         'Taklif (smeta). Summalar sotuv qoidasida hisoblanadi; qoldiq band QILINMAYDI. `priceTier` berilmasa: `wholesaleEnabled` bo‘lsa — '
         '`retail` bo‘lmagan har qanday guruh (`wholesale`, `vip`) ulgurji, aks holda chakana. Aniq berilgan `priceTier` '
-        '`wholesaleEnabled=false` da ham qo‘llanadi (sotuvdan farqli).',
+        '`wholesaleEnabled=false` da ham qo‘llanadi (sotuvdan farqli). Chegirma va minimal narx chegaralari sotuvdagidek (422 `DISCOUNT_LIMIT`, T-141) — '
+        'yaratishda tekshiriladi, aylantirishda emas.',
     ('PATCH', '/quotes/:id'):
         'Tahrir va holat (`draft` → `sent` → `accepted`/`rejected`). `items` berilsa — to‘liq almashtiriladi. Aylantirilgan taklif o‘zgarmaydi (409).',
     ('POST', '/quotes/:id/convert'):

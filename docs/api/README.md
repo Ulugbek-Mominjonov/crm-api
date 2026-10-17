@@ -60,7 +60,7 @@ login’da do‘kon tanlash).
 | Bo‘lim | Imkoniyat |
 |--------|-----------|
 | Auth | Kirish (bir email bir necha do‘konda), JWT access token (15 daq) + httpOnly refresh cookie (30 kun, rotatsiya, o‘g‘irlik aniqlash), chiqish, barcha qurilmalardan chiqish, parol o‘zgartirish, yangi do‘kon ro‘yxatdan o‘tishi |
-| Rollar | Ruxsatlar ROLGA beriladi: 63 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
+| Rollar | Ruxsatlar ROLGA beriladi: 64 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
 | Spravochniklar | Omborlar (arxiv), kategoriyalar, mahsulotlar (qo‘shimcha birlik, import, ommaviy narx, rasm), mijozlar, ta’minotchilar, xodimlar, foydalanuvchilar — sahifalash, saralash, qidiruv, yumshoq o‘chirish + tiklash, optimistik qulf |
 | Ombor | Kirim (o‘rtacha tannarx), chiqim, inventarizatsiya, ko‘chirish, harakatlar jurnali, buyurtma taklifi; qoldiq manfiy bo‘lmaydi |
 | Sotuv | Chek (bitta tranzaksiya: qoldiq, kassa, bonus, yetkazish), qaytarish, bekor qilish, chop etish uchun chek (JSON yoki tayyor 80 mm PDF), OFD fiskal chek (navbat orqali) |
@@ -535,7 +535,7 @@ Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FA
 
 ### 6.1 Qanday ishlaydi
 
-- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (63 ta, 22 bo‘lim) —
+- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (64 ta, 22 bo‘lim) —
   [6.2](#permissions), kodda — `packages/shared/src/permissions.ts` (`PERMISSIONS`, `PERMISSION_CATALOG`),
   API’da — `GET /roles/catalog`.
 - **Rol** — ruxsatlar to‘plami. Ruxsat **ROLGA** beriladi, foydalanuvchiga emas: bitta foydalanuvchi —
@@ -600,6 +600,7 @@ yo‘q bo‘lsa `label` ni ko‘rsating).
 | `sales.create` | Sotuvlar: Sotish (kassa) | `POST /quotes/:id/convert`, `POST /sales` | ✔ | ✔ |  |
 | `sales.return` | Sotuvlar: Qaytarish | `POST /sales/:id/return` | ✔ | ✔ |  |
 | `sales.cancel` | Sotuvlar: Chekni bekor qilish | `POST /sales/:id/cancel` | ✔ |  |  |
+| `sales.belowCost` | Sotuvlar: Minimal narxdan (tannarx + marja) past sotish | `POST /sales`, `POST /quotes` — narx/chegirma minimal narxdan past bo‘lsa ([10.1](#pos)); sukutda hech bir rolda yo‘q, administrator beradi; chek jurnalga `sale.belowCost` bilan tushadi |  |  |  |
 | `quotes.view` | Takliflar (smeta): Ko‘rish | `GET /quotes`, `GET /quotes/summary`, `GET /quotes/:id` | ✔ | ✔ |  |
 | `quotes.create` | Takliflar (smeta): Yaratish | `POST /quotes` | ✔ | ✔ |  |
 | `quotes.edit` | Takliflar (smeta): Tahrirlash | `PATCH /quotes/:id` | ✔ | ✔ |  |
@@ -801,7 +802,7 @@ va bloklar — o‘ng ustundagi. Ruxsat yo‘q tugma umuman ko‘rsatilmaydi (se
 | Sahifa (yo‘l) | Sahifa / menyu | Tugmalar va bloklar |
 |---------------|----------------|---------------------|
 | Boshqaruv paneli (`/`) | `reports.view` (yo‘q bo‘lsa — bosh sahifa boshqa, pastda) | foyda kartalari — `profit.view`; ta’minotchiga qarz — `cost.view` |
-| Kassa — POS (`/pos`) | `sales.create` | smena ochish/yopish — `cash.operate`; mijoz tanlash/qo‘shish — `customers.view` / `customers.create`; ulgurji tugmasi — [6.6](#hidden); yetkazish — `deliveries.create`; «Telegram’ga» chek — `sales.view` |
+| Kassa — POS (`/pos`) | `sales.create` | smena ochish/yopish — `cash.operate`; mijoz tanlash/qo‘shish — `customers.view` / `customers.create`; ulgurji tugmasi — [6.6](#hidden); yetkazish — `deliveries.create`; «Telegram’ga» chek — `sales.view`; narx/chegirmani minimal narxdan past qilish — `sales.belowCost` ([10.1](#pos)) |
 | Sotuvlar (`/sales`) | `sales.view` | «Qaytarish» — `sales.return`; «Bekor qilish» — `sales.cancel`; eksport — `sales.view` |
 | Takliflar (`/quotes`) | `quotes.view` | yaratish — `quotes.create`; tahrir/holat — `quotes.edit`; o‘chirish/tiklash — `quotes.delete`; «Sotuvga aylantirish» — `sales.create` |
 | Yetkazish (`/deliveries`) | `deliveries.view` | yaratish — `deliveries.create`; tahrir, haydovchi biriktirish — `deliveries.edit` (+ `employees.view` haydovchi ro‘yxati uchun; yo‘q bo‘lsa maydonni yashiring); holat — `deliveries.edit` (istalgani) yoki faqat o‘ziniki; o‘chirish — `deliveries.delete` |
@@ -1007,7 +1008,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `CREDIT_LIMIT_EXCEEDED` | 422 | `meta.limit`, `current`, `extra` | Limitni ko‘rsatish |
 | `PAYMENT_EXCEEDS_DEBT` | 422 | To‘lov qarzdan (mijoz yoki ta’minotchi) ko‘p: `meta.outstanding` (`cost.view` siz rolda ta’minotchi qarzi yo‘q), `requested` | Qolgan qarzni taklif qilish |
 | `PAYMENT_EXCEEDS_TOTAL` | 422 | Karta + o‘tkazma chekdan ko‘p (qaytim faqat naqddan) | — |
-| `DISCOUNT_LIMIT` | 422 | Chegirma `maxDiscountPct` dan ko‘p yoki qator chegirmasi qator summasidan katta (`meta.max`, `requested`) | Maksimumni ko‘rsatish |
+| `DISCOUNT_LIMIT` | 422 | Chegirma chegaradan ko‘p: `meta.reason` — `policy` (`maxDiscountPct`, ro‘yxat narxiga nisbatan) yoki `cost` (minimal narx — tannarx + marja, `meta.minPrice`); `meta.max` — shu maydonga mumkin bo‘lgan chegirma, `requested`; `field` — `discount`, `items[i].discount` yoki `items[i].price` ([10.1](#pos)) | Maksimumni ko‘rsatish; `cost` — «minimal narx N so‘m» |
 | `TOTAL_MISMATCH` | 422 | Ekrandagi jami ≠ server hisobi (`meta.client`, `server`) — chek YOZILMAGAN | Qayta hisoblab, yangi jamini ko‘rsatish |
 | `PO_OVER_RECEIVE` | 422 | Buyurtmadan ko‘p qabul | — |
 | `QUOTE_STOCK_SHORT` | 422 | Taklifni aylantirishga qoldiq yetmaydi (`errors[]` — qaysi tovar) | — |
@@ -1214,12 +1215,26 @@ paytda bir nechta kassir — so‘rovlar yomg‘iri bo‘lmasin). Mutatsiya va h
    `wholesaleEnabled=false` bo‘lsa har doim `retail`), tanlangan birlikka o‘giriladi
    (`priceForUnit`). `wholesale.view` siz rol (sukut — sotuvchi) ulgurji narxda faqat `sellerWholesaleEnabled`
    bilan sotadi: o‘chiq bo‘lsa `wholesalePrice` unga kelmaydi va `priceTier: "wholesale"` — 403 `PERMISSION_DENIED` (ulgurji tugmasini
-   yashiring, [6.6](#hidden)). `price` berilsa — savdolashilgan narx: server uni SO‘ZSIZ qabul qiladi (eski
-   narx bo‘lsa ham, `TOTAL_MISMATCH` ushlamaydi; cheklanmagan — [14.1](#muammolar)). Shuning uchun `price`
+   yashiring, [6.6](#hidden)). `price` berilsa — savdolashilgan narx (eski narx bo‘lsa ham qabul qilinadi,
+   `TOTAL_MISMATCH` ushlamaydi), lekin chegirma siyosati va minimal narxga bo‘ysunadi (4-band). Shuning uchun `price`
    ni FAQAT kassir narxni qo‘lda o‘zgartirganda yuboring.
 2. `qator jami = round(narx × miqdor) − qator chegirmasi` (qator chegirmasi qator summasidan oshmaydi).
 3. `subtotal = Σ qator jami`.
-4. Umumiy chegirma ≤ `round(subtotal × maxDiscountPct / 100)` — aks holda 422 `DISCOUNT_LIMIT` (`meta.max`).
+4. **Chegirma chegaralari** (T-141) — qo‘lda narx, qator chegirmasi va umumiy chegirma BITTA qoidada, xato — 422
+   `DISCOUNT_LIMIT` (`field`: `items[i].discount`, `items[i].price` yoki `discount`; `meta.max` — shu maydonga mumkin
+   bo‘lgan chegirma, `meta.requested`, `meta.reason`):
+   - **Minimal narx** (`reason: "cost"`): `minPrice = round(cost × (1 + minMarginPct / 100))` (`@crm/shared` → `floorPrice`;
+     tannarx sotuv birligiga moslangan, `minMarginPct` — sozlama, sukut 0 = tannarxning o‘zi). Qator summasi
+     `≥ round(minPrice × miqdor)`, `subtotal − umumiy chegirma ≥ Σ round(minPrice × miqdor)`; `meta.minPrice` — birlik minimal
+     narx. Tannarxi 0 tovar cheklanmaydi (`GET /products?noCost=true`, `summary.withoutCost`). `sales.belowCost` ruxsati
+     bo‘lsa chegara o‘tiladi — chek jurnalga `sale.belowCost` bilan tushadi (sukutda hech bir rolda yo‘q, administrator beradi).
+     Bonus (ball) minimal summaga kirmaydi.
+   - **Chegirma foizi** (`reason: "policy"`): `maxDiscountPct` ro‘yxat narxiga nisbatan — qatorda `ro‘yxat narx × miqdor − qator
+     jami ≤ round(ro‘yxat summa × pct / 100)` (qo‘lda narx ham chegirma deb sanaladi; ro‘yxatdan qimmat — chegirma emas), umumiy
+     chegirma uchun qolgan joy `round(ro‘yxat subtotal × pct / 100) − qatorlarda berilgani`. Sukut 100% — cheklamaydi.
+     Ruxsatdan qat’i nazar, administrator uchun ham.
+   - UI: chegirma maydonini `meta.max` bilan, narx maydonini `meta.minPrice` bilan cheklang; taklif yaratishda (`POST /quotes`)
+     ham shu qoida, aylantirishda qayta tekshirilmaydi (yaratuvchi huquqi bilan tekshirilgan).
 5. `taxable = subtotal − chegirma`; `tax = taxEnabled ? round(taxable × taxRate / 100) : 0` —
    **QQS narx ustiga qo‘shiladi**.
 6. Bonus (`loyaltyEnabled` va mijoz tanlangan bo‘lsa): `bonusUsed = min(so‘ralgan, mijozdagi ball,
@@ -1580,7 +1595,7 @@ Qoidalar:
 
 `GET /audit` (admin) — kursorli. Filtrlar: `userId`, `group` (amal prefiksi: `sale` → `sale.create`,
 `sale.return`, `sale.cancel`), `entityId` (bitta yozuv tarixi), sana, `q`. `diff` — o‘zgarish (maxfiy
-maydonlarsiz), `user: null` — tizim (fon ishi). Amallar: `sale.create|return|cancel`,
+maydonlarsiz), `user: null` — tizim (fon ishi). Amallar: `sale.create|return|cancel|belowCost`,
 `shift.open|close`, `debt.pay`, `stock.intake|writeoff|adjust|transfer`, `po.create|update|delete|restore|cancel|pay`,
 `quote.create|update|delete|restore|convert`, `delivery.create|update|delete|restore|status`,
 `expense.create|update|delete|restore|recurring`, `expense-template.*`, `product.create|update|delete|restore|import|bulk_price`,
@@ -1723,7 +1738,8 @@ javobini KUTMAYDI va OFD ishlamasa ham to‘xtamaydi). `GET /sales/:id/receipt` 
 
 `GET /settings` — ilova ochilganda (hamma rol). Maydonlar: `storeName`, `currency`, `taxEnabled`,
 `taxRate`, `wholesaleEnabled`, `sellerWholesaleEnabled`, `loyaltyEnabled`, `loyaltyRate`, `maxDiscountPct`,
-`receiptPhone`, `receiptAddress`, `receiptFooter`, `onboarded`, `brandColor`, `logoFileId`. `PATCH /settings` —
+`minMarginPct` (minimal marja, [10.1](#pos)), `receiptPhone`, `receiptAddress`, `receiptFooter`, `onboarded`, `brandColor`,
+`logoFileId`. `PATCH /settings` —
 faqat o‘zgarganlarini; muvaffaqiyatdan keyin hodisa `settings.updated` ([9.2](#realtime)). `storeName` do‘kon
 nomini ham o‘zgartiradi (kirishdagi do‘kon tanlovi, `/auth/me` dagi `tenant.name`).
 
@@ -2098,10 +2114,16 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 ### 14.1 Backend’da ochiq qolgan masalalar (qaror kutilmoqda)
 
-1. **Narxni qo‘lda o‘zgartirish cheklanmagan.** Chek qatorida `price` (savdolashish) `maxDiscountPct` ga
-   bo‘ysunmaydi va har qanday rol (sotuvchi ham) yubora oladi — UI’da kimga ruxsat berishni hal qiling.
+Hozircha yo‘q. (Avvalgi «narxni qo‘lda o‘zgartirish cheklanmagan» masalasi T-141 bilan yopildi: qo‘lda narx ham
+`maxDiscountPct` va minimal narxga bo‘ysunadi — [10.1](#pos).)
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-17** — minimal narx va chegirma siyosati (T-141, [10.1](#pos)); frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Tannarxdan past sotish mumkin edi; `price` (qo‘lda narx) hech narsaga bo‘ysunmasdi, qator chegirmasi faqat qator summasi bilan cheklanardi | Minimal narx = `cost × (1 + minMarginPct/100)` (`@crm/shared` → `floorPrice`): qator summasi va `subtotal − discount` undan past bo‘lmaydi — 422 `DISCOUNT_LIMIT` (`meta.reason: "cost"`, `meta.minPrice`, `meta.max`); `maxDiscountPct` endi qator chegirmasi va qo‘lda narxga ham (ro‘yxat narxiga nisbatan, chekdagi barcha chegirmalar birga; `meta.reason: "policy"`). Yangi ruxsat `sales.belowCost` (sukutda hech kimda) — chegara o‘tiladi, chek jurnalga `sale.belowCost` bilan tushadi. Taklif yaratishda ham tekshiriladi, aylantirishda emas | POS’da chegirma/narx maydonini `meta.max` / `meta.minPrice` bilan ko‘rsatish; `sales.belowCost` bo‘lsa ogohlantirish bilan o‘tkazish; Sozlamalarda `minMarginPct`; Mahsulotlarda «Tannarxsiz» filtri (`GET /products?noCost=true`, `summary.withoutCost`) |
 
 **2026-10-17** — egasiga murojaat (T-140, [owner-panel.md → 5.11](owner-panel.md#requests)); do‘kon ilovasiga ta’siri:
 

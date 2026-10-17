@@ -19,8 +19,13 @@ export class SettingsDto {
   sellerWholesaleEnabled!: boolean
   @ApiProperty() loyaltyEnabled!: boolean
   @ApiProperty({ example: 1, description: 'Xariddan bonus foizi' }) loyaltyRate!: number
-  @ApiProperty({ example: 100, description: 'Kassada ruxsat etilgan maksimal chegirma, %' })
+  @ApiProperty({ example: 100, description: 'Kassada ruxsat etilgan maksimal chegirma, % — umumiy va qator chegirmasi, qo‘lda narx (ro‘yxat narxiga nisbatan)' })
   maxDiscountPct!: number
+  @ApiProperty({
+    example: 5,
+    description: 'Minimal marja, %: minimal narx = tannarx × (1 + shu / 100); undan past sotish — faqat `sales.belowCost` ruxsati bilan (T-141). 0 — tannarxning o‘zi',
+  })
+  minMarginPct!: number
   @ApiProperty({ example: '+998 71 200 00 00' }) receiptPhone!: string
   @ApiProperty({ example: 'Toshkent sh., Qurilish ko‘chasi 1' }) receiptAddress!: string
   @ApiProperty({ example: 'Xaridingiz uchun rahmat!' }) receiptFooter!: string
@@ -103,6 +108,13 @@ export class UpdateSettingsDto {
   @Min(0)
   @Max(PCT_MAX)
   maxDiscountPct?: number
+
+  @ApiPropertyOptional({ minimum: 0, maximum: PCT_MAX, description: 'Minimal marja, % (0 — tannarxning o‘zi)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(PCT_MAX)
+  minMarginPct?: number
 
   @ApiPropertyOptional({ maxLength: 40 })
   @IsOptional()
