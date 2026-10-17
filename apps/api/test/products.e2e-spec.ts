@@ -233,11 +233,11 @@ describe('Mahsulotlar (/products)', () => {
       (await http().get('/api/v1/products/summary').set('Authorization', token).expect(200)).body
 
     expect(await summary()).toEqual({
-      active: 1, lowStock: 0, stockValue: Math.round(12.5 * BASE.cost),
+      active: 1, lowStock: 0, withoutCost: 0, stockValue: Math.round(12.5 * BASE.cost),
       stockValueByCategory: [{ name: '', value: Math.round(12.5 * BASE.cost) }],
     })
     await testDb.product.update({ where: { id: cement }, data: { minStock: 20 } })
-    expect(await summary(await bearer(app, a, 'sotuvchi'))).toEqual({ active: 1, lowStock: 1 })
+    expect(await summary(await bearer(app, a, 'sotuvchi'))).toEqual({ active: 1, lowStock: 1, withoutCost: 0 })
   })
 
   it('karta raqamlari: sof sotilgan miqdor (qaytarish ayriladi, bekor — hisobda yo‘q), oxirgi sotuv', async () => {

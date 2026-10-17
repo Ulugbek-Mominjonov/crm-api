@@ -18,6 +18,8 @@ const cement: PricingProduct = {
   archived: false,
 }
 const products = new Map([[cement.id, cement]])
+/** Sukut: marja 0, chegirma 100%, minimal narx cheklovi qo'llanmaydi */
+const POLICY = { minMarginPct: 0, maxDiscountPct: 100, belowCostAllowed: true }
 
 const codeOf = (fn: () => unknown): string => {
   try {
@@ -59,49 +61,112 @@ describe('resolvePriceTier', () => {
 
 describe('priceLines', () => {
   it('asosiy birlik va chakana narx — sukut', () => {
-    const [line] = priceLines([{ productId: 'p1', qty: 10 }], products, 'retail')
+    const [line] = priceLines([{ productId: 'p1', qty: 10 }], products, 'retail', POLICY)
     expect(line).toMatchObject({ unit: 'kg', baseQty: 10, price: 1_200, cost: 900, total: 12_000 })
   })
 
   it('I23: qopda sotilgan tovar kilogrammda chiqadi, narx va tannarx birlikka moslashadi', () => {
-    const [line] = priceLines([{ productId: 'p1', unit: 'qop', qty: 3 }], products, 'retail')
+    const [line] = priceLines([{ productId: 'p1', unit: 'qop', qty: 3 }], products, 'retail', POLICY)
     expect(line).toMatchObject({ unit: 'qop', qty: 3, baseQty: 150, price: 60_000, cost: 45_000, total: 180_000 })
   })
 
   it('ulgurji daraja va savdolashilgan narx', () => {
-    expect(priceLines([{ productId: 'p1', qty: 1 }], products, 'wholesale')[0]!.price).toBe(1_100)
-    expect(priceLines([{ productId: 'p1', qty: 2, price: 1_000, discount: 300 }], products, 'retail')[0]!.total).toBe(1_700)
+    expect(priceLines([{ productId: 'p1', qty: 1 }], products, 'wholesale', POLICY)[0]!.price).toBe(1_100)
+    expect(priceLines([{ productId: 'p1', qty: 2, price: 1_000, discount: 300 }], products, 'retail', POLICY)[0]!.total).toBe(1_700)
   })
 
   it('kasrli miqdor — so‘mgacha yaxlitlanadi', () => {
-    expect(priceLines([{ productId: 'p1', qty: 1.333 }], products, 'retail')[0]!.total).toBe(1_600)
+    expect(priceLines([{ productId: 'p1', qty: 1.333 }], products, 'retail', POLICY)[0]!.total).toBe(1_600)
   })
 
   it('arxivlangan tovar, sozlanmagan birlik, katta qator chegirmasi, yo‘q tovar — rad', () => {
     const archived = new Map([['p1', { ...cement, archived: true }]])
-    expect(codeOf(() => priceLines([{ productId: 'p1', qty: 1 }], archived, 'retail'))).toBe('PRODUCT_ARCHIVED')
-    expect(codeOf(() => priceLines([{ productId: 'p1', unit: 'metr', qty: 1 }], products, 'retail'))).toBe('VALIDATION_FAILED')
-    expect(codeOf(() => priceLines([{ productId: 'p1', qty: 1, discount: 1_201 }], products, 'retail'))).toBe('DISCOUNT_LIMIT')
-    expect(codeOf(() => priceLines([{ productId: 'x', qty: 1 }], products, 'retail'))).toBe('REFERENCE_NOT_FOUND')
+    expect(codeOf(() => priceLines([{ productId: 'p1', qty: 1 }], archived, 'retail', POLICY))).toBe('PRODUCT_ARCHIVED')
+    expect(codeOf(() => priceLines([{ productId: 'p1', unit: 'metr', qty: 1 }], products, 'retail', POLICY))).toBe('VALIDATION_FAILED')
+    expect(codeOf(() => priceLines([{ productId: 'p1', qty: 1, discount: 1_201 }], products, 'retail', POLICY))).toBe('DISCOUNT_LIMIT')
+    expect(codeOf(() => priceLines([{ productId: 'x', qty: 1 }], products, 'retail', POLICY))).toBe('REFERENCE_NOT_FOUND')
+  })
+})
+
+describe('narx siyosati (T-141)', () => {
+  const strict = { minMarginPct: 10, maxDiscountPct: 100, belowCostAllowed: false }
+  const policy10 = { minMarginPct: 0, maxDiscountPct: 10, belowCostAllowed: false }
+  const errorOf = (fn: () => unknown): DomainError => {
+    try {
+      fn()
+    } catch (err) {
+      if (err instanceof DomainError) return err
+      throw err
+    }
+    throw new Error('xato kutilgan edi')
+  }
+
+  it('minimal narx = tannarx × (1 + marja), sotuv birligiga moslanadi; tannarxsiz tovar — chegarasiz', () => {
+    // kg: 900 × 1.1 = 990; qop (50 kg): 45 000 × 1.1 = 49 500
+    expect(priceLines([{ productId: 'p1', qty: 1 }], products, 'retail', strict)[0]).toMatchObject({ minPrice: 990, listTotal: 1_200 })
+    expect(priceLines([{ productId: 'p1', unit: 'qop', qty: 2 }], products, 'retail', strict)[0]).toMatchObject({ minPrice: 49_500, listTotal: 120_000 })
+    const noCost = new Map([['p1', { ...cement, cost: 0 }]])
+    expect(priceLines([{ productId: 'p1', qty: 1, price: 1 }], noCost, 'retail', strict)[0]!.minPrice).toBe(0)
+  })
+
+  it('qator chegirmasi va qo‘lda narx minimal summadan past — 422 `cost` (`max`, `minPrice`); chegarada — o‘tadi', () => {
+    const byDiscount = errorOf(() => priceLines([{ productId: 'p1', unit: 'qop', qty: 2, discount: 21_001 }], products, 'retail', strict))
+    expect(byDiscount.errors?.[0]).toEqual({ field: 'items[0].discount', code: 'DISCOUNT_LIMIT', meta: { max: 21_000, requested: 21_001, reason: 'cost', minPrice: 49_500 } })
+    const byPrice = errorOf(() => priceLines([{ productId: 'p1', unit: 'qop', qty: 1, price: 49_499 }], products, 'retail', strict))
+    expect(byPrice.errors?.[0]).toMatchObject({ field: 'items[0].price', meta: { max: 0, reason: 'cost', minPrice: 49_500 } })
+    expect(priceLines([{ productId: 'p1', unit: 'qop', qty: 2, discount: 21_000 }], products, 'retail', strict)[0]!.total).toBe(99_000)
+    expect(priceLines([{ productId: 'p1', unit: 'qop', qty: 1, price: 49_500 }], products, 'retail', strict)[0]!.total).toBe(49_500)
+  })
+
+  it('`sales.belowCost` — chegara qo‘llanmaydi, lekin `belowCost` belgisi qaytadi', () => {
+    const allowed = { ...strict, belowCostAllowed: true }
+    const lines = priceLines([{ productId: 'p1', unit: 'qop', qty: 1, price: 40_000 }], products, 'retail', allowed)
+    const t = computeTotals(lines, { discount: 0, taxRate: 0, maxDiscountPct: 100, belowCostAllowed: true })
+    expect(t).toMatchObject({ subtotal: 40_000, minSubtotal: 49_500, belowCost: true })
+    const fine = priceLines([{ productId: 'p1', unit: 'qop', qty: 1 }], products, 'retail', allowed)
+    expect(computeTotals(fine, { discount: 0, taxRate: 0, maxDiscountPct: 100, belowCostAllowed: true }).belowCost).toBe(false)
+  })
+
+  it('umumiy chegirma: minimal summagacha (bonus hisobga olinmaydi)', () => {
+    const lines = priceLines([{ productId: 'p1', unit: 'qop', qty: 2, discount: 10_000 }], products, 'retail', strict)
+    // 120 000 − 10 000 = 110 000; minimal 99 000 → umumiy chegirmaga 11 000 joy
+    const err = errorOf(() => computeTotals(lines, { discount: 11_001, taxRate: 0, maxDiscountPct: 100, belowCostAllowed: false }))
+    expect(err.errors?.[0]).toEqual({ field: 'discount', code: 'DISCOUNT_LIMIT', meta: { max: 11_000, requested: 11_001, reason: 'cost' } })
+    const ok = computeTotals(lines, { discount: 11_000, taxRate: 0, maxDiscountPct: 100, belowCostAllowed: false, bonusRequested: 50_000, bonusAvailable: 50_000 })
+    expect(ok).toMatchObject({ total: 49_000, bonusUsed: 50_000, belowCost: false })
+  })
+
+  it('chegirma foizi ro‘yxat narxiga nisbatan: qator chegirmasi, qo‘lda narx va umumiy chegirma birga 10% dan oshmaydi', () => {
+    expect(errorOf(() => priceLines([{ productId: 'p1', qty: 10, discount: 1_201 }], products, 'retail', policy10)).errors?.[0])
+      .toEqual({ field: 'items[0].discount', code: 'DISCOUNT_LIMIT', meta: { max: 1_200, requested: 1_201, reason: 'policy' } })
+    expect(errorOf(() => priceLines([{ productId: 'p1', qty: 10, price: 1_079 }], products, 'retail', policy10)).errors?.[0])
+      .toMatchObject({ field: 'items[0].price', meta: { max: 1_200, requested: 1_210, reason: 'policy' } })
+    // Qatorda 600 berildi — umumiyga 600 qoldi
+    const lines = priceLines([{ productId: 'p1', qty: 10, discount: 600 }], products, 'retail', policy10)
+    expect(errorOf(() => computeTotals(lines, { discount: 601, taxRate: 0, maxDiscountPct: 10, belowCostAllowed: false })).errors?.[0])
+      .toEqual({ field: 'discount', code: 'DISCOUNT_LIMIT', meta: { max: 600, requested: 601, reason: 'policy' } })
+    expect(computeTotals(lines, { discount: 600, taxRate: 0, maxDiscountPct: 10, belowCostAllowed: false }).total).toBe(10_800)
+    // Ro'yxatdan qimmat sotish — chegirma emas
+    expect(priceLines([{ productId: 'p1', qty: 1, price: 1_500 }], products, 'retail', policy10)[0]!.total).toBe(1_500)
   })
 })
 
 describe('computeTotals', () => {
-  const lines = priceLines([{ productId: 'p1', unit: 'qop', qty: 3 }], products, 'retail') // 180 000
+  const lines = priceLines([{ productId: 'p1', unit: 'qop', qty: 3 }], products, 'retail', POLICY) // 180 000
 
   it('QQS chegirmadan keyin, yetkazish narxi jami ICHIDA (I5)', () => {
-    const t = computeTotals(lines, { discount: 20_000, taxRate: 12, maxDiscountPct: 100, deliveryFee: 15_000 })
+    const t = computeTotals(lines, { discount: 20_000, taxRate: 12, maxDiscountPct: 100, belowCostAllowed: true, deliveryFee: 15_000 })
     expect(t).toMatchObject({ subtotal: 180_000, discount: 20_000, tax: 19_200, deliveryFee: 15_000, total: 194_200 })
   })
 
   it('chegirma `maxDiscountPct` dan oshsa — 422 DISCOUNT_LIMIT', () => {
-    expect(codeOf(() => computeTotals(lines, { discount: 18_001, taxRate: 0, maxDiscountPct: 10 }))).toBe('DISCOUNT_LIMIT')
-    expect(computeTotals(lines, { discount: 18_000, taxRate: 0, maxDiscountPct: 10 }).total).toBe(162_000)
+    expect(codeOf(() => computeTotals(lines, { discount: 18_001, taxRate: 0, maxDiscountPct: 10, belowCostAllowed: true }))).toBe('DISCOUNT_LIMIT')
+    expect(computeTotals(lines, { discount: 18_000, taxRate: 0, maxDiscountPct: 10, belowCostAllowed: true }).total).toBe(162_000)
   })
 
   it('bonus mavjudidan ko‘p ishlatilmaydi, yaxlitlash faqat tovar qismiga', () => {
     const t = computeTotals(lines, {
-      discount: 0, taxRate: 0, maxDiscountPct: 100, bonusRequested: 9_999, bonusAvailable: 1_200, roundTo: 1000, deliveryFee: 15_000,
+      discount: 0, taxRate: 0, maxDiscountPct: 100, belowCostAllowed: true, bonusRequested: 9_999, bonusAvailable: 1_200, roundTo: 1000, deliveryFee: 15_000,
     })
     // 180 000 − 1 200 = 178 800 → 179 000; + 15 000
     expect(t).toMatchObject({ bonusUsed: 1_200, goodsTotal: 179_000, total: 194_000 })

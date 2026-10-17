@@ -1,5 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { lineTotal, refundTotals, saleTotals } from './pos'
+import { floorPrice, lineTotal, refundTotals, saleTotals } from './pos'
+
+describe('floorPrice', () => {
+  it('tannarx × (1 + marja %), so‘mgacha yaxlitlanadi', () => {
+    expect(floorPrice(45_000, 0)).toBe(45_000)
+    expect(floorPrice(45_000, 5)).toBe(47_250)
+    expect(floorPrice(1_201, 7)).toBe(1_285)
+  })
+
+  it('tannarx noma’lum (0 yoki manfiy) — chegara yo‘q; manfiy marja — 0 deb olinadi', () => {
+    expect(floorPrice(0, 10)).toBe(0)
+    expect(floorPrice(-5, 10)).toBe(0)
+    expect(floorPrice(1_000, -10)).toBe(1_000)
+  })
+})
 
 describe('saleTotals', () => {
   it('QQS chegirmadan keyingi bazadan hisoblanadi', () => {

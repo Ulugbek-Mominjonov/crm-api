@@ -1875,6 +1875,15 @@
             }
           },
           {
+            "name": "noCost",
+            "required": false,
+            "in": "query",
+            "description": "Faqat tannarxi kiritilmaganlar (0) — ularda minimal narx himoyasi ishlamaydi (T-141)",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "archived",
             "required": false,
             "in": "query",
@@ -11818,6 +11827,7 @@
                 "sales.create",
                 "sales.return",
                 "sales.cancel",
+                "sales.belowCost",
                 "quotes.view",
                 "quotes.create",
                 "quotes.edit",
@@ -12136,6 +12146,7 @@
                 "sales.create",
                 "sales.return",
                 "sales.cancel",
+                "sales.belowCost",
                 "quotes.view",
                 "quotes.create",
                 "quotes.edit",
@@ -12257,6 +12268,7 @@
               "sales.create",
               "sales.return",
               "sales.cancel",
+              "sales.belowCost",
               "quotes.view",
               "quotes.create",
               "quotes.edit",
@@ -12416,6 +12428,7 @@
                 "sales.create",
                 "sales.return",
                 "sales.cancel",
+                "sales.belowCost",
                 "quotes.view",
                 "quotes.create",
                 "quotes.edit",
@@ -12508,6 +12521,7 @@
                 "sales.create",
                 "sales.return",
                 "sales.cancel",
+                "sales.belowCost",
                 "quotes.view",
                 "quotes.create",
                 "quotes.edit",
@@ -12627,7 +12641,12 @@
           "maxDiscountPct": {
             "type": "number",
             "example": 100,
-            "description": "Kassada ruxsat etilgan maksimal chegirma, %"
+            "description": "Kassada ruxsat etilgan maksimal chegirma, % — umumiy va qator chegirmasi, qo‘lda narx (ro‘yxat narxiga nisbatan)"
+          },
+          "minMarginPct": {
+            "type": "number",
+            "example": 5,
+            "description": "Minimal marja, %: minimal narx = tannarx × (1 + shu / 100); undan past sotish — faqat `sales.belowCost` ruxsati bilan (T-141). 0 — tannarxning o‘zi"
           },
           "receiptPhone": {
             "type": "string",
@@ -12668,6 +12687,7 @@
           "loyaltyEnabled",
           "loyaltyRate",
           "maxDiscountPct",
+          "minMarginPct",
           "receiptPhone",
           "receiptAddress",
           "receiptFooter",
@@ -12716,6 +12736,12 @@
             "type": "number",
             "minimum": 0,
             "maximum": 100
+          },
+          "minMarginPct": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Minimal marja, % (0 — tannarxning o‘zi)"
           },
           "receiptPhone": {
             "type": "string",
@@ -13009,6 +13035,11 @@
             "example": 6,
             "description": "Kam qolganlar: qoldiq ≤ minimal"
           },
+          "withoutCost": {
+            "type": "number",
+            "example": 3,
+            "description": "Tannarxi kiritilmaganlar (0): minimal narx himoyasi ishlamaydi — `GET /products?noCost=true` (T-141)"
+          },
           "stockValue": {
             "type": "number",
             "example": 84500000,
@@ -13024,7 +13055,8 @@
         },
         "required": [
           "active",
-          "lowStock"
+          "lowStock",
+          "withoutCost"
         ]
       },
       "ProductDto": {

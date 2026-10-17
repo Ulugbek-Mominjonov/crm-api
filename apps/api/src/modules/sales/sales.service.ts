@@ -22,7 +22,7 @@ import { PrismaService } from '@/prisma/prisma.service'
 import { requireTenantTx } from '@/prisma/tenant-tx'
 import type { CreateSaleDto, DeliveryInputDto, ReturnSaleDto, SaleDto } from './dto/sale.dto'
 import {
-  computeTotals, priceLines, refundFor, resolvePriceTier, returnLines, settle,
+  computeTotals, lineFloor, policyOf, priceLines, refundFor, resolvePriceTier, returnLines, settle, type PricePolicy,
   type LineInput, type PaidInput, type PricingProduct, type SoldLine,
 } from './sale-totals'
 import {
@@ -48,7 +48,8 @@ export interface SaleOrder {
   paid: PaidInput
   date: string
   taxRate: number
-  maxDiscountPct: number
+  /** Chegirma foizi va minimal narx (T-141) — `policyOf(settings, permissions)` */
+  policy: PricePolicy
   loyalty: { loyaltyEnabled: boolean; loyaltyRate: number }
   /** Mijoz ko'rsatgan jami — faqat solishtiriladi (04 §4.5) */
   clientTotal?: number
@@ -134,7 +135,7 @@ export class SalesService {
       paid: dto.paid,
       date: saleDate(dto.date),
       taxRate: settings.taxEnabled ? settings.taxRate : 0,
-      maxDiscountPct: settings.maxDiscountPct,
+      policy: policyOf(settings, user.permissions),
       loyalty: settings,
       clientTotal: dto.total,
     })
@@ -160,7 +161,7 @@ export class SalesService {
 
     // 3. Mahsulotlar — qulf (id tartibida), narx, birlik (I23)
     const locked = await lockProducts(tx, order.lines.map((line) => line.productId))
-    const lines = priceLines(order.lines, pricingProducts(locked), order.priceTier)
+    const lines = priceLines(order.lines, pricingProducts(locked), order.priceTier, order.policy)
 
     // 4. Qoldiq AYNAN tanlangan omborda (I3) — qulf ostida
     const saleId = uuidv7()
@@ -180,7 +181,8 @@ export class SalesService {
     const totals = computeTotals(lines, {
       discount: order.discount,
       taxRate: order.taxRate,
-      maxDiscountPct: order.maxDiscountPct,
+      maxDiscountPct: order.policy.maxDiscountPct,
+      belowCostAllowed: order.policy.belowCostAllowed,
       bonusRequested: order.bonusRequested,
       bonusAvailable: customer?.bonusPoints ?? 0,
       roundTo: order.roundTo,
@@ -243,6 +245,24 @@ export class SalesService {
         warehouseId: row.warehouseId,
       },
     })
+    if (totals.belowCost) {
+      // Minimal narxdan past sotildi (`sales.belowCost` bilan) — egasi jurnalda ko'radi (T-141)
+      await this.audit.log({
+        action: 'sale.belowCost',
+        entityType: 'sale',
+        entityId: saleId,
+        detail: `${written.number}: minimal narxdan past`,
+        diff: {
+          number: written.number,
+          subtotal: totals.subtotal,
+          discount: totals.discount,
+          minSubtotal: totals.minSubtotal,
+          items: lines
+            .filter((line) => line.total < lineFloor(line))
+            .map((line) => ({ productId: line.productId, name: line.name, qty: line.qty, price: line.price, discount: line.discount, minPrice: line.minPrice })),
+        },
+      })
+    }
     this.announce(saleId, plan)
     return writtenSaleDto(row, items, { ...written, deliveryId: delivery?.id ?? null })
   }

@@ -48,7 +48,7 @@ Umumiy «tayyor» ta'rifi —
 | E3 | Auth, tenant, huquqlar | 10 | 10/10 | B1 |
 | E4 | Spravochniklar (CRUD) | 9 | 9/9 | B2 |
 | E5 | Ombor amallari | 8 | 8/8 | B3 |
-| E6 | Savdo yadrosi | 9 | 9/9 | B3 |
+| E6 | Savdo yadrosi | 10 | 10/10 | B3 |
 | E7 | Kassa va moliya | 9 | 9/9 | B3 |
 | E8 | Ta'minot va kreditorlik | 6 | 6/6 | B3 |
 | E9 | Yetkazib berish va xabarlar | 6 | 6/6 | B3 |
@@ -60,7 +60,7 @@ Umumiy «tayyor» ta'rifi —
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
 | E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
-| | **Jami** | **140** | **124/140** | |
+| | **Jami** | **141** | **125/141** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -484,6 +484,16 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Manba: [05 I20](../../backend-tz/profiles/qurilish-crm/03-invariants.md#i20--taklifni-aylantirish)
   - Qabul: qoldiq yetmasa aylantirilmaydi; ikki marta aylantirib bo'lmaydi (I20); nasiyada mijoz majburiy; narx darajasi mijoz guruhidan olinadi
   - Tekshirish: `npm run test:e2e -- quote-convert`
+
+- [x] **T-141 · Minimal narx va chegirma siyosati (zarardan himoya)**
+  - Bog'liq: T-052, T-134
+  - Manba: [docs/api/README.md §10.1](docs/api/README.md), Q122
+  - Qabul: minimal narx = tannarx × (1 + `settings.minMarginPct`/100) (`@crm/shared` `floorPrice`); qator summasi (qo'lda narx, qator
+    chegirmasi) va `subtotal − discount` undan past bo'lmaydi — 422 `DISCOUNT_LIMIT` (`meta.reason: cost`, `minPrice`, `max`);
+    `maxDiscountPct` qator chegirmasi va qo'lda narxga ham (ro'yxat narxiga nisbatan, chekdagi chegirmalar birga, `reason: policy`);
+    yangi ruxsat `sales.belowCost` (sukutda hech kimda) — chegara o'tiladi, jurnalda `sale.belowCost`; taklif yaratishda tekshiriladi,
+    aylantirishda emas; tannarxi 0 tovar cheklanmaydi — `GET /products?noCost=true`, `summary.withoutCost`
+  - Tekshirish: `npm run test:e2e -- sales-floor-price` + `vitest run sale-totals pos permissions`
 
 ---
 

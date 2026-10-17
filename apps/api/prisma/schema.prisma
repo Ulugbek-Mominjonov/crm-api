@@ -235,6 +235,8 @@ model Settings {
   loyaltyEnabled         Boolean @default(true) @map("loyalty_enabled")
   loyaltyRate            Int     @default(1) @map("loyalty_rate")
   maxDiscountPct         Int     @default(100) @map("max_discount_pct")
+  /// Minimal marja, % (T-141): minimal narx = tannarx × (1 + shu / 100); undan past sotish — faqat `sales.belowCost` bilan
+  minMarginPct           Int     @default(0) @map("min_margin_pct")
   receiptPhone           String  @default("") @map("receipt_phone")
   receiptAddress         String  @default("") @map("receipt_address")
   receiptFooter          String  @default("") @map("receipt_footer")
