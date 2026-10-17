@@ -74,6 +74,7 @@ function lists(tx: TenantTx): Record<string, () => AsyncGenerator<string>> {
     })),
     employees: () => jsonList((after) => tx.employee.findMany(page(after, LIVE)), (e) => ({
       id: e.id, name: e.name, position: e.position, phone: e.phone, status: e.status, salary: moneyFromDb(e.salary), hiredAt: day(e.hiredAt),
+      salaryDay: e.salaryDay, salesBonusPct: e.salesBonusPct.toNumber(), payrollFrom: day(e.payrollFrom),
     })),
     clients: () => jsonList((after) => tx.client.findMany(page(after, LIVE)), (c) => compact({
       id: c.id, name: c.name, type: c.type, phone: c.phone, email: c.email, status: c.status, group: c.group,
@@ -116,6 +117,10 @@ function lists(tx: TenantTx): Record<string, () => AsyncGenerator<string>> {
     expenses: () => jsonList((after) => tx.expense.findMany(page(after, LIVE)), (x) => compact({
       id: x.id, category: x.category, amount: moneyFromDb(x.amount), method: x.method, date: day(x.date), note: x.note,
       userId: x.userId, templateId: x.templateId,
+    })),
+    payrollEntries: () => jsonList((after) => tx.payrollEntry.findMany(page(after, LIVE)), (p) => compact({
+      id: p.id, employeeId: p.employeeId, type: p.type, amount: moneyFromDb(p.amount), date: day(p.date), method: p.method,
+      auto: p.auto, baseAmount: money(p.baseAmount), rate: p.rate?.toNumber(), note: p.note, userId: p.userId,
     })),
     debtPayments: () => jsonList((after) => tx.debtPayment.findMany(page(after)), (d) => compact({
       id: d.id, saleId: d.saleId, customerId: d.customerId, amount: moneyFromDb(d.amount), method: d.method, date: day(d.date), userId: d.userId,

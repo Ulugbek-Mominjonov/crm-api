@@ -2,7 +2,7 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **199** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **206** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
@@ -28,6 +28,7 @@ Jami **199** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Kirim buyurtmalari (ta’minotchidan xarid)](#purchase-orders) — 10 ta
 - [Yetkazib berish](#deliveries) — 10 ta
 - [Xarajatlar va takrorlanuvchi shablonlar](#expenses) — 12 ta
+- [Maosh hisobi](#payroll) — 7 ta
 - [Xabarlar (Telegram va SMS)](#messages) — 5 ta
 - [Hisobotlar](#reports) — 3 ta
 - [Audit jurnali](#audit) — 1 ta
@@ -2338,6 +2339,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `phone` | `string` | ✔ | misol `+998 90 123 45 67` |
 | `status` | `active` \| `on_leave` \| `fired` |  | sukut `"active"` |
 | `salary` | `number` |  | Butun so‘m — misol `4500000` |
+| `salaryDay` | `number` |  | Maosh hisoblanadigan kun, 1–28 — sukut `1`, misol `1` |
+| `salesBonusPct` | `number` |  | Savdodan bonus, % (0–100, 2 kasrgacha) — sukut `0`, misol `2` |
+| `payrollFrom` | `string` |  | Maosh hisobi shu sanadan; berilmasa — ishga olingan sana — misol `2026-10-01` |
 | `hiredAt` | `string` | ✔ | misol `2026-01-15` |
 
 **Xatolar**
@@ -2384,7 +2388,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Ism va lavozim foydalanuvchi hisobida ham darhol ko‘rinadi (D1).
 
-**Qachon / qanday:** Tahrir. `If-Match` qo‘llanadi. `status: fired` — bo‘shatish (u endi tizimga kira olmaydi); oxirgi adminni bo‘shatib bo‘lmaydi (422 `LAST_ADMIN`).
+**Qachon / qanday:** Tahrir. `If-Match` qo‘llanadi. `status: fired` — bo‘shatish (u endi tizimga kira olmaydi); oxirgi adminni bo‘shatib bo‘lmaydi (422 `LAST_ADMIN`). Maosh sozlamalari: `salaryDay` (1–28), `salesBonusPct` (0–100), `payrollFrom` — [README → 10.22](README.md#payroll).
 
 | | |
 |---|---|
@@ -2408,6 +2412,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | `phone` | `string` |  | misol `+998 90 123 45 67` |
 | `status` | `active` \| `on_leave` \| `fired` |  | sukut `"active"` |
 | `salary` | `number` |  | Butun so‘m — misol `4500000` |
+| `salaryDay` | `number` |  | Maosh hisoblanadigan kun, 1–28 — sukut `1`, misol `1` |
+| `salesBonusPct` | `number` |  | Savdodan bonus, % (0–100, 2 kasrgacha) — sukut `0`, misol `2` |
+| `payrollFrom` | `string` |  | Maosh hisobi shu sanadan; berilmasa — ishga olingan sana — misol `2026-10-01` |
 | `hiredAt` | `string` |  | misol `2026-01-15` |
 
 **Xatolar**
@@ -2779,7 +2786,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `name` | `string` | ✔ | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
-| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `sales.belowCost` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `sales.belowCost` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `payroll.view` \| `payroll.accrue` \| `payroll.pay` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] | ✔ | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
 
 **Xatolar**
 
@@ -2873,7 +2880,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
 | `name` | `string` |  | Do‘konda noyob (katta-kichik harf farqsiz) — maks. uzunlik `50`, misol `Katta kassir` |
-| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `sales.belowCost` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
+| `permissions` | (`sales.view` \| `sales.create` \| `sales.return` \| `sales.cancel` \| `sales.belowCost` \| `quotes.view` \| `quotes.create` \| `quotes.edit` \| `quotes.delete` \| `deliveries.view` \| `deliveries.create` \| `deliveries.edit` \| `deliveries.delete` \| `products.view` \| `products.create` \| `products.edit` \| `products.delete` \| `stock.view` \| `stock.operate` \| `stock.manage` \| `purchases.view` \| `purchases.create` \| `purchases.edit` \| `purchases.receive` \| `purchases.pay` \| `purchases.delete` \| `suppliers.view` \| `suppliers.create` \| `suppliers.edit` \| `suppliers.delete` \| `cash.view` \| `cash.operate` \| `debts.view` \| `debts.collect` \| `expenses.view` \| `expenses.create` \| `expenses.edit` \| `expenses.delete` \| `payroll.view` \| `payroll.accrue` \| `payroll.pay` \| `reports.view` \| `customers.view` \| `customers.create` \| `customers.edit` \| `customers.delete` \| `messages.view` \| `messages.send` \| `employees.view` \| `employees.create` \| `employees.edit` \| `employees.delete` \| `users.view` \| `users.create` \| `users.edit` \| `users.delete` \| `roles.view` \| `roles.create` \| `roles.edit` \| `roles.delete` \| `audit.view` \| `settings.view` \| `settings.edit` \| `cost.view` \| `wholesale.view` \| `profit.view` \| `salary.view`)[] |  | Server normallashtiradi: takror olib tashlanadi, bo‘limning istalgan amali uning `view` ini qo‘shadi; bog‘liqliklar: `sales.create`, `quotes.create/edit`, `stock.view` → `products.view`; `purchases.view` → `suppliers.view` + `products.view`; `messages.view` → `customers.view`; `profit.view` → `cost.view`. Javobda — saqlangan (to‘liq) ro‘yxat |
 
 **Xatolar**
 
@@ -4937,6 +4944,252 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
 
 [↑ Bo‘lim boshiga](#expenses)
+
+---
+
+<a id="payroll"></a>
+
+## Maosh hisobi
+
+Har xodimga varaq: hisoblangan maosh va bonus (tungi ish, o‘tgan oy uchun), mukofot/jarima, avans va to‘lov (naqd — kassadan). Qoldiq oydan oyga ko‘chadi; hisoblangan maosh foyda hisobotida `salary` xarajati — [README → 10.22](README.md#payroll).
+
+| Amal | Yo‘l | Nima uchun | Huquq |
+|---|---|---|---|
+| `GET` | [`/payroll`](#get-payroll) | Oylik varaq (vedomost) | `payroll.view` |
+| `GET` | [`/payroll/entries`](#get-payroll-entries) | Yozuvlar jurnali | `payroll.view` |
+| `POST` | [`/payroll/accruals`](#post-payroll-accruals) | Hisoblash: maosh, bonus, mukofot yoki jarima | `payroll.accrue` |
+| `POST` | [`/payroll/payments`](#post-payroll-payments) 🔁 | To‘lov: avans yoki maosh | `payroll.pay` |
+| `POST` | [`/payroll/run-due`](#post-payroll-run-due) | Muddati kelgan xodimlarga o‘tgan oy maoshini hozir hisoblash | `payroll.accrue` |
+| `DELETE` | [`/payroll/entries/:id`](#delete-payroll-entries-id) | Yozuvni o‘chirish | `payroll.view` |
+| `POST` | [`/payroll/entries/:id/restore`](#post-payroll-entries-id-restore) | O‘chirilgan yozuvni tiklash | `payroll.view` |
+
+<a id="get-payroll"></a>
+
+### `GET /payroll` — Oylik varaq (vedomost)
+
+> Har xodim: davr boshidagi qoldiq, hisoblangan maosh/bonus/mukofot/jarima, avans/to‘lov, davr oxiridagi qoldiq.
+
+**Qachon / qanday:** Oylik varaq: `period=YYYY-MM` (sukut — joriy oy). Har xodim: `opening` (davr boshidagi qoldiq), `accruedSalary`, `bonus`, `award`, `penalty` → `earned`; `advance`, `payment` → `paid`; `closing = opening + earned − paid`; `accrued` — shu davr avtomatik hisoblangan. Bo‘shatilgan xodim faqat yozuvi yoki qoldig‘i bo‘lsa.
+
+| | |
+|---|---|
+| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`PayrollSheetDto`](schemas.md#payrollsheetdto) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `period` | query | `string` |  | `YYYY-MM`; berilmasa — joriy oy — misol `2026-10` |
+
+**Xatolar**
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#payroll)
+
+---
+
+<a id="get-payroll-entries"></a>
+
+### `GET /payroll/entries` — Yozuvlar jurnali
+
+> Xodim varag‘i — `employeeId` bilan; `withDeleted=true` — o‘chirilganlari ham.
+
+**Qachon / qanday:** Yozuvlar jurnali — xodim varag‘i `employeeId` bilan; `period` sanadan (`YYYY-MM`); `auto` — tungi ish yozgan; `baseAmount`/`rate` — «134 400 × 2 %».
+
+| | |
+|---|---|
+| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`PayrollEntryPageDto`](schemas.md#payrollentrypagedto) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `page` | query | `number` |  | min `1`, sukut `1` |
+| `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
+| `q` | query | `string` |  | Matn qidiruvi — maks. uzunlik `100` |
+| `employeeId` | query | `string` |  | Xodim varag‘i |
+| `type` | query | `salary` \| `bonus` \| `award` \| `penalty` \| `advance` \| `payment` |  |  |
+| `dateFrom` | query | `string` |  | misol `2026-09-01` |
+| `dateTo` | query | `string` |  | misol `2026-09-30` |
+| `withDeleted` | query | `boolean` |  | O‘chirilganlar ham (tiklash uchun) |
+
+**Xatolar**
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
+
+[↑ Bo‘lim boshiga](#payroll)
+
+---
+
+<a id="post-payroll-accruals"></a>
+
+### `POST /payroll/accruals` — Hisoblash: maosh, bonus, mukofot yoki jarima
+
+> Ishlab topilganiga yoziladi, kassaga ta’sir qilmaydi; `penalty` ayiradi. Sana berilmasa — bugun.
+
+**Qachon / qanday:** Qo‘lda hisoblash: `salary` (masalan, bo‘shatilganning qisman oyi), `bonus`, `award` (+) yoki `penalty` (−). Kassaga ta’sirsiz; `date` berilmasa — bugun.
+
+| | |
+|---|---|
+| Huquq | `payroll.accrue` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `201` → [`PayrollEntryDto`](schemas.md#payrollentrydto) |
+| Audit jurnali | ha |
+
+**So‘rov tanasi** — [`CreateAccrualDto`](schemas.md#createaccrualdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `employeeId` | `string` | ✔ |  |
+| `amount` | `number` | ✔ | misol `500000` |
+| `date` | `string` |  | Berilmasa — bugun; yozuv shu oy varag‘iga tushadi — misol `2026-10-05` |
+| `note` | `string` |  | maks. uzunlik `500` |
+| `type` | `salary` \| `bonus` \| `award` \| `penalty` | ✔ | `penalty` — ishlab topilganidan ayriladi |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#payroll)
+
+---
+
+<a id="post-payroll-payments"></a>
+
+### `POST /payroll/payments` — To‘lov: avans yoki maosh
+
+> `method: cash` — kassadan chiqadi (ochiq smena shart, aks holda 423), `bank` — kassaga ta’sirsiz. Idempotent.
+
+**Qachon / qanday:** Avans yoki maosh to‘lovi. `method: cash` — kassadan chiqadi (ochiq smena shart, 423), `bank` — ta’sirsiz. `Idempotency-Key` bilan.
+
+| | |
+|---|---|
+| Huquq | `payroll.pay` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>`, `Idempotency-Key` (majburiy) |
+| Javob | `201` → [`PayrollEntryDto`](schemas.md#payrollentrydto) |
+| Audit jurnali | ha |
+
+**So‘rov tanasi** — [`CreatePaymentDto`](schemas.md#createpaymentdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `employeeId` | `string` | ✔ |  |
+| `amount` | `number` | ✔ | misol `500000` |
+| `date` | `string` |  | Berilmasa — bugun; yozuv shu oy varag‘iga tushadi — misol `2026-10-05` |
+| `note` | `string` |  | maks. uzunlik `500` |
+| `type` | `advance` \| `payment` | ✔ |  |
+| `method` | `cash` \| `bank` | ✔ | `cash` — kassadan chiqadi (ochiq smena shart, I8) |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `404` | `NOT_FOUND` |
+| `423` | `SHIFT_REQUIRED` |
+
+Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana bilan ishlatilgan); 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#payroll)
+
+---
+
+<a id="post-payroll-run-due"></a>
+
+### `POST /payroll/run-due` — Muddati kelgan xodimlarga o‘tgan oy maoshini hozir hisoblash
+
+> Tungi ish har kuni 00:10 da o‘zi ishlaydi; bu — qo‘lda. Xodim + davr bo‘yicha bir marta.
+
+**Qachon / qanday:** «Hozir hisoblash» tugmasi — kuni kelgan xodimlarga o‘tgan oy maoshi va bonusi (xodim + davr bo‘yicha bir marta). Cron o‘zi ham har kuni 00:10 da ishlaydi.
+
+| | |
+|---|---|
+| Huquq | `payroll.accrue` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`PayrollRunResultDto`](schemas.md#payrollrunresultdto) |
+| Audit jurnali | ha |
+
+**Xatolar**
+
+Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#payroll)
+
+---
+
+<a id="delete-payroll-entries-id"></a>
+
+### `DELETE /payroll/entries/:id` — Yozuvni o‘chirish
+
+> To‘lov — `payroll.pay`, hisoblash — `payroll.accrue` bilan. Naqd to‘lov puli kassaga qaytadi. O‘chirilgan avtomatik yozuv qayta hisoblanmaydi.
+
+**Qachon / qanday:** Yumshoq o‘chirish: to‘lov — `payroll.pay`, hisoblash — `payroll.accrue` bilan (aks holda 403); naqd to‘lov puli kassaga qaytadi. O‘chirilgan avtomatik yozuv qayta hisoblanmaydi. «Qaytarish» → `POST /payroll/entries/:id/restore`.
+
+| | |
+|---|---|
+| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `204` — tana yo‘q |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `403` | `PERMISSION_DENIED` |
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#payroll)
+
+---
+
+<a id="post-payroll-entries-id-restore"></a>
+
+### `POST /payroll/entries/:id/restore` — O‘chirilgan yozuvni tiklash
+
+> Naqd to‘lov yana kassadan chiqadi (joriy smena).
+
+**Qachon / qanday:** Tiklash (undo): naqd to‘lov yana kassadan chiqadi — joriy ochiq smenaga (423 bo‘lmasa). Ruxsat o‘chirishdagidek — yozuv turiga qarab.
+
+| | |
+|---|---|
+| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`PayrollEntryDto`](schemas.md#payrollentrydto) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `403` | `PERMISSION_DENIED` |
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan/bloklangan/o‘chirilmoqda).
+
+[↑ Bo‘lim boshiga](#payroll)
 
 ---
 

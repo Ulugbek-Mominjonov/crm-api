@@ -182,6 +182,10 @@ GROUPS = [
     ('expenses', 'Xarajatlar va takrorlanuvchi shablonlar', [r'^/expenses', r'^/expense-templates'],
      'Xarajatlar jurnali va kartalari. Naqd xarajat kassadan chiqadi (ochiq smena shart). Shablonlar '
      '(ijara, oylik) har kuni 00:05 da avtomatik xarajatga aylanadi.'),
+    ('payroll', 'Maosh hisobi', [r'^/payroll'],
+     'Har xodimga varaq: hisoblangan maosh va bonus (tungi ish, o‘tgan oy uchun), mukofot/jarima, avans va to‘lov '
+     '(naqd — kassadan). Qoldiq oydan oyga ko‘chadi; hisoblangan maosh foyda hisobotida `salary` xarajati — '
+     '[README → 10.22](README.md#payroll).'),
     ('messages', 'Xabarlar (Telegram va SMS)', [r'^/messages', r'^/telegram'],
      'Mijozlarga xabar: qabul qiluvchilar serverda hisoblanadi, yuborish fonda. Kanal: botga ulangan → Telegram '
      '(bepul), aks holda SMS (sozlangan bo‘lsa), aks holda yetib bormaydi. Kunlik chegara (tarifga bog‘liq) faqat '
@@ -462,7 +466,7 @@ NOTES = {
     ('PATCH', '/suppliers/:id'): 'Tahrir. `If-Match` qo‘llanadi. STIR — aniq 9 raqam.',
     # employees
     ('PATCH', '/employees/:id'):
-        'Tahrir. `If-Match` qo‘llanadi. `status: fired` — bo‘shatish (u endi tizimga kira olmaydi); oxirgi adminni bo‘shatib bo‘lmaydi (422 `LAST_ADMIN`).',
+        'Tahrir. `If-Match` qo‘llanadi. `status: fired` — bo‘shatish (u endi tizimga kira olmaydi); oxirgi adminni bo‘shatib bo‘lmaydi (422 `LAST_ADMIN`). Maosh sozlamalari: `salaryDay` (1–28), `salesBonusPct` (0–100), `payrollFrom` — [README → 10.22](README.md#payroll).',
     ('DELETE', '/employees/:id'): 'Kirish hisobi bor xodim o‘chmaydi — 409 `EMPLOYEE_HAS_USER` (avval `DELETE /users/:id`).',
     # users
     ('GET', '/users'):
@@ -614,6 +618,15 @@ NOTES = {
     ('GET', '/expense-templates'): 'Takrorlanuvchi xarajat shablonlari (ijara, oylik).',
     ('POST', '/expense-templates'): 'Shablon: `period` (`monthly` — `dayOfPeriod` 1–28, `weekly` — 1–7, dushanba = 1).',
     ('POST', '/expense-templates/run-due'): '«Hozir ishga tushirish» tugmasi — muddati kelgan shablonlar xarajatga aylanadi (davrga bir marta). Cron o‘zi ham har kuni 00:05 da ishlaydi.',
+    # payroll
+    ('GET', '/payroll'):
+        'Oylik varaq: `period=YYYY-MM` (sukut — joriy oy). Har xodim: `opening` (davr boshidagi qoldiq), `accruedSalary`, `bonus`, `award`, `penalty` → `earned`; `advance`, `payment` → `paid`; `closing = opening + earned − paid`; `accrued` — shu davr avtomatik hisoblangan. Bo‘shatilgan xodim faqat yozuvi yoki qoldig‘i bo‘lsa.',
+    ('GET', '/payroll/entries'): 'Yozuvlar jurnali — xodim varag‘i `employeeId` bilan; `period` sanadan (`YYYY-MM`); `auto` — tungi ish yozgan; `baseAmount`/`rate` — «134 400 × 2 %».',
+    ('POST', '/payroll/accruals'): 'Qo‘lda hisoblash: `salary` (masalan, bo‘shatilganning qisman oyi), `bonus`, `award` (+) yoki `penalty` (−). Kassaga ta’sirsiz; `date` berilmasa — bugun.',
+    ('POST', '/payroll/payments'): 'Avans yoki maosh to‘lovi. `method: cash` — kassadan chiqadi (ochiq smena shart, 423), `bank` — ta’sirsiz. `Idempotency-Key` bilan.',
+    ('POST', '/payroll/run-due'): '«Hozir hisoblash» tugmasi — kuni kelgan xodimlarga o‘tgan oy maoshi va bonusi (xodim + davr bo‘yicha bir marta). Cron o‘zi ham har kuni 00:10 da ishlaydi.',
+    ('DELETE', '/payroll/entries/:id'): 'Yumshoq o‘chirish: to‘lov — `payroll.pay`, hisoblash — `payroll.accrue` bilan (aks holda 403); naqd to‘lov puli kassaga qaytadi. O‘chirilgan avtomatik yozuv qayta hisoblanmaydi. «Qaytarish» → `POST /payroll/entries/:id/restore`.',
+    ('POST', '/payroll/entries/:id/restore'): 'Tiklash (undo): naqd to‘lov yana kassadan chiqadi — joriy ochiq smenaga (423 bo‘lmasa). Ruxsat o‘chirishdagidek — yozuv turiga qarab.',
     # messages
     ('POST', '/messages/preview'):
         'Yuborishdan OLDIN (yubormaydi): `recipients` — yetib boradiganlar, shundan `telegram` — Telegram orqali, '

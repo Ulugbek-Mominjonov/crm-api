@@ -60,7 +60,7 @@ login’da do‘kon tanlash).
 | Bo‘lim | Imkoniyat |
 |--------|-----------|
 | Auth | Kirish (bir email bir necha do‘konda), JWT access token (15 daq) + httpOnly refresh cookie (30 kun, rotatsiya, o‘g‘irlik aniqlash), chiqish, barcha qurilmalardan chiqish, parol o‘zgartirish, yangi do‘kon ro‘yxatdan o‘tishi |
-| Rollar | Ruxsatlar ROLGA beriladi: 64 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
+| Rollar | Ruxsatlar ROLGA beriladi: 67 ta `bo‘lim.amal` ruxsati, har do‘konda 4 ta tizim roli + administrator yaratadigan rollar; huquq har so‘rovda bazadan (o‘zgarish darhol kuchga kiradi); tannarx/foyda maydonlari ruxsatga qarab javobdan olib tashlanadi |
 | Spravochniklar | Omborlar (arxiv), kategoriyalar, mahsulotlar (qo‘shimcha birlik, import, ommaviy narx, rasm), mijozlar, ta’minotchilar, xodimlar, foydalanuvchilar — sahifalash, saralash, qidiruv, yumshoq o‘chirish + tiklash, optimistik qulf |
 | Ombor | Kirim (o‘rtacha tannarx), chiqim, inventarizatsiya, ko‘chirish, harakatlar jurnali, buyurtma taklifi; qoldiq manfiy bo‘lmaydi |
 | Sotuv | Chek (bitta tranzaksiya: qoldiq, kassa, bonus, yetkazish), qaytarish, bekor qilish, chop etish uchun chek (JSON yoki tayyor 80 mm PDF), OFD fiskal chek (navbat orqali) |
@@ -535,7 +535,7 @@ Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FA
 
 ### 6.1 Qanday ishlaydi
 
-- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (64 ta, 22 bo‘lim) —
+- **Ruxsat** — `bo‘lim.amal` satri: `sales.return`, `products.edit`, `cost.view`. To‘liq ro‘yxat (67 ta, 23 bo‘lim) —
   [6.2](#permissions), kodda — `packages/shared/src/permissions.ts` (`PERMISSIONS`, `PERMISSION_CATALOG`),
   API’da — `GET /roles/catalog`.
 - **Rol** — ruxsatlar to‘plami. Ruxsat **ROLGA** beriladi, foydalanuvchiga emas: bitta foydalanuvchi —
@@ -636,6 +636,9 @@ yo‘q bo‘lsa `label` ni ko‘rsating).
 | `expenses.create` | Xarajatlar: Qo‘shish | `POST /expenses`, `POST /expense-templates`, `POST /expense-templates/run-due` | ✔ |  |  |
 | `expenses.edit` | Xarajatlar: Tahrirlash | `PATCH /expenses/:id`, `PATCH /expense-templates/:id` | ✔ |  |  |
 | `expenses.delete` | Xarajatlar: O‘chirish | `DELETE /expenses/:id`, `POST /expenses/:id/restore`, `DELETE /expense-templates/:id` | ✔ |  |  |
+| `payroll.view` | Maosh hisobi: Maosh varag‘i va xodimlar hisobi | `GET /payroll`, `GET /payroll/entries` ([10.22](#payroll)); `employees.view` va `salary.view` ni nazarda tutadi. Sukutda hech bir rolda yo‘q — administrator beradi |  |  |  |
+| `payroll.accrue` | Maosh hisobi: Hisoblash: maosh, bonus, mukofot, jarima | `POST /payroll/accruals`, `POST /payroll/run-due`; hisoblash yozuvini o‘chirish/tiklash. Sukutda hech bir rolda yo‘q — administrator beradi |  |  |  |
+| `payroll.pay` | Maosh hisobi: To‘lash: avans va maosh (kassadan yoki bankdan) | `POST /payroll/payments`; to‘lov yozuvini o‘chirish/tiklash. Sukutda hech bir rolda yo‘q |  |  |  |
 | `reports.view` | Hisobotlar: Boshqaruv paneli, hisobotlar va tahlil | `GET /dashboard`, `GET /reports/pnl`, `GET /analytics` | ✔ | ✔ |  |
 | **Mijozlar** | | | | | |
 | `customers.view` | Mijozlar: Ko‘rish | `GET /clients`, `GET /clients/:id/stats`, `GET /clients/:id`, `GET /telegram` | ✔ | ✔ | ✔ |
@@ -816,7 +819,8 @@ va bloklar — o‘ng ustundagi. Ruxsat yo‘q tugma umuman ko‘rsatilmaydi (se
 | Hisobotlar (`/reports`), Analitika (`/analytics`) | `reports.view` | foyda, marja, tannarx — `profit.view` |
 | Mijozlar (`/clients`, `/clients/:id`) | `customers.view` | qo‘shish — `customers.create`; tahrir, «Telegram’ga ulash» — `customers.edit`; o‘chirish — `customers.delete`; xaridlar tarixi — `sales.view`; qarz va to‘lov — `debts.view` / `debts.collect`; xabar — `messages.send` |
 | Xabarlar (`/messages`) | `messages.view` | yuborish (preview ham) — `messages.send` |
-| Xodimlar (`/employees`) | `employees.view` | qo‘shish — `employees.create`; tahrir — `employees.edit`; o‘chirish — `employees.delete`; maosh — `salary.view` |
+| Xodimlar (`/employees`) | `employees.view` | qo‘shish — `employees.create`; tahrir — `employees.edit`; o‘chirish — `employees.delete`; maosh va maosh sozlamalari (`salaryDay`, `salesBonusPct`, `payrollFrom`) — `salary.view` |
+| Maosh (`/payroll` — oylik varaq, xodim varag‘i) | `payroll.view` | hisoblash (maosh, bonus, mukofot, jarima), «Hozir hisoblash» — `payroll.accrue`; avans/to‘lov — `payroll.pay`; yozuvni o‘chirish/tiklash — turiga qarab shu ikkisi ([10.22](#payroll)) |
 | Foydalanuvchilar (`/users`) | `users.view` | qo‘shish — `users.create`; tahrir, rol, parol — `users.edit`; o‘chirish/tiklash — `users.delete`; «Rollar» — pastda |
 | Rollar (`/users/roles` yoki «Foydalanuvchilar» ichida tab) | `roles.view` | yaratish — `roles.create`; ruxsat berish/olib tashlash, nom — `roles.edit`; o‘chirish — `roles.delete` (har biri — o‘zidan kengroq rolda yashirin, [6.4](#roles-api)) |
 | Audit (`/audit`) | `audit.view` | eksport — `users.view` |
@@ -1326,7 +1330,8 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
   `expectedBalance`, `countedBalance`, `difference` saqlanadi. `denominations` — `{"100000": 3, "50000": 2}`
   (kupyura → soni, yig‘indisi `countedBalance` ga teng bo‘lishi shart).
 - Hisobot — `GET /cash/shifts/:id/report`: ochiq smena — X, yopilgan — Z (sotuv/qaytarish to‘lov
-  turlari bo‘yicha, naqd kirim/chiqim, xarajat, qarz va ta’minotchi to‘lovlari, kutilgan balans).
+  turlari bo‘yicha, naqd kirim/chiqim, xarajat, xodimlarga naqd to‘lovlar — `salaryPayments` ([10.22](#payroll)),
+  qarz va ta’minotchi to‘lovlari, kutilgan balans).
 - Kassa balansi faqat ochiq smenada o‘zgaradi.
 
 **Ochiq smena talab qiladigan amallar** (aks holda 423 `SHIFT_REQUIRED`):
@@ -1339,6 +1344,7 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
 | `POST/PATCH/DELETE /expenses`, `.../restore` | Kassa ta’siri bo‘lsa: naqd xarajat yaratish/o‘chirish/tiklash, tahrirda — summa yoki usul o‘zgarsa |
 | `POST /debts/payments` | `method: cash` |
 | `POST /purchase-orders/:id/pay` | `method: cash` |
+| `POST /payroll/payments`, `DELETE /payroll/entries/:id`, `.../restore` | `method: cash` to‘lov (yaratish, o‘chirish, tiklash) |
 
 Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yoziladi.
 
@@ -1460,6 +1466,9 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 ### 10.10 Xarajatlar
 
 - Kategoriyalar: `rent`, `utilities`, `salary`, `transport`, `tax`, `other`; usul: `cash` (kassadan) | `bank`.
+  Xodimlar maoshi uchun alohida hisob bor — [10.22](#payroll): hisoblangan maosh foyda hisobotida `salary`
+  kategoriyasiga o‘zi qo‘shiladi, to‘lov esa xodim varag‘iga yoziladi. `salary` kategoriyali qo‘lda xarajat
+  eski usul — maosh hisobiga o‘tgan do‘konda uni ishlatmang (xarajat ikki marta sanaladi).
 - Naqd xarajatni yaratish/o‘chirish/tiklash kassaga ta’sir qiladi (ochiq smena shart); tahrirda eski
   ta’sir qaytarilib, yangisi joriy smenaga yoziladi — smena faqat summa yoki usul o‘zgarsa kerak.
 - Shablonlar: `monthly` (`dayOfPeriod` 1–28) yoki `weekly` (1–7, dushanba = 1); har kuni 00:05 da
@@ -1480,6 +1489,9 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 
 - **Xodim** (`/employees`) — shaxs: ism, lavozim, telefon, maosh (`salary` — `salary.view` bilan,
   sukut — admin, manager), holat `active | on_leave | fired`, ishga kirgan sana. `fired` — tizimga kira olmaydi.
+  Maosh sozlamalari (`salary.view` bilan, [10.22](#payroll)): `salaryDay` (1–28, sukut 1 — o‘tgan oy maoshi
+  hisoblanadigan kun), `salesBonusPct` (0–100, 2 kasr — savdodan bonus), `payrollFrom` (hisob boshlanadigan sana,
+  sukut — `hiredAt`; undan oldingi oylar avtomatik hisoblanmaydi).
 - **Foydalanuvchi** (`/users`) — kirish hisobi: email, parol, rol (`roleId`), `isActive`; mavjud xodimga 1:1
   bog‘lanadi. Ism va lavozim xodimdan keladi (foydalanuvchida takrorlanmaydi). Hisob ochish: avval xodim,
   keyin `POST /users { employeeId, email, password, roleId }` (rollar — `GET /roles`, [6.4](#roles-api)). Hisobsiz xodim — `EmployeeDto.userId === null`
@@ -1575,6 +1587,7 @@ Qoidalar:
 - Bir Telegram hisobi bir necha mijoz yozuviga (va do‘konga) ulanishi mumkin — har biri o‘z havolasi bilan.
 - Faol bo‘lmagan (to‘xtatilgan, o‘chirilayotgan) do‘kon havolasi ishlamaydi.
 
+<a id="reports"></a>
 ### 10.14 Hisobotlar
 
 - Barcha raqamlar SERVERDA; brauzerda `reduce` bilan yig‘ilmaydi. Tushum qoidasi (I4): bekor
@@ -1589,6 +1602,9 @@ Qoidalar:
   bilan (sukut 20, ≤ 100; tushum bo‘yicha kamayish tartibida).
 - `GET /analytics?from&to` — ABC (80/95 %) — sotilgan BARCHA mahsulot (jadvalni brauzerda sahifalang),
   kategoriya va to‘lov taqsimoti, trend. `limit` parametri yo‘q (yuborilsa 400).
+- `expenses` (dashboard va P&L) = xarajatlar jurnali + hisoblangan maosh (`salary` kategoriyasi — maosh, bonus,
+  mukofot, jarima manfiy; [10.22](#payroll)); xodimlarga to‘lovlar (avans, maosh) xarajat emas. `GET /expenses/summary`
+  faqat jurnalni sanaydi — shuning uchun «Xarajatlar» sahifasi va P&L `expenses` farq qilishi mumkin.
 - Foyda/tannarx maydonlari `profit.view` / `cost.view` siz rolda yo‘q ([6.6](#hidden)). Tugagan davrlar keshlanadi, bugun — jonli.
 
 ### 10.15 Audit jurnali
@@ -1598,7 +1614,8 @@ Qoidalar:
 maydonlarsiz), `user: null` — tizim (fon ishi). Amallar: `sale.create|return|cancel|belowCost`,
 `shift.open|close`, `debt.pay`, `stock.intake|writeoff|adjust|transfer`, `po.create|update|delete|restore|cancel|pay`,
 `quote.create|update|delete|restore|convert`, `delivery.create|update|delete|restore|status`,
-`expense.create|update|delete|restore|recurring`, `expense-template.*`, `product.create|update|delete|restore|import|bulk_price`,
+`expense.create|update|delete|restore|recurring`, `expense-template.*`, `payroll.run|accrual|payment|delete|restore`,
+`product.create|update|delete|restore|import|bulk_price`,
 `category.*`, `client.*`, `supplier.*`, `employee.*`, `user.*`, `warehouse.create|update|archive|restore`,
 `settings.update`, `file.upload|delete|quarantine`, `export.create|download`, `backup.export`,
 `message.send`, `migration.import`, `billing.invoice|paid`, `tenant.deletionRequested|deletionCancelled`,
@@ -1759,6 +1776,62 @@ ma’noga ega.
 Ro‘yxatdan o‘tgan yangi do‘konda `onboarded: false` → sehrgar (do‘kon ma’lumoti, QQS, ombor,
 kategoriyalar, birinchi mahsulotlar, xodimlar) → oxirida `PATCH /settings { onboarded: true }`.
 
+<a id="payroll"></a>
+### 10.22 Maosh hisobi (T-142)
+
+Har xodim uchun bitta **varaq** (`payroll_entries`): ishlab topilgani va to‘langani alohida, qoldiq
+ko‘chib yuradi. Yozuv turlari:
+
+| Tur | Nima | Ta’siri |
+|-----|------|---------|
+| `salary` | Hisoblangan maosh (avtomatik yoki qo‘lda) | ishlab topilganiga **+**, foyda hisobotida `salary` xarajati |
+| `bonus` | Savdodan bonus (avtomatik) | **+**, xarajat |
+| `award` | Mukofot (qo‘lda) | **+**, xarajat |
+| `penalty` | Jarima / ushlab qolish (qo‘lda) | **−** (xarajatni kamaytiradi) |
+| `advance` | Avans — oy ichida berilgan pul | to‘langaniga **+**; `cash` — kassadan chiqadi |
+| `payment` | Maosh to‘lovi | to‘langaniga **+**; `cash` — kassadan chiqadi |
+
+`earned = salary + bonus + award − penalty`, `paid = advance + payment`, **qoldiq** `= earned − paid`
+(musbat — do‘kon xodimga qarz, manfiy — xodim oldindan olgan). Hisob `@crm/shared` → `payrollTotals`,
+`proratedSalary`, `salesBonus`, `accrualPeriod` — brauzerda oldindan ko‘rsatish uchun ham.
+
+**Avtomatik hisoblash** (tungi ish, har kuni 00:10 Toshkent; qo‘lda — `POST /payroll/run-due`):
+- Xodimning `salaryDay` (sukut 1) kelganda **o‘tgan oy** uchun yoziladi: `salary` = `employees.salary`
+  (oy ichida ishga kirgan — kunlarga mutanosib, `note: "15/30 kun"`, `baseAmount` — to‘liq maosh) va
+  `bonus` = round(o‘tgan oy sotuvlari − qaytarishlar (I4 tushum, QQS bilan; qaytarish asl chek sotuvchisidan
+  ayriladi) × `salesBonusPct` / 100) (`baseAmount` — savdo, `rate` — foiz). Faqat `active` xodim, `salary > 0`
+  yoki `salesBonusPct > 0`, `payrollFrom` va `hiredAt` davr oxiridan kech bo‘lmasa.
+- Yozuv sanasi — o‘tgan oyning **oxirgi kuni** (`date: 2026-09-30`, `period: "2026-09"`): sentabr maoshi
+  sentabr foydasidan ayriladi, hisoblash kuni oktabrda bo‘lsa ham. `auto: true`.
+- Davrga **bir marta** (xodim + sana + tur): qayta ishga tushirish, parallel ikki instansiya — takrorlamaydi.
+  O‘chirilgan avtomatik yozuv ham qayta hisoblanmaydi — kerak bo‘lsa qo‘lda `salary`/`bonus` yoziladi.
+- Mavjud xodimlarga o‘tishda `payrollFrom` = o‘tish kuni: avvalgi oylar (xarajat sifatida yozilgan)
+  ikkinchi marta hisoblanmaydi; egasi sanani orqaga surib, o‘tgan oyni ham hisoblatishi mumkin.
+
+**Endpointlar** (`payroll.view` — ko‘rish; `payroll.accrue` — hisoblash; `payroll.pay` — to‘lov):
+- `GET /payroll?period=YYYY-MM` (sukut — joriy oy) — **oylik varaq**: har xodim uchun sozlamalar, `opening`
+  (davr boshidagi qoldiq), `accruedSalary`, `bonus`, `award`, `penalty`, `earned`, `advance`, `payment`,
+  `paid`, `closing`, `accrued` (shu davr uchun avtomatik hisoblash bo‘lgan) + `totals`. Bo‘shatilgan xodim
+  faqat davrda yozuvi yoki qoldig‘i bo‘lsa. Bitta so‘rov.
+- `GET /payroll/entries?employeeId&type&dateFrom&dateTo&q&withDeleted` — yozuvlar (xodim varag‘i), sahifali.
+- `POST /payroll/accruals { employeeId, type: salary|bonus|award|penalty, amount, date?, note? }` — qo‘lda
+  hisoblash (kassaga ta’sirsiz). `date` berilmasa — bugun; yozuv sanasi qaysi oyda bo‘lsa, shu oy varag‘ida.
+- `POST /payroll/payments { employeeId, type: advance|payment, amount, method: cash|bank, date?, note? }` —
+  `Idempotency-Key` bilan; `cash` — ochiq smena shart (423), smena hisobotida `salaryPayments`.
+- `DELETE /payroll/entries/:id`, `POST /payroll/entries/:id/restore` — yumshoq o‘chirish/tiklash; naqd to‘lov
+  puli qaytadi / yana chiqadi (ochiq smena). Ruxsat yozuv turiga qarab: to‘lov — `payroll.pay`, hisoblash —
+  `payroll.accrue` (aks holda 403). Tahrir yo‘q — o‘chirib qayta yoziladi.
+- Bo‘shatilgan xodimga ham yoziladi (hisob-kitobni yakunlash), o‘chirilganiga — 404.
+
+**Foyda hisoboti va bosh sahifa:** `expenses` = xarajatlar jurnali + hisoblangan maosh (`salary`, `bonus`,
+`award`, `penalty` — manfiy) `salary` kategoriyasida ([10.14](#reports)). To‘lovlar (`advance`, `payment`)
+xarajat emas — ular kassa harakati. `GET /expenses/summary` esa faqat xarajatlar jurnalini sanaydi.
+
+**UI tavsiyasi:** Xodimlar → «Maosh» sahifasi: oy tanlash, varaq jadvali (qoldiq ustuni), qatorda «Avans»,
+«To‘lash» (naqd/bank), «Mukofot/Jarima» tugmalari; xodim kartasida yozuvlar ro‘yxati (`auto` belgisi,
+`baseAmount`/`rate` — «134 400 × 2 %»); sozlamalarda `salaryDay`, `salesBonusPct`, `payrollFrom`.
+Jurnal: `payroll.run` (avtomatik, `diff.entries`), `payroll.accrual`, `payroll.payment`, `payroll.delete|restore`.
+
 ---
 
 <a id="screens"></a>
@@ -1793,6 +1866,7 @@ Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. Qavsdagi r
 | **Mijoz kartasi** (`/clients/:id`, `customers.view`) | `GET /clients/:id`, `/clients/:id/stats`, `GET /sales?customerId=`, `GET /debts?view=receipts&customerId=`, `GET /debts/payments?customerId=` | tahrir, qarz to‘lovi, xabar, «Telegram’ga ulash» (`POST /clients/:id/telegram-link` → QR) | `sale.*`, `debt.paid` |
 | **Xabarlar** (`/messages`, `messages.view`) | `GET /messages`, `GET /telegram` (bot holati) | `POST /messages/preview` (kanal bo‘yicha son), `POST /messages`; ulanmaganlar — `GET /clients?telegramStatus=none` | — |
 | **Xodimlar** (`/employees`, `employees.view`) | `GET /employees` | CRUD, `.../restore` | — |
+| **Maosh** (`/payroll`, `payroll.view`) | `GET /payroll?period=`, `GET /payroll/entries?employeeId=` | `POST /payroll/accruals`, `POST /payroll/payments`, `POST /payroll/run-due`, `DELETE /payroll/entries/:id`, `.../restore` | — |
 | **Foydalanuvchilar** (`/users`, `users.view`) | `GET /users`, `GET /roles` (rol tanlovi va nomi), `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD (`roleId`), «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | `access.changed` |
 | **Rollar** (yangi; `/users/roles` yoki tab, `roles.view`) | `GET /roles`, `GET /roles/catalog` | `POST /roles` (`roles.create`), `PATCH /roles/:id` (`roles.edit`, `If-Match`), `DELETE /roles/:id?replaceWith=` (`roles.delete`) ([6.8](#roles-migration)) | `access.changed` |
 | **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices`, `GET /tenants/current/requests` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, murojaat (`POST /tenants/current/requests`, `…/:id/messages`), migratsiya sehrgari | `tenant.request` |
@@ -2118,6 +2192,12 @@ Hozircha yo‘q. (Avvalgi «narxni qo‘lda o‘zgartirish cheklanmagan» masala
 `maxDiscountPct` va minimal narxga bo‘ysunadi — [10.1](#pos).)
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-17** — maosh hisobi (T-142, [10.22](#payroll)); frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Xodim kartasidagi `salary` faqat ma’lumot edi; maosh faqat qo‘lda `salary` xarajati sifatida yozilardi, kimga qancha to‘langani ko‘rinmasdi | Har xodimga varaq (`/payroll`): tungi ish `salaryDay` kelganda O‘TGAN OY uchun `salary` (qisman oy — kunlarga) va `bonus` (`salesBonusPct` × oy savdosi) yozadi; qo‘lda `award`/`penalty`; to‘lov `advance`/`payment` (`cash` — kassadan, smena hisobotida `salaryPayments`); qoldiq oydan oyga ko‘chadi. Foyda hisobotida hisoblangan maosh `salary` xarajati, to‘lov emas. `EmployeeDto` + `salaryDay`, `salesBonusPct`, `payrollFrom` (`salary.view` bilan). Yangi ruxsatlar `payroll.view`, `payroll.accrue`, `payroll.pay` — sukutda hech bir rolda yo‘q, administrator rol oynasida beradi — katalog 67 ta | Xodimlar → «Maosh» sahifasi: oy tanlash, `GET /payroll?period=` varag‘i, «Avans»/«To‘lash»/«Mukofot/Jarima» tugmalari, xodim kartasida `GET /payroll/entries?employeeId=`; xodim formasida 3 ta yangi maydon; «Rollar» da yangi bo‘lim; smena hisobotida `salaryPayments` qatori; xarajat formasida `salary` kategoriyasini yashirish (maosh hisobi orqali) |
 
 **2026-10-17** — minimal narx va chegirma siyosati (T-141, [10.1](#pos)); frontendga ta’sir qiladi:
 

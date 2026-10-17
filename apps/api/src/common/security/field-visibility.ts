@@ -27,7 +27,8 @@ const FIELD_GROUPS: ReadonlyArray<readonly [Permission, readonly string[]]> = [
   ['wholesale.view', ['wholesalePrice']],
   // netProfit = yalpi foyda − xarajat: undan yalpi foyda tiklanadi
   ['profit.view', ['grossProfit', 'netProfit', 'profit', 'cogs', 'margin']],
-  ['salary.view', ['salary']],
+  // Maosh sozlamalari ham (T-142): hisoblash kuni, bonus foizi, hisob boshlanishi
+  ['salary.view', ['salary', 'salaryDay', 'salesBonusPct', 'payrollFrom']],
 ]
 
 /** Hech qachon javobga chiqmaydigan maydonlar — roldan qat'i nazar */

@@ -23,8 +23,10 @@ GROUPS = [
     ('purchase', "Xarid va ta'minotchilar", (
         "Ta'minotchidan kirim buyurtmasi, qabul qilish va to'lov."),
      ['suppliers', 'purchase_orders', 'po_items', 'supplier_payments']),
-    ('expenses', 'Xarajatlar', "Bir martalik va takrorlanuvchi (shablon) xarajatlar.",
-     ['expenses', 'expense_templates']),
+    ('expenses', 'Xarajatlar va maosh', (
+        "Bir martalik va takrorlanuvchi (shablon) xarajatlar; xodimlar maosh varag'i (hisoblangan maosh — "
+        "xarajat, to'lov — kassa harakati)."),
+     ['expenses', 'expense_templates', 'payroll_entries']),
     ('comms', 'Xabarlar, fayllar va eksport', (
         "SMS yuborish navbati, S3 (R2) dagi fayllar metama'lumoti va fonda tayyorlanadigan eksportlar."),
      ['messages', 'message_recipients', 'files', 'exports']),
@@ -143,6 +145,12 @@ TABLES = {
     'expense_templates': (
         "Takrorlanuvchi xarajat shablonlari (oylik yoki haftalik, qaysi kuni). Tungi ish muddati kelganini "
         "yaratadi; `last_run_key` bir davrda ikki marta yaratilmasligini kafolatlaydi."),
+    'payroll_entries': (
+        "Xodim maosh varag'i (T-142): hisoblash — `salary` (tungi ish, o'tgan oy uchun xodimning hisoblash "
+        "kunida; qisman oy kunlarga), `bonus` (o'tgan oy savdosi × foiz), `award`, `penalty` (ayiradi); to'lov — "
+        "`advance`, `payment` (naqd — kassadan, `shift_id`). Qoldiq = ishlab topilgani − to'langani. Avtomatik "
+        "yozuv xodim + sana + tur bo'yicha bir marta (`auto` bo'yicha qisman noyob indeks — o'chirilgani ham "
+        "qayta hisoblanmaydi). Hisoblashlar foyda hisobotida `salary` xarajati."),
     'messages': (
         "Xabar (kampaniya): kimga (bitta mijoz, guruh, qarzdorlar, hamma), matn yoki shablon, qabul "
         "qiluvchilar soni (shundan Telegram orqali), umumiy holat."),
@@ -296,7 +304,13 @@ COLUMNS = {
     'revoked_at': 'Bekor qilingan (chiqilgan) vaqt',
     'last_login_at': 'Oxirgi kirish vaqti',
     'is_active': 'Faol (kira oladi)',
-    'salary': "Maosh (so'm)",
+    'salary': "Oylik maosh (so'm); 0 — avtomatik hisoblanmaydi",
+    'salary_day': "Maosh hisoblanadigan kun (1–28): shu kuni o'tgan oy uchun maosh va bonus yoziladi",
+    'sales_bonus_pct': "Savdodan bonus, %: o'tgan oy sotuvlari (qaytarishlar ayrilgan) × shu / 100",
+    'payroll_from': "Maosh hisobi shu sanadan — oldingi oylar avtomatik hisoblanmaydi",
+    'auto': "Tungi ish yozgan (xodim + sana + tur bo'yicha bir marta)",
+    'base_amount': "Hisoblash asosi: bonus — davr savdosi, maosh — oylik maosh (qisman oyda summa kam)",
+    'rate': 'Bonus foizi (hisoblangan paytdagi)',
     'position': 'Lavozim',
     'hired_at': 'Ishga olingan sana',
     'tin': 'INN (soliq raqami)',

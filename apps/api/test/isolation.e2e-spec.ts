@@ -97,6 +97,10 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
     const template = await testDb.expenseTemplate.create({
       data: { tenantId, name: 'B ijara', category: 'rent', amount: 1_000n, method: 'bank', period: 'monthly', dayOfPeriod: 1 },
     })
+    // Maosh hisobi (T-142): `DELETE /payroll/entries/:id`, `.../restore`
+    const payroll = await testDb.payrollEntry.create({
+      data: { tenantId, employeeId: t.employeeId, type: 'award', amount: 1_000n, date: new Date() },
+    })
     const order = await testDb.purchaseOrder.create({
       data: {
         tenantId, number: 'BUY-9001', supplierId: supplier.id, total: 1_000n, date: new Date(),
@@ -137,6 +141,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       cash: { id: shift.id, patch: {}, listPath: 'cash/shifts' },
       expenses: { id: expense.id, patch: { amount: 1 } },
       'expense-templates': { id: template.id, patch: { amount: 1 } },
+      payroll: { id: payroll.id, patch: {}, listPath: 'payroll/entries' },
       deliveries: { id: delivery.id, patch: { note: 'Buzildi' }, post: { status: { status: 'on_way' } } },
       'purchase-orders': {
         id: order.id,
@@ -166,6 +171,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       testDb.cashShift.findUnique({ where: { id: s.cash!.id } }),
       testDb.expense.findUnique({ where: { id: s.expenses!.id } }),
       testDb.expenseTemplate.findUnique({ where: { id: s['expense-templates']!.id } }),
+      testDb.payrollEntry.findUnique({ where: { id: s.payroll!.id } }),
       testDb.purchaseOrder.findUnique({ where: { id: s['purchase-orders']!.id }, include: { items: true } }),
       testDb.delivery.findUnique({ where: { id: s.deliveries!.id } }),
       testDb.file.findUnique({ where: { id: s.files!.id } }),

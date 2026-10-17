@@ -21,6 +21,9 @@ const EMPLOYEE_SELECT = {
   phone: true,
   status: true,
   salary: true,
+  salaryDay: true,
+  salesBonusPct: true,
+  payrollFrom: true,
   hiredAt: true,
   createdAt: true,
   updatedAt: true,
@@ -60,6 +63,8 @@ export class EmployeesService extends SoftDeleteCrudService<
     return {
       ...row,
       salary: moneyFromDb(row.salary),
+      salesBonusPct: row.salesBonusPct.toNumber(),
+      payrollFrom: dateFromDb(row.payrollFrom),
       hiredAt: dateFromDb(row.hiredAt),
       userId: user && !user.deletedAt ? user.id : null,
     }
@@ -87,6 +92,10 @@ export class EmployeesService extends SoftDeleteCrudService<
       phone: dto.phone,
       status: dto.status,
       salary: mapDefined(dto.salary, moneyToDb),
+      salaryDay: dto.salaryDay,
+      salesBonusPct: dto.salesBonusPct,
+      // Maosh hisobi sukutda ishga olingan kundan: birinchi (qisman) oy ham hisoblanadi
+      payrollFrom: dateToDb(dto.payrollFrom ?? dto.hiredAt),
       hiredAt: dateToDb(dto.hiredAt),
     }
   }
@@ -98,6 +107,9 @@ export class EmployeesService extends SoftDeleteCrudService<
       phone: dto.phone,
       status: dto.status,
       salary: mapDefined(dto.salary, moneyToDb),
+      salaryDay: dto.salaryDay,
+      salesBonusPct: dto.salesBonusPct,
+      payrollFrom: mapDefined(dto.payrollFrom, dateToDb),
       hiredAt: mapDefined(dto.hiredAt, dateToDb),
     }
   }
