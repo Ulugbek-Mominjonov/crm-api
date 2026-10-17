@@ -89,6 +89,7 @@ export class PlatformTenantDto {
   @ApiProperty({ type: TenantAdminContactDto, nullable: true, description: 'Birinchi administrator (egasi)' })
   admin!: TenantAdminContactDto | null
   @ApiProperty({ type: TenantActivityDto }) activity!: TenantActivityDto
+  @ApiProperty({ description: 'Egasi javobini kutayotgan murojaatlar (T-140) — ro‘yxatda va kartada belgi' }) openRequests!: number
 }
 
 /** Do'kon ochish — ro'yxatdan o'tish bilan bir xil maydonlar + boshlang'ich tarif */

@@ -47,6 +47,10 @@ const AUTH_ONLY = new Set([
   'GET /api/v1/tenants/current',
   'POST /api/v1/tenants/current/delete',
   'POST /api/v1/tenants/current/restore',
+  // Egasiga murojaat (T-140) — faqat administrator (TenantRequestsService tekshiradi)
+  'GET /api/v1/tenants/current/requests',
+  'POST /api/v1/tenants/current/requests',
+  'POST /api/v1/tenants/current/requests/:id/messages',
   // Zaxira — faqat administrator (BackupService tekshiradi, tenant-export testi)
   'GET /api/v1/backup/export',
 ])

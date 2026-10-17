@@ -59,8 +59,8 @@ Umumiy «tayyor» ta'rifi —
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
-| E17 | Egasi paneli (platforma) | 5 | 4/5 | B6 |
-| | **Jami** | **139** | **123/139** | |
+| E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
+| | **Jami** | **140** | **124/140** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -1022,6 +1022,17 @@ Do'konlar ustidan egasi nazorati (egasi so'rovi, 2026-10-16): alohida kirish va 
     setup → enable (kod) → loginda `totpCode` majburiy (`AUTH_TOTP_REQUIRED`/`AUTH_TOTP_INVALID`), kod bir martalik, ±30 s,
     disable kod bilan, 5/daqiqa
   - Tekshirish: `npm run test:e2e -- platform-admins` + `vitest run totp`
+
+- [x] **T-140 · Do'kon murojaati egasiga va aloqa ma'lumoti**
+  - Bog'liq: T-135, T-137
+  - Manba: [docs/api/owner-panel.md §5.11](docs/api/owner-panel.md), [docs/api/README.md §8.5](docs/api/README.md)
+  - Qabul: `tenant_requests` + `tenant_request_messages` (RLS, bir do'konda bitta yopilmagan — qisman noyob indeks);
+    do'kon: `GET/POST /tenants/current/requests`, `POST …/:id/messages` (faqat admin, faqat-o'qishda ham, 24 soatda 5 xabar →
+    429, ikkinchi ochiq → 409 `meta.requestId`, yopilganiga → 422); egasiga Telegram (📨/💬); egasi paneli:
+    `GET /platform/requests` (filtr, `platform_requests()`), `:id`, `reply` → `answered`, `close` → `closed` (operator ham),
+    egasi jurnali `request.*`, `tenant.request` hodisasi, `stats.openRequests`, kartada `openRequests`; sozlamada aloqa
+    (`support.phone/telegram/hours`) — `GET /tenants/current` va ochiq `GET /tenants/registration`
+  - Tekshirish: `npm run test:e2e -- tenant-requests isolation every-route-guarded`
 
 ---
 

@@ -2,7 +2,7 @@
 
 > Generatsiya qilingan: `npm run docs:db` (`scripts/db-docs/`). Tuzilma — ishlab turgan bazadan (migratsiyalar qo‘llangan), ustun izohlari — `apps/api/prisma/schema.prisma`, jadvallar vazifasi — `scripts/db-docs/tables.py`. Bu faylni qo‘lda tahrirlamang.
 
-PostgreSQL 16 · 42 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
+PostgreSQL 16 · 44 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
 
 ## Umumiy qoidalar
 
@@ -61,6 +61,7 @@ erDiagram
     suppliers ||--o{ purchase_orders : "supplier_id"
     suppliers |o--o{ stock_movements : "supplier_id"
     suppliers ||--o{ supplier_payments : "supplier_id"
+    tenant_requests ||--o{ tenant_request_messages : "request_id"
     users |o--o{ audit_log : "user_id"
     users ||--o{ exports : "user_id"
     users ||--o{ refresh_tokens : "user_id"
@@ -79,9 +80,11 @@ erDiagram
     employees ||--o| users : "employee_id"
     files |o--o{ settings : "logo_file_id"
     roles ||--o{ users : "role_id"
+    tenant_requests ||--o{ tenant_request_messages : "request_id"
     tenants ||--o{ employees : "tenant_id"
     tenants ||--o| roles : "tenant_id"
     tenants ||--o| settings : "tenant_id"
+    tenants ||--o{ tenant_requests : "tenant_id"
     tenants ||--o| tenant_state : "tenant_id"
     tenants ||--o{ users : "tenant_id"
     users |o--o{ audit_log : "user_id"
@@ -196,6 +199,25 @@ erDiagram
         uuid entity_id
         jsonb diff
         text ip
+        timestamptz created_at
+    }
+    tenant_requests {
+        uuid id PK
+        uuid tenant_id FK
+        text type
+        text status
+        text phone
+        timestamptz created_at
+        timestamptz last_message_at
+        timestamptz closed_at
+    }
+    tenant_request_messages {
+        uuid id PK
+        uuid tenant_id FK
+        uuid request_id FK
+        text author
+        text author_name
+        text body
         timestamptz created_at
     }
 ```
@@ -383,6 +405,40 @@ Amallar jurnali: kim, qachon, nima qildi, o'zgarish farqi (`diff`). FAQAT qo'shi
 | `entity_id` | uuid | ha | Qaysi obyekt |
 | `diff` | jsonb | ha | O'zgarish farqi (before/after) — muhim amallar uchun |
 | `ip` | text | ha | IP manzil |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+
+### `tenant_requests`
+
+Do'konning platforma egasiga murojaati (T-140): bloklangan do'kon administratori tizim ichidan yozadi, egasi panelidan javob beradi. `type` — `unblock` (blokdan chiqarish), `billing` (to'lov), `other`; `status` — `open` (do'kon yozdi, egasi javobini kutadi), `answered` (egasi javob berdi), `closed` (yopilgan). Bir do'konda bir vaqtda bitta yopilmagan murojaat (qisman noyob indeks `status <> 'closed'`). Egasi tenantlararo ro'yxatni `platform_requests()` orqali o'qiydi, javobni do'kon tranzaksiyasida yozadi.
+
+- RLS: majburiy (FORCE)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `tenant_id` | uuid | — | → `tenants` |
+| `type` | text | — | unblock \| billing \| other |
+| `status` | text | — | open — do'kon yozdi, egasi javobini kutadi; answered — egasi javob berdi; closed — yopilgan |
+| `phone` | text | ha | Administrator ko'rsatgan aloqa telefoni |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+| `last_message_at` | timestamptz | — | So'nggi xabar vaqti (ikkala tomondan) |
+| `closed_at` | timestamptz | ha | Yopilgan vaqt |
+
+### `tenant_request_messages`
+
+Murojaat xabarlari (ikkala tomon): `author` — `store` (do'kon administratori) yoki `platform` (egasi/operator), `author_name` — yozilgan paytdagi ism (hisob o'chsa ham qoladi). Do'kon 24 soatda 5 ta xabar yozadi (chegara `author = 'store'` bo'yicha indeks bilan sanaladi).
+
+- RLS: majburiy (FORCE)
+- Bog‘lanishlar: `request_id` → `tenant_requests` (CASCADE)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `tenant_id` | uuid | — | → `tenants` (RLS) |
+| `request_id` | uuid | — | → `tenant_requests` · Murojaat |
+| `author` | text | — | Kim yozdi: `store` — do'kon administratori, `platform` — egasi yoki operator |
+| `author_name` | text | — | Yozilgan paytdagi ism |
+| `body` | text | — | Xabar matni |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 
 ## Katalog va ombor
@@ -1527,6 +1583,9 @@ erDiagram
         text registration_mode
         timestamptz updated_at
         uuid updated_by FK
+        text support_phone
+        text support_telegram
+        text support_hours
     }
 ```
 
@@ -1592,7 +1651,7 @@ Egasi amallari jurnali (faqat qo'shiladi): kim (`admin_id`, bootstrap'da bo'sh),
 
 ### `platform_settings`
 
-Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `open` (har kim do'kon ochadi) yoki `closed` (`POST /tenants/register` 403, do'konni faqat egasi paneli ochadi); kim va qachon o'zgartirgan. Env emas — egasi panelidan qayta ishga tushirishsiz o'zgaradi.
+Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `open` (har kim do'kon ochadi) yoki `closed` (`POST /tenants/register` 403, do'konni faqat egasi paneli ochadi); egasining aloqasi (`support_phone`, `support_telegram`, `support_hours` — do'kon ilovasida bannerda va murojaat oynasida, T-140); kim va qachon o'zgartirgan. Env emas — egasi panelidan qayta ishga tushirishsiz o'zgaradi.
 
 - Bog‘lanishlar: `updated_by` → `platform_admins` (SET NULL)
 
@@ -1602,6 +1661,9 @@ Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `
 | `registration_mode` | text | — |  |
 | `updated_at` | timestamptz | — | Oxirgi o'zgarish vaqti — versiya (`If-Match`) |
 | `updated_by` | uuid | ha | → `platform_admins` |
+| `support_phone` | text | ha | Egasining aloqa ma'lumoti (T-140): do'kon ilovasida bannerda va murojaat oynasida ko'rinadi |
+| `support_telegram` | text | ha | Egasining Telegram foydalanuvchi nomi (`@`siz) |
+| `support_hours` | text | ha | Egasining ish vaqti (erkin matn) |
 
 ## Hisobot yordamchilari
 

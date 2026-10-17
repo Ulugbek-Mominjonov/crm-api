@@ -12,6 +12,8 @@ import { PlatformBillingService } from './platform-billing.service'
 import { PlatformBootstrapService } from './platform-bootstrap.service'
 import { PlatformController } from './platform.controller'
 import { PlatformCoreModule } from './platform-core.module'
+import { PlatformRequestsController } from './platform-requests.controller'
+import { PlatformRequestsService } from './platform-requests.service'
 import { PlatformSessionService } from './platform-session.service'
 import { PlatformStatsService } from './platform-stats.service'
 import { PlatformTenantsController } from './platform-tenants.controller'
@@ -22,16 +24,18 @@ import { PlatformTenantsService } from './platform-tenants.service'
  * ochish, bloklash, tarif va qo'lda to'lov, o'chirish, hisoblar, jurnal.
  * O'z identifikatsiyasi (`platform_admins`), o'z guard'i; tenant konteksti
  * faqat do'kon ichidagi amal uchun va faqat servis ichida. Hisoblar va
- * operatorlar, TOTP, Telegram ulanishi, sozlama — T-137…T-139.
+ * operatorlar, TOTP, Telegram ulanishi, sozlama — T-137…T-139; do'kon
+ * murojaatlari — T-140.
  */
 @Module({
   imports: [AuthModule, TenantsModule, BillingModule, TelegramModule, PlatformCoreModule],
-  controllers: [PlatformAuthController, PlatformTenantsController, PlatformAdminsController, PlatformController],
+  controllers: [PlatformAuthController, PlatformTenantsController, PlatformRequestsController, PlatformAdminsController, PlatformController],
   providers: [
     PlatformAuthGuard,
     PlatformAuthService,
     PlatformSessionService,
     PlatformTenantsService,
+    PlatformRequestsService,
     PlatformBillingService,
     PlatformStatsService,
     PlatformAdminsService,

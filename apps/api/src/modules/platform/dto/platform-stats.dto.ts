@@ -27,4 +27,5 @@ export class RevenueDto {
 export class PlatformStatsDto {
   @ApiProperty({ type: TenantCountsDto }) tenants!: TenantCountsDto
   @ApiProperty({ type: RevenueDto }) revenue!: RevenueDto
+  @ApiProperty({ description: 'Egasi javobini kutayotgan do‘kon murojaatlari (menyuda belgi; T-140)' }) openRequests!: number
 }

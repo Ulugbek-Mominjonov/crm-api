@@ -114,6 +114,10 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
     const exported = await testDb.export.create({
       data: { id: randomUUID(), tenantId, userId: t.userId, resource: 'products', format: 'csv', status: 'ready', fileId: file.id },
     })
+    // Egasiga murojaat (T-140): `POST /tenants/current/requests/:id/messages`
+    const tenantRequest = await testDb.tenantRequest.create({
+      data: { id: randomUUID(), tenantId, type: 'other', messages: { create: { id: randomUUID(), author: 'store', authorName: 'B admin', body: 'B savoli' } } },
+    })
     const renamed = { name: 'Buzildi' }
     return {
       warehouses: { id: warehouse.id, patch: renamed },
@@ -142,6 +146,8 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       files: { id: file.id, patch: {}, noList: true },
       exports: { id: exported.id, patch: {}, noList: true },
       roles: { id: role.id, patch: renamed, listQuery: '' },
+      // Ro'yxati `GET /tenants/current/requests` — `tenants` resursi sifatida alohida tekshirilmaydi
+      tenants: { id: tenantRequest.id, patch: {}, post: { messages: { message: 'Begona' } }, noList: true },
     }
   }
 
@@ -165,6 +171,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       testDb.file.findUnique({ where: { id: s.files!.id } }),
       testDb.export.findUnique({ where: { id: s.exports!.id } }),
       testDb.role.findUnique({ where: { id: s.roles!.id } }),
+      testDb.tenantRequest.findUnique({ where: { id: s.tenants!.id }, include: { messages: true } }),
     ])
   }
 

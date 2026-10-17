@@ -331,7 +331,7 @@
     },
     "/api/v1/tenants/registration": {
       "get": {
-        "description": "Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi.",
+        "description": "Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi; `support` — egasining telefoni/Telegram’i (yopiq rejimda va bloklangan do‘kon bannerida ko‘rsating).",
         "operationId": "Registration_registration",
         "parameters": [],
         "responses": {
@@ -346,7 +346,7 @@
             }
           }
         },
-        "summary": "Ro‘yxatdan o‘tish ochiqmi",
+        "summary": "Ro‘yxatdan o‘tish ochiqmi va egasining aloqasi",
         "tags": [
           "auth"
         ]
@@ -9003,6 +9003,170 @@
         ]
       }
     },
+    "/api/v1/tenants/current/requests": {
+      "get": {
+        "description": "Eng yangisi birinchi (20 tagacha), har birida barcha xabarlar. Yopilmagani (`status ≠ closed`) — bannerda ko‘rsatiladigani.",
+        "operationId": "TenantRequests_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TenantRequestDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Murojaatlar tarixi",
+        "tags": [
+          "account"
+        ]
+      },
+      "post": {
+        "description": "Bloklangan va to‘xtatilgan do‘konda ham ishlaydi. Egasiga Telegram orqali darhol yetadi; javob — shu ro‘yxatda (`tenant.request` hodisasi). Bir vaqtda bitta yopilmagan murojaat: bor bo‘lsa 409 `ALREADY_EXISTS` (`meta.requestId`) — xabarni unga yozing.",
+        "operationId": "TenantRequests_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTenantRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantRequestDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_EXISTS — yopilmagan murojaat bor (`errors[0].meta.requestId`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "MESSAGE_LIMIT_EXCEEDED — 24 soatda 5 ta xabar (`meta.limit/used`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Egasiga murojaat yuborish",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/tenants/current/requests/{id}/messages": {
+      "post": {
+        "description": "Yopilmagan murojaatga qo‘shimcha gap yoki egasi javobiga javob; holat yana `open` bo‘ladi.",
+        "operationId": "TenantRequests_addMessage",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddRequestMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TenantRequestDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — murojaat yopilgan, yangisini yuboring",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "MESSAGE_LIMIT_EXCEEDED — 24 soatda 5 ta xabar (`meta.limit/used`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Murojaatga xabar qo‘shish",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/v1/backup/export": {
       "get": {
         "description": "Brauzerdagi «Sozlamalar → Zaxira» shakli (`CrmSnapshot` + `settings`, parolsiz `users`) — `POST /migration/import` bilan boshqa do‘konga yuklanadi. Bitta izchil surat. To‘xtatilgan va o‘chirilayotgan do‘konda ham ishlaydi.",
@@ -10333,6 +10497,344 @@
         ]
       }
     },
+    "/api/v1/platform/requests": {
+      "get": {
+        "description": "Yopilmaganlar birinchi, keyin so‘nggi xabar bo‘yicha. `status=open` — javob kutayotganlar (menyu belgisi — `GET /platform/stats` → `openRequests`); `tenantId` — do‘kon kartasi.",
+        "operationId": "PlatformRequests_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "tenantId",
+            "required": false,
+            "in": "query",
+            "description": "Bitta do‘kon murojaatlari (do‘kon kartasi)",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "`open` — javob kutayotganlar (sukut: hammasi, yopilmaganlar birinchi)",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "answered",
+                "closed"
+              ]
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "unblock",
+                "billing",
+                "other"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "items",
+                    "page",
+                    "pageSize",
+                    "total",
+                    "pageCount"
+                  ],
+                  "properties": {
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PlatformRequestDto"
+                      }
+                    },
+                    "page": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "pageSize": {
+                      "type": "integer",
+                      "example": 20
+                    },
+                    "total": {
+                      "type": "integer",
+                      "example": 137
+                    },
+                    "pageCount": {
+                      "type": "integer",
+                      "example": 7
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Do‘kon murojaatlari",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/requests/{id}": {
+      "get": {
+        "operationId": "PlatformRequests_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformRequestDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Murojaat va xabarlari",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/requests/{id}/reply": {
+      "post": {
+        "description": "Holat `answered`; do‘kon administratori javobni bannerda va murojaat oynasida ko‘radi (`tenant.request` hodisasi). Blokni olish — alohida `POST /platform/tenants/:id/unblock`.",
+        "operationId": "PlatformRequests_reply",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReplyRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformRequestDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — murojaat allaqachon yopilgan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Javob yozish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/requests/{id}/close": {
+      "post": {
+        "description": "Ixtiyoriy yakuniy javob bilan. Yopilganiga do‘kon yozolmaydi — kerak bo‘lsa yangisini ochadi.",
+        "operationId": "PlatformRequests_close",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CloseRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformRequestDetailDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — murojaat allaqachon yopilgan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Murojaatni yopish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/v1/platform/admins": {
       "get": {
         "description": "Egasi va operatorlar: rol, faollik, ikki bosqichli kirish va Telegram holati, oxirgi kirish.",
@@ -11515,6 +12017,34 @@
           "newPassword"
         ]
       },
+      "PlatformSupportDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "example": "+998 90 123 45 67",
+            "description": "Ko‘rsatish uchun; `tel:` havolaga raqamlarni oling"
+          },
+          "telegram": {
+            "type": "string",
+            "nullable": true,
+            "example": "workspaces_support",
+            "description": "Telegram foydalanuvchi nomi (`@`siz) — `https://t.me/<nom>`"
+          },
+          "hours": {
+            "type": "string",
+            "nullable": true,
+            "example": "Du–Sha 9:00–18:00",
+            "description": "Ish vaqti (erkin matn)"
+          }
+        },
+        "required": [
+          "phone",
+          "telegram",
+          "hours"
+        ]
+      },
       "RegistrationInfoDto": {
         "type": "object",
         "properties": {
@@ -11525,10 +12055,19 @@
               "closed"
             ],
             "description": "`closed` — platforma egasi yopgan; `POST /tenants/register` 403 `REGISTRATION_CLOSED`"
+          },
+          "support": {
+            "description": "Platforma egasining aloqasi (telefon, Telegram, ish vaqti) — hammasi `null` bo‘lishi mumkin",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlatformSupportDto"
+              }
+            ]
           }
         },
         "required": [
-          "mode"
+          "mode",
+          "support"
         ]
       },
       "RegisterDto": {
@@ -19377,6 +19916,14 @@
           },
           "usage": {
             "$ref": "#/components/schemas/PlanUsageDto"
+          },
+          "support": {
+            "description": "Platforma egasining aloqasi — bannerda va murojaat oynasida (T-140)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlatformSupportDto"
+              }
+            ]
           }
         },
         "required": [
@@ -19388,7 +19935,8 @@
           "deletionScheduledAt",
           "blockedReason",
           "limits",
-          "usage"
+          "usage",
+          "support"
         ]
       },
       "DeleteTenantDto": {
@@ -19401,6 +19949,142 @@
         },
         "required": [
           "password"
+        ]
+      },
+      "TenantRequestMessageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "author": {
+            "type": "string",
+            "enum": [
+              "store",
+              "platform"
+            ],
+            "description": "`store` — do‘kon administratori, `platform` — egasi yoki operator"
+          },
+          "authorName": {
+            "type": "string",
+            "example": "Ali Valiyev",
+            "description": "Yozilgan paytdagi ism"
+          },
+          "body": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "author",
+          "authorName",
+          "body",
+          "createdAt"
+        ]
+      },
+      "TenantRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "unblock",
+              "billing",
+              "other"
+            ],
+            "description": "`unblock` — blokdan chiqarish, `billing` — to‘lov masalasi, `other` — boshqa"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "answered",
+              "closed"
+            ],
+            "description": "`open` — egasi javobini kutmoqda; `answered` — egasi javob berdi; `closed` — yopilgan (yangi xabar yozilmaydi)"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "description": "Administrator ko‘rsatgan aloqa telefoni"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "So‘nggi xabar vaqti (ikkala tomondan)"
+          },
+          "closedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantRequestMessageDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "phone",
+          "createdAt",
+          "lastMessageAt",
+          "closedAt",
+          "messages"
+        ]
+      },
+      "CreateTenantRequestDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "unblock",
+              "billing",
+              "other"
+            ],
+            "description": "`unblock` — blokdan chiqarish, `billing` — to‘lov masalasi, `other` — boshqa"
+          },
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "To‘lovni kecha o‘tkazdik, blokni olib tashlang"
+          },
+          "phone": {
+            "type": "string",
+            "example": "+998901234567",
+            "description": "Aloqa telefoni — egasi qo‘ng‘iroq qilishi uchun (ixtiyoriy)"
+          }
+        },
+        "required": [
+          "type",
+          "message"
+        ]
+      },
+      "AddRequestMessageDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "message"
         ]
       },
       "BackupDto": {
@@ -19707,6 +20391,10 @@
           },
           "activity": {
             "$ref": "#/components/schemas/TenantActivityDto"
+          },
+          "openRequests": {
+            "type": "number",
+            "description": "Egasi javobini kutayotgan murojaatlar (T-140) — ro‘yxatda va kartada belgi"
           }
         },
         "required": [
@@ -19723,7 +20411,8 @@
           "limits",
           "usage",
           "admin",
-          "activity"
+          "activity",
+          "openRequests"
         ]
       },
       "CreateTenantDto": {
@@ -19990,6 +20679,213 @@
           "paidAt"
         ]
       },
+      "PlatformRequestDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantName": {
+            "type": "string",
+            "example": "Qurilish Mollari"
+          },
+          "tenantStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended",
+              "blocked",
+              "deleting"
+            ],
+            "description": "Do‘konning joriy holati — `blocked` bo‘lsa yonida «Blokdan chiqarish»"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "unblock",
+              "billing",
+              "other"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "answered",
+              "closed"
+            ],
+            "description": "`open` — egasi javobini kutmoqda; `answered` — javob berilgan; `closed` — yopilgan"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "description": "Administrator ko‘rsatgan aloqa telefoni"
+          },
+          "authorName": {
+            "type": "string",
+            "example": "Ali Valiyev",
+            "description": "Murojaatni yuborgan administrator"
+          },
+          "message": {
+            "type": "string",
+            "description": "Birinchi xabar matni (ro‘yxatda qisqartirib ko‘rsating)"
+          },
+          "messageCount": {
+            "type": "number",
+            "description": "Xabarlar soni (ikkala tomon)"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "tenantName",
+          "tenantStatus",
+          "type",
+          "status",
+          "phone",
+          "authorName",
+          "message",
+          "messageCount",
+          "lastMessageAt",
+          "createdAt",
+          "closedAt"
+        ]
+      },
+      "PlatformRequestDetailDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "tenantId": {
+            "type": "string"
+          },
+          "tenantName": {
+            "type": "string",
+            "example": "Qurilish Mollari"
+          },
+          "tenantStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "suspended",
+              "blocked",
+              "deleting"
+            ],
+            "description": "Do‘konning joriy holati — `blocked` bo‘lsa yonida «Blokdan chiqarish»"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "unblock",
+              "billing",
+              "other"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "answered",
+              "closed"
+            ],
+            "description": "`open` — egasi javobini kutmoqda; `answered` — javob berilgan; `closed` — yopilgan"
+          },
+          "phone": {
+            "type": "string",
+            "nullable": true,
+            "description": "Administrator ko‘rsatgan aloqa telefoni"
+          },
+          "authorName": {
+            "type": "string",
+            "example": "Ali Valiyev",
+            "description": "Murojaatni yuborgan administrator"
+          },
+          "message": {
+            "type": "string",
+            "description": "Birinchi xabar matni (ro‘yxatda qisqartirib ko‘rsating)"
+          },
+          "messageCount": {
+            "type": "number",
+            "description": "Xabarlar soni (ikkala tomon)"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "closedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "messages": {
+            "description": "Barcha xabarlar, eskisi birinchi",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TenantRequestMessageDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "tenantId",
+          "tenantName",
+          "tenantStatus",
+          "type",
+          "status",
+          "phone",
+          "authorName",
+          "message",
+          "messageCount",
+          "lastMessageAt",
+          "createdAt",
+          "closedAt",
+          "messages"
+        ]
+      },
+      "ReplyRequestDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "To‘lov keldi, blokni olib tashladik"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "CloseRequestDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 1000,
+            "description": "Yakuniy javob (ixtiyoriy) — do‘kon ko‘radi"
+          }
+        }
+      },
       "CreatePlatformAdminDto": {
         "type": "object",
         "properties": {
@@ -20147,11 +21043,16 @@
           },
           "revenue": {
             "$ref": "#/components/schemas/RevenueDto"
+          },
+          "openRequests": {
+            "type": "number",
+            "description": "Egasi javobini kutayotgan do‘kon murojaatlari (menyuda belgi; T-140)"
           }
         },
         "required": [
           "tenants",
-          "revenue"
+          "revenue",
+          "openRequests"
         ]
       },
       "PlatformAuditAdminDto": {
@@ -20245,6 +21146,9 @@
             ],
             "description": "`open` — har kim do‘kon ochadi (`POST /tenants/register`); `closed` — faqat egasi paneli ochadi, ochiq yo‘l 403 `REGISTRATION_CLOSED`"
           },
+          "support": {
+            "$ref": "#/components/schemas/PlatformSupportDto"
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -20257,9 +21161,32 @@
         },
         "required": [
           "registrationMode",
+          "support",
           "updatedAt",
           "updatedBy"
         ]
+      },
+      "UpdatePlatformSupportDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "maxLength": 32,
+            "example": "+998 90 123 45 67",
+            "description": "`\"\"` — o‘chirish"
+          },
+          "telegram": {
+            "type": "string",
+            "example": "workspaces_support",
+            "description": "Foydalanuvchi nomi, `@` bilan ham bo‘ladi (olib tashlanadi); `\"\"` — o‘chirish"
+          },
+          "hours": {
+            "type": "string",
+            "maxLength": 120,
+            "example": "Du–Sha 9:00–18:00",
+            "description": "`\"\"` — o‘chirish"
+          }
+        }
       },
       "UpdatePlatformSettingsDto": {
         "type": "object",
@@ -20270,11 +21197,16 @@
               "open",
               "closed"
             ]
+          },
+          "support": {
+            "description": "Aloqa: faqat yuborilgan maydonlar o‘zgaradi",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpdatePlatformSupportDto"
+              }
+            ]
           }
-        },
-        "required": [
-          "registrationMode"
-        ]
+        }
       }
     }
   }

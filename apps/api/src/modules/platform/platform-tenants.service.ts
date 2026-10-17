@@ -39,6 +39,7 @@ interface UsageRow {
   adminPhone: string | null
   lastSaleAt: Date | null
   sales30d: number
+  openRequests: number
 }
 
 interface TenantUserRow {
@@ -233,7 +234,7 @@ export class PlatformTenantsService {
     const rows = await this.prisma.$queryRaw<UsageRow[]>`
       SELECT tenant_id AS "tenantId", users, warehouses, storage_bytes AS "storageBytes",
              admin_name AS "adminName", admin_email AS "adminEmail", admin_phone AS "adminPhone",
-             last_sale_at AS "lastSaleAt", sales_30d AS "sales30d"
+             last_sale_at AS "lastSaleAt", sales_30d AS "sales30d", open_requests AS "openRequests"
         FROM platform_tenant_usage(${uuidArray(ids)})`
     return new Map(rows.map((r) => [r.tenantId, r]))
   }
@@ -257,5 +258,6 @@ function toDto(row: TenantRow, usage: UsageRow | undefined): PlatformTenantDto {
     usage: { users: usage?.users ?? 0, warehouses: usage?.warehouses ?? 0, storageBytes: Number(usage?.storageBytes ?? 0) },
     admin: usage?.adminEmail ? { name: usage.adminName ?? '', email: usage.adminEmail, phone: usage.adminPhone ?? '' } : null,
     activity: { lastSaleAt: usage?.lastSaleAt ?? null, sales30d: usage?.sales30d ?? 0 },
+    openRequests: usage?.openRequests ?? 0,
   }
 }

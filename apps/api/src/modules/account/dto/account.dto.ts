@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsString, MaxLength } from 'class-validator'
 import { MAX_PASSWORD_LENGTH } from '@/modules/auth/password.service'
+import { PlatformSupportDto } from '@/modules/platform/dto/platform-settings.dto'
 
 export class PlanLimitsDto {
   @ApiProperty() users!: number
@@ -29,6 +30,8 @@ export class TenantAccountDto {
   blockedReason!: string | null
   @ApiProperty({ type: PlanLimitsDto }) limits!: PlanLimitsDto
   @ApiProperty({ type: PlanUsageDto }) usage!: PlanUsageDto
+  @ApiProperty({ type: PlatformSupportDto, description: 'Platforma egasining aloqasi — bannerda va murojaat oynasida (T-140)' })
+  support!: PlatformSupportDto
 }
 
 export class DeleteTenantDto {

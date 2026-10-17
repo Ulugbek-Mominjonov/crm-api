@@ -47,6 +47,7 @@ model Tenant {
   employees Employee[]
   settings  Settings?
   state     TenantState?
+  requests  TenantRequest[]
 
   @@map("tenants")
 }
@@ -1165,12 +1166,59 @@ model PlatformAdmin {
 model PlatformSettings {
   id               Int      @id @db.SmallInt
   registrationMode String   @default("open") @map("registration_mode")
+  /// Egasining aloqa ma'lumoti (T-140): do'kon ilovasida bannerda va murojaat oynasida ko'rinadi
+  supportPhone     String?  @map("support_phone")
+  supportTelegram  String?  @map("support_telegram")
+  supportHours     String?  @map("support_hours")
   updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
   updatedById      String?  @map("updated_by") @db.Uuid
 
   updatedBy PlatformAdmin? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("platform_settings")
+}
+
+/// Do'kon murojaati platforma egasiga (T-140): blokdan chiqarish, to'lov, boshqa.
+/// Bir do'konda bir vaqtda BITTA yopilmagan murojaat (qisman noyob indeks — migratsiyada).
+/// Do'kon ma'lumoti (RLS); egasi ro'yxatni `platform_requests()` orqali o'qiydi
+model TenantRequest {
+  id            String    @id @db.Uuid
+  tenantId      String    @map("tenant_id") @db.Uuid
+  /// unblock | billing | other
+  type          String
+  /// open — do'kon yozdi, egasi javobini kutadi; answered — egasi javob berdi; closed — yopilgan
+  status        String    @default("open")
+  /// Administrator ko'rsatgan aloqa telefoni
+  phone         String?
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  lastMessageAt DateTime  @default(now()) @map("last_message_at") @db.Timestamptz
+  closedAt      DateTime? @map("closed_at") @db.Timestamptz
+
+  tenant   Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  messages TenantRequestMessage[]
+
+  @@unique([tenantId, id])
+  @@index([tenantId, createdAt(sort: Desc)])
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@map("tenant_requests")
+}
+
+/// Murojaat xabari: `author` — `store` (do'kon administratori) yoki `platform` (egasi/operator);
+/// `authorName` — yozilgan paytdagi ism (hisob o'chsa ham qoladi)
+model TenantRequestMessage {
+  id         String   @id @db.Uuid
+  tenantId   String   @map("tenant_id") @db.Uuid
+  requestId  String   @map("request_id") @db.Uuid
+  author     String
+  authorName String   @map("author_name")
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  request TenantRequest @relation(fields: [tenantId, requestId], references: [tenantId, id], onDelete: Cascade)
+
+  /// Kunlik chegara indeksi `(tenant_id, created_at) WHERE author = 'store'` — qisman, faqat migratsiyada
+  @@index([requestId, createdAt])
+  @@map("tenant_request_messages")
 }
 
 /// Egasi sessiyasi — `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya, qayta ishlatishni aniqlash)
