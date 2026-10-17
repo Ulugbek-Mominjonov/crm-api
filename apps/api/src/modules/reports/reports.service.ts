@@ -7,6 +7,7 @@ import { requireTenantTx } from '@/prisma/tenant-tx'
 import type {
   AnalyticsDto, DashboardDto, DashboardQueryDto, PeriodQueryDto, PnlChangeDto, PnlDto, PnlQueryDto, PnlTotalsDto,
 } from './dto/report.dto'
+import { periodCosts } from './period-costs'
 import { ReportCache } from './report-cache.service'
 
 /** 62 kundan uzun davr trendi oy bo'yicha (frontend Hisobotlar qoidasi) */
@@ -100,10 +101,7 @@ export class ReportsService {
     const start = addDays(today, -(query.days - 1))
     const [row] = await this.prisma.scoped.$queryRaw<DashboardDto[]>`
       WITH days AS ${dailySales(tenantId, start, today)},
-           exp AS (SELECT date, SUM(amount) AS amount FROM expenses
-                    WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL
-                      AND date BETWEEN ${yesterday}::date AND ${today}::date
-                    GROUP BY date),
+           exp AS (SELECT date, SUM(amount) AS amount FROM ${periodCosts(tenantId, yesterday, today)} c GROUP BY date),
            sold AS (SELECT product_id, SUM(revenue) AS revenue FROM ${dailyProducts(tenantId, start, today)} p
                      GROUP BY product_id)
       SELECT
@@ -177,9 +175,7 @@ export class ReportsService {
         WITH days AS ${dailySales(tenantId, prevFrom, to)},
              sold AS (SELECT product_id, SUM(base_qty) AS qty, SUM(revenue) AS revenue, SUM(profit) AS profit
                         FROM ${dailyProducts(tenantId, from, to)} x GROUP BY product_id),
-             exp AS (SELECT date, category, amount FROM expenses
-                      WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL
-                        AND date BETWEEN ${prevFrom}::date AND ${to}::date),
+             exp AS (SELECT date, category, amount FROM ${periodCosts(tenantId, prevFrom, to)} c),
              dead AS (SELECT p.id, p.name, p.unit, p.stock, p.stock * p.cost AS value FROM products p
                        WHERE p.tenant_id = ${tenantId}::uuid AND p.deleted_at IS NULL AND NOT p.archived AND p.stock > 0
                          AND NOT EXISTS (SELECT 1 FROM sold s WHERE s.product_id = p.id))

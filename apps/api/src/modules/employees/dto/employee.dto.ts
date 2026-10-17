@@ -1,6 +1,8 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger'
 import { EmployeeStatus, type Prisma } from '@prisma/client'
-import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator'
+import { MAX_SALARY_DAY, MIN_SALARY_DAY } from '@crm/shared'
+import { Type } from 'class-transformer'
+import { IsIn, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
 import { ListQueryDto } from '@/common/crud/list-query.dto'
 import { byField, sortValues, type SortMap } from '@/common/crud/sort'
 import { IsDateOnly, IsMoney, Trim } from '@/common/validation/decorators'
@@ -20,7 +22,13 @@ export class EmployeeDto {
   @ApiProperty({ example: 'Kassir' }) position!: string
   @ApiProperty({ example: '+998901234567' }) phone!: string
   @ApiProperty({ enum: EmployeeStatus }) status!: EmployeeStatus
-  @ApiPropertyOptional({ example: 4_500_000, description: 'Oylik maosh, butun so‘m' }) salary?: number
+  @ApiPropertyOptional({ example: 4_500_000, description: 'Oylik maosh, butun so‘m; 0 — avtomatik hisoblanmaydi' }) salary?: number
+  @ApiPropertyOptional({ example: 1, description: 'Maosh hisoblanadigan kun (1–28): shu kuni o‘tgan oy uchun maosh va bonus yoziladi ([10.22](README.md#payroll))' })
+  salaryDay?: number
+  @ApiPropertyOptional({ example: 2, description: 'Savdodan bonus, %: o‘tgan oy sotuvlari (qaytarishlar ayrilgan) × shu / 100' })
+  salesBonusPct?: number
+  @ApiPropertyOptional({ example: '2026-10-01', description: 'Maosh hisobi shu sanadan — oldingi oylar avtomatik hisoblanmaydi' })
+  payrollFrom?: string
   @ApiProperty({ example: '2026-01-15', description: 'YYYY-MM-DD' }) hiredAt!: string
   @ApiProperty({ nullable: true, type: String, description: 'Kirish hisobi (bo‘lsa)' }) userId!: string | null
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date
@@ -56,6 +64,27 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsMoney()
   salary?: number
+
+  @ApiPropertyOptional({ example: 1, default: 1, description: 'Maosh hisoblanadigan kun, 1–28' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(MIN_SALARY_DAY)
+  @Max(MAX_SALARY_DAY)
+  salaryDay?: number
+
+  @ApiPropertyOptional({ example: 2, default: 0, description: 'Savdodan bonus, % (0–100, 2 kasrgacha)' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(100)
+  salesBonusPct?: number
+
+  @ApiPropertyOptional({ example: '2026-10-01', description: 'Maosh hisobi shu sanadan; berilmasa — ishga olingan sana' })
+  @IsOptional()
+  @IsDateOnly()
+  payrollFrom?: string
 
   @ApiProperty({ example: '2026-01-15' })
   @IsDateOnly()

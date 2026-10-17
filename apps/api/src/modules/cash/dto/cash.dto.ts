@@ -148,6 +148,7 @@ export class ShiftReportDto {
   @ApiProperty({ description: 'Qo‘lda kiritilgan naqd' }) manualIn!: number
   @ApiProperty({ description: 'Qo‘lda olingan naqd' }) manualOut!: number
   @ApiProperty({ description: 'Naqd xarajatlar' }) expenses!: number
+  @ApiProperty({ description: 'Xodimlarga naqd to‘lovlar — avans va maosh (T-142)' }) salaryPayments!: number
   @ApiProperty({ description: 'Naqd qarz to‘lovlari' }) debtPaymentsCash!: number
   @ApiProperty({ description: 'Bank orqali qarz to‘lovlari (kassaga tegmaydi)' }) debtPaymentsBank!: number
   @ApiProperty({ description: 'Ta’minotchiga naqd to‘lovlar' }) supplierPayments!: number

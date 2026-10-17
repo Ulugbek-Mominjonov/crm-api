@@ -49,6 +49,7 @@ interface ReportRow extends ShiftRecord {
   manualIn: bigint
   manualOut: bigint
   expenses: bigint
+  salaryPayments: bigint
   debtCash: bigint
   debtBank: bigint
   supplierCash: bigint
@@ -209,7 +210,7 @@ export class ShiftsService {
              (SELECT em.name FROM users u
                 JOIN employees em ON em.tenant_id = u.tenant_id AND em.id = u.employee_id
                WHERE u.tenant_id = sh.tenant_id AND u.id = sh.user_id) AS "cashierName",
-             s.*, m.*, e.*, d.*, sp.*, ts.cash_balance AS "cashBalance"
+             s.*, m.*, e.*, pr.*, d.*, sp.*, ts.cash_balance AS "cashBalance"
         FROM cash_shifts sh
         JOIN tenant_state ts ON ts.tenant_id = sh.tenant_id
        CROSS JOIN LATERAL (
@@ -233,6 +234,10 @@ export class ShiftsService {
          SELECT COALESCE(SUM(amount), 0) AS expenses
            FROM expenses WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid
             AND method = 'cash' AND deleted_at IS NULL) e
+       CROSS JOIN LATERAL (
+         SELECT COALESCE(SUM(amount), 0) AS "salaryPayments"
+           FROM payroll_entries WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid
+            AND method = 'cash' AND deleted_at IS NULL) pr
        CROSS JOIN LATERAL (
          SELECT COALESCE(SUM(amount) FILTER (WHERE method = 'cash'), 0) AS "debtCash",
                 COALESCE(SUM(amount) FILTER (WHERE method = 'bank'), 0) AS "debtBank"
@@ -258,6 +263,7 @@ export class ShiftsService {
       manualIn: n(r.manualIn),
       manualOut: n(r.manualOut),
       expenses: n(r.expenses),
+      salaryPayments: n(r.salaryPayments),
       debtPaymentsCash: n(r.debtCash),
       debtPaymentsBank: n(r.debtBank),
       supplierPayments: n(r.supplierCash),

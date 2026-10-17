@@ -2,7 +2,7 @@
 
 > Generatsiya qilingan: `npm run docs:db` (`scripts/db-docs/`). Tuzilma — ishlab turgan bazadan (migratsiyalar qo‘llangan), ustun izohlari — `apps/api/prisma/schema.prisma`, jadvallar vazifasi — `scripts/db-docs/tables.py`. Bu faylni qo‘lda tahrirlamang.
 
-PostgreSQL 16 · 44 jadval · 7 ko‘rinish · 24 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
+PostgreSQL 16 · 45 jadval · 7 ko‘rinish · 25 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
 
 ## Umumiy qoidalar
 
@@ -32,6 +32,7 @@ erDiagram
     clients |o--o{ quotes : "customer_id"
     clients |o--o{ sales : "customer_id"
     employees |o--o{ deliveries : "driver_id"
+    employees ||--o{ payroll_entries : "employee_id"
     employees |o--o{ quotes : "seller_id"
     employees |o--o{ sales : "seller_id"
     employees ||--o| users : "employee_id"
@@ -142,6 +143,9 @@ erDiagram
         timestamptz created_at
         timestamptz deleted_at
         timestamptz updated_at
+        smallint salary_day
+        numeric sales_bonus_pct
+        date payroll_from
     }
     users {
         uuid id PK
@@ -298,11 +302,14 @@ Xodim — shaxs haqidagi yagona manba: ism, lavozim, telefon, maosh, holat. Kiri
 | `position` | text | — | Lavozim |
 | `phone` | text | — | Telefon |
 | `status` | `EmployeeStatus` (enum) | — | Holat (qiymatlari — Enumlar bo'limida) |
-| `salary` | bigint | — | Maosh (so'm) |
+| `salary` | bigint | — | Oylik maosh (so'm); 0 — avtomatik hisoblanmaydi |
 | `hired_at` | date | — | Ishga olingan sana |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
 | `updated_at` | timestamptz | — | Versiya (If-Match, T-098): tahrirlanadigan maydon o'zgarganda yangilanadi |
+| `salary_day` | smallint | — | Maosh hisoblanadigan kun (1–28, T-142): shu kuni O'TGAN OY uchun maosh va bonus yoziladi |
+| `sales_bonus_pct` | numeric(5,2) | — | Savdodan bonus, % (0–100, 2 kasr): o'tgan oydagi sotuvlari (qaytarishlar ayrilgan) × shu / 100 |
+| `payroll_from` | date | — | Maosh hisobi shu sanadan: undan oldingi oylar avtomatik hisoblanmaydi (sukut — ishga olingan sana) |
 
 ### `users`
 
@@ -1236,12 +1243,13 @@ Ta'minotchiga to'lovlar — buyurtma bo'yicha; buyurtmaning `paid` maydoni shu y
 | `shift_id` | uuid | ha | Kassa smenasi |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 
-## Xarajatlar
+## Xarajatlar va maosh
 
-Bir martalik va takrorlanuvchi (shablon) xarajatlar.
+Bir martalik va takrorlanuvchi (shablon) xarajatlar; xodimlar maosh varag'i (hisoblangan maosh — xarajat, to'lov — kassa harakati).
 
 ```mermaid
 erDiagram
+    employees ||--o{ payroll_entries : "employee_id"
     expense_templates |o--o{ expenses : "template_id"
     expenses {
         uuid id PK
@@ -1269,6 +1277,23 @@ erDiagram
         boolean active
         text last_run_key
         text note
+        timestamptz created_at
+        timestamptz deleted_at
+    }
+    payroll_entries {
+        uuid id PK
+        uuid tenant_id FK
+        uuid employee_id FK
+        PayrollEntryType type
+        bigint amount
+        date date
+        PayMethod method
+        uuid shift_id
+        boolean auto
+        bigint base_amount
+        numeric rate
+        text note
+        uuid user_id
         timestamptz created_at
         timestamptz deleted_at
     }
@@ -1315,6 +1340,31 @@ Takrorlanuvchi xarajat shablonlari (oylik yoki haftalik, qaysi kuni). Tungi ish 
 | `active` | boolean | — | Faol |
 | `last_run_key` | text | ha | Oxirgi marta qaysi DAVR uchun ishlagani: '2026-08' yoki '2026-W32' (I21) |
 | `note` | text | ha | Izoh |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+| `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
+
+### `payroll_entries`
+
+Xodim maosh varag'i (T-142): hisoblash — `salary` (tungi ish, o'tgan oy uchun xodimning hisoblash kunida; qisman oy kunlarga), `bonus` (o'tgan oy savdosi × foiz), `award`, `penalty` (ayiradi); to'lov — `advance`, `payment` (naqd — kassadan, `shift_id`). Qoldiq = ishlab topilgani − to'langani. Avtomatik yozuv xodim + sana + tur bo'yicha bir marta (`auto` bo'yicha qisman noyob indeks — o'chirilgani ham qayta hisoblanmaydi). Hisoblashlar foyda hisobotida `salary` xarajati.
+
+- RLS: majburiy (FORCE)
+- Bog‘lanishlar: `employee_id` → `employees` (CASCADE)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `tenant_id` | uuid | — | → `tenants` (RLS) |
+| `employee_id` | uuid | — | → `employees` · Xodim (kirish hisobi egasi) |
+| `type` | `PayrollEntryType` (enum) | — | Turi |
+| `amount` | bigint | — | Summa (so'm) |
+| `date` | date | — | Avtomatik hisoblashda — davr (o'tgan oy) oxirgi kuni |
+| `method` | `PayMethod` (enum) | ha | Faqat to'lovda: `cash` — kassadan (ochiq smena), `bank` — kassaga ta'sirsiz |
+| `shift_id` | uuid | ha | Kassa smenasi |
+| `auto` | boolean | — | Tungi ish yaratgan: xodim + sana + tur bo'yicha bir marta — o'chirilgani ham qayta hisoblanmaydi |
+| `base_amount` | bigint | ha | Hisoblash asosi: bonus — davr savdosi, maosh — oylik maosh (qisman oy bo'lsa `amount` kam) |
+| `rate` | numeric(5,2) | ha | Bonus foizi (hisoblangan paytdagi) |
+| `note` | text | ha | Izoh |
+| `user_id` | uuid | ha | Amalni bajargan foydalanuvchi (FK'siz — tarix buzilmasin) |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
 
@@ -1773,6 +1823,7 @@ Ustunlar: `tenant_id`, `date`, `revenue`, `returns`, `cogs`, `returns_cogs`, `sa
 | `MovementType` | `intake` — kirim, `writeoff` — hisobdan chiqarish, `adjustment` — inventarizatsiya, `sale` — sotuv, `return` — qaytarish, `transfer_out` — boshqa omborga ko'chirish (chiqim), `transfer_in` — boshqa ombordan ko'chirish (kirim) |
 | `POStatus` | `ordered` — buyurtma berildi, `partial` — qisman qabul qilindi, `received` — qabul qilindi, `cancelled` — bekor qilindi |
 | `PayMethod` | `cash` — naqd, `bank` — bank (karta, o'tkazma) |
+| `PayrollEntryType` | `salary`, `bonus`, `award`, `penalty`, `advance`, `payment` |
 | `PriceTier` | `retail` — chakana, `wholesale` — ulgurji |
 | `ProductUnit` | `dona`, `kg`, `metr`, `m2`, `m3`, `litr`, `qop`, `rulon` |
 | `QuoteStatus` | `draft` — qoralama, `sent` — yuborildi, `accepted` — qabul qilindi, `rejected` — rad etildi, `converted` — sotuvga aylantirildi |

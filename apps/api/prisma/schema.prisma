@@ -133,18 +133,26 @@ model Employee {
   position  String
   phone     String
   status    EmployeeStatus @default(active)
+  /// Oylik maosh (so'm); 0 — avtomatik hisoblanmaydi
   salary    BigInt         @default(0)
+  /// Maosh hisoblanadigan kun (1–28, T-142): shu kuni O'TGAN OY uchun maosh va bonus yoziladi
+  salaryDay     Int      @default(1) @map("salary_day") @db.SmallInt
+  /// Savdodan bonus, % (0–100, 2 kasr): o'tgan oydagi sotuvlari (qaytarishlar ayrilgan) × shu / 100
+  salesBonusPct Decimal  @default(0) @map("sales_bonus_pct") @db.Decimal(5, 2)
+  /// Maosh hisobi shu sanadan: undan oldingi oylar avtomatik hisoblanmaydi (sukut — ishga olingan sana)
+  payrollFrom   DateTime @default(dbgenerated("CURRENT_DATE")) @map("payroll_from") @db.Date
   hiredAt   DateTime       @map("hired_at") @db.Date
   createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
   /// Versiya (If-Match, T-098): tahrirlanadigan maydon o'zgarganda yangilanadi
   updatedAt DateTime       @default(now()) @updatedAt @map("updated_at") @db.Timestamptz
   deletedAt DateTime?      @map("deleted_at") @db.Timestamptz
 
-  tenant     Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user       User?
   sales      Sale[]
   quotes     Quote[]
   deliveries Delivery[]
+  payroll    PayrollEntry[]
 
   @@unique([tenantId, id])
   @@index([tenantId, deletedAt])
@@ -759,6 +767,51 @@ model ExpenseTemplate {
 enum RecurrencePeriod {
   monthly
   weekly
+}
+
+// ═══════════════════════════════════════════════ MAOSH HISOBI (T-142)
+
+/// Xodim varag'i yozuvi: hisoblash (maosh, bonus, mukofot, jarima) yoki to'lov (avans, maosh).
+/// Ishlab topilgani = maosh + bonus + mukofot − jarima; to'langani = avans + to'lov.
+/// Hisoblashlar oy foydasiga `salary` xarajati sifatida kiradi; to'lovlar — kassa harakati.
+model PayrollEntry {
+  id         String           @id @default(uuid(7)) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  employeeId String           @map("employee_id") @db.Uuid
+  type       PayrollEntryType
+  amount     BigInt
+  /// Avtomatik hisoblashda — davr (o'tgan oy) oxirgi kuni
+  date       DateTime         @db.Date
+  /// Faqat to'lovda: `cash` — kassadan (ochiq smena), `bank` — kassaga ta'sirsiz
+  method     PayMethod?
+  shiftId    String?          @map("shift_id") @db.Uuid
+  /// Tungi ish yaratgan: xodim + sana + tur bo'yicha bir marta — o'chirilgani ham qayta hisoblanmaydi
+  auto       Boolean          @default(false)
+  /// Hisoblash asosi: bonus — davr savdosi, maosh — oylik maosh (qisman oy bo'lsa `amount` kam)
+  baseAmount BigInt?          @map("base_amount")
+  /// Bonus foizi (hisoblangan paytdagi)
+  rate       Decimal?         @db.Decimal(5, 2)
+  note       String?
+  userId     String?          @map("user_id") @db.Uuid
+  createdAt  DateTime         @default(now()) @map("created_at") @db.Timestamptz
+  deletedAt  DateTime?        @map("deleted_at") @db.Timestamptz
+
+  employee Employee @relation(fields: [tenantId, employeeId], references: [tenantId, id], onDelete: Cascade)
+
+  @@unique([tenantId, id])
+  @@index([tenantId, employeeId, date])
+  @@index([tenantId, date])
+  @@index([tenantId, shiftId])
+  @@map("payroll_entries")
+}
+
+enum PayrollEntryType {
+  salary
+  bonus
+  award
+  penalty
+  advance
+  payment
 }
 
 // ═══════════════════════════════════════════════ XARID (KREDITORLIK)

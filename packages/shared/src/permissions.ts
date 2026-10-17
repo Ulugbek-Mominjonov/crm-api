@@ -65,6 +65,15 @@ const CATALOG = {
     label: 'Xarajatlar',
     actions: { view: 'Ko‘rish', create: 'Qo‘shish', edit: 'Tahrirlash', delete: 'O‘chirish' },
   },
+  payroll: {
+    group: 'finance',
+    label: 'Maosh hisobi',
+    actions: {
+      view: 'Maosh varag‘i va xodimlar hisobi',
+      accrue: 'Hisoblash: maosh, bonus, mukofot, jarima',
+      pay: 'To‘lash: avans va maosh (kassadan yoki bankdan)',
+    },
+  },
   reports: {
     group: 'finance',
     label: 'Hisobotlar',
@@ -215,6 +224,8 @@ const IMPLIES: Partial<Record<Permission, readonly Permission[]>> = {
   'quotes.edit': ['products.view'],
   'stock.view': ['products.view'],
   'purchases.view': ['suppliers.view', 'products.view'],
+  // Maosh varag'i — xodimlar ro'yxati va maosh maydoni bilan (T-142)
+  'payroll.view': ['employees.view', 'salary.view'],
   // Xabar — mijozlarga: auditoriya tanlash va bot holati (`GET /telegram`) mijozlar bo'limida
   'messages.view': ['customers.view'],
   // Hisobga rol berish — rollar ro'yxatisiz bo'lmaydi
@@ -245,8 +256,12 @@ export function effectivePermissions(key: Role | null, stored: readonly string[]
   return PERMISSIONS.filter((p) => stored.includes(p))
 }
 
-/** Sukut rollarga berilmaydigan ruxsatlar — administrator rol oynasida aniq beradi (T-141) */
-const OWNER_DECIDES: readonly Permission[] = ['sales.belowCost']
+/**
+ * Sukut rollarga berilmaydigan ruxsatlar — administrator rol oynasida aniq beradi (T-141, T-142).
+ * Tizim rollarining sukuti mavjud do'konlarga migratsiya bilan yozilgan — keyin qo'shilgan ruxsat
+ * ularda baribir bo'lmasdi, shuning uchun yangi do'konga ham berilmaydi (`system-roles.spec`).
+ */
+const OWNER_DECIDES: readonly Permission[] = ['sales.belowCost', 'payroll.view', 'payroll.accrue', 'payroll.pay']
 
 const ALL_OF = (resource: Resource): Permission[] =>
   PERMISSIONS.filter((p) => p.startsWith(`${resource}.`) && !OWNER_DECIDES.includes(p))

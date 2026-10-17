@@ -30,6 +30,7 @@ import { SalesModule } from '@/modules/sales/sales.module'
 import { QuotesModule } from '@/modules/quotes/quotes.module'
 import { CashModule } from '@/modules/cash/cash.module'
 import { ExpensesModule } from '@/modules/expenses/expenses.module'
+import { PayrollModule } from '@/modules/payroll/payroll.module'
 import { DebtsModule } from '@/modules/debts/debts.module'
 import { PurchaseOrdersModule } from '@/modules/purchase-orders/purchase-orders.module'
 import { DeliveriesModule } from '@/modules/deliveries/deliveries.module'
@@ -88,6 +89,7 @@ import { QueueModule } from '@/modules/queue/queue.module'
     // Kassa va moliya (E7)
     CashModule,
     ExpensesModule,
+    PayrollModule,
     DebtsModule,
     // Ta'minot va kreditorlik (E8)
     PurchaseOrdersModule,

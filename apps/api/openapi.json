@@ -6902,6 +6902,408 @@
         ]
       }
     },
+    "/api/v1/payroll": {
+      "get": {
+        "description": "Har xodim: davr boshidagi qoldiq, hisoblangan maosh/bonus/mukofot/jarima, avans/to‘lov, davr oxiridagi qoldiq.",
+        "operationId": "Payroll_sheet",
+        "parameters": [
+          {
+            "name": "period",
+            "required": false,
+            "in": "query",
+            "description": "`YYYY-MM`; berilmasa — joriy oy",
+            "schema": {
+              "example": "2026-10",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollSheetDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Oylik varaq (vedomost)",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/api/v1/payroll/entries": {
+      "get": {
+        "description": "Xodim varag‘i — `employeeId` bilan; `withDeleted=true` — o‘chirilganlari ham.",
+        "operationId": "Payroll_list",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "pageSize",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 200,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "q",
+            "required": false,
+            "in": "query",
+            "description": "Matn qidiruvi",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          },
+          {
+            "name": "employeeId",
+            "required": false,
+            "in": "query",
+            "description": "Xodim varag‘i",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "salary",
+                "bonus",
+                "award",
+                "penalty",
+                "advance",
+                "payment"
+              ]
+            }
+          },
+          {
+            "name": "dateFrom",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-01",
+              "type": "string"
+            }
+          },
+          {
+            "name": "dateTo",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "example": "2026-09-30",
+              "type": "string"
+            }
+          },
+          {
+            "name": "withDeleted",
+            "required": false,
+            "in": "query",
+            "description": "O‘chirilganlar ham (tiklash uchun)",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollEntryPageDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Yozuvlar jurnali",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/api/v1/payroll/accruals": {
+      "post": {
+        "description": "Ishlab topilganiga yoziladi, kassaga ta’sir qilmaydi; `penalty` ayiradi. Sana berilmasa — bugun.",
+        "operationId": "Payroll_accrue",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAccrualDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollEntryDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Hisoblash: maosh, bonus, mukofot yoki jarima",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/api/v1/payroll/payments": {
+      "post": {
+        "description": "`method: cash` — kassadan chiqadi (ochiq smena shart, aks holda 423), `bank` — kassaga ta’sirsiz. Idempotent.",
+        "operationId": "Payroll_pay",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Mijoz yaratgan noyob kalit (UUID). Qayta urinishda O‘ZGARTIRILMAYDI: bir xil kalit + bir xil tana — saqlangan javob (`Idempotent-Replay: true`), boshqa tana — 409.",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollEntryDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "SHIFT_REQUIRED",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "To‘lov: avans yoki maosh",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/api/v1/payroll/run-due": {
+      "post": {
+        "description": "Tungi ish har kuni 00:10 da o‘zi ishlaydi; bu — qo‘lda. Xodim + davr bo‘yicha bir marta.",
+        "operationId": "Payroll_runDue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollRunResultDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Muddati kelgan xodimlarga o‘tgan oy maoshini hozir hisoblash",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/api/v1/payroll/entries/{id}": {
+      "delete": {
+        "description": "To‘lov — `payroll.pay`, hisoblash — `payroll.accrue` bilan. Naqd to‘lov puli kassaga qaytadi. O‘chirilgan avtomatik yozuv qayta hisoblanmaydi.",
+        "operationId": "Payroll_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Yozuvni o‘chirish",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/api/v1/payroll/entries/{id}/restore": {
+      "post": {
+        "description": "Naqd to‘lov yana kassadan chiqadi (joriy smena).",
+        "operationId": "Payroll_restore",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayrollEntryDto"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "O‘chirilgan yozuvni tiklash",
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
     "/api/v1/debts": {
       "get": {
         "description": "`view=customers` — mijoz bo‘yicha (`client_balances`), `receipts` — cheklar. Eskirish 30/60/60+, muddati o‘tgan.",
@@ -11861,6 +12263,9 @@
                 "expenses.create",
                 "expenses.edit",
                 "expenses.delete",
+                "payroll.view",
+                "payroll.accrue",
+                "payroll.pay",
                 "reports.view",
                 "customers.view",
                 "customers.create",
@@ -12180,6 +12585,9 @@
                 "expenses.create",
                 "expenses.edit",
                 "expenses.delete",
+                "payroll.view",
+                "payroll.accrue",
+                "payroll.pay",
                 "reports.view",
                 "customers.view",
                 "customers.create",
@@ -12302,6 +12710,9 @@
               "expenses.create",
               "expenses.edit",
               "expenses.delete",
+              "payroll.view",
+              "payroll.accrue",
+              "payroll.pay",
               "reports.view",
               "customers.view",
               "customers.create",
@@ -12462,6 +12873,9 @@
                 "expenses.create",
                 "expenses.edit",
                 "expenses.delete",
+                "payroll.view",
+                "payroll.accrue",
+                "payroll.pay",
                 "reports.view",
                 "customers.view",
                 "customers.create",
@@ -12555,6 +12969,9 @@
                 "expenses.create",
                 "expenses.edit",
                 "expenses.delete",
+                "payroll.view",
+                "payroll.accrue",
+                "payroll.pay",
                 "reports.view",
                 "customers.view",
                 "customers.create",
@@ -14421,7 +14838,22 @@
           "salary": {
             "type": "number",
             "example": 4500000,
-            "description": "Oylik maosh, butun so‘m"
+            "description": "Oylik maosh, butun so‘m; 0 — avtomatik hisoblanmaydi"
+          },
+          "salaryDay": {
+            "type": "number",
+            "example": 1,
+            "description": "Maosh hisoblanadigan kun (1–28): shu kuni o‘tgan oy uchun maosh va bonus yoziladi ([10.22](README.md#payroll))"
+          },
+          "salesBonusPct": {
+            "type": "number",
+            "example": 2,
+            "description": "Savdodan bonus, %: o‘tgan oy sotuvlari (qaytarishlar ayrilgan) × shu / 100"
+          },
+          "payrollFrom": {
+            "type": "string",
+            "example": "2026-10-01",
+            "description": "Maosh hisobi shu sanadan — oldingi oylar avtomatik hisoblanmaydi"
           },
           "hiredAt": {
             "type": "string",
@@ -14486,6 +14918,23 @@
             "example": 4500000,
             "description": "Butun so‘m"
           },
+          "salaryDay": {
+            "type": "number",
+            "example": 1,
+            "default": 1,
+            "description": "Maosh hisoblanadigan kun, 1–28"
+          },
+          "salesBonusPct": {
+            "type": "number",
+            "example": 2,
+            "default": 0,
+            "description": "Savdodan bonus, % (0–100, 2 kasrgacha)"
+          },
+          "payrollFrom": {
+            "type": "string",
+            "example": "2026-10-01",
+            "description": "Maosh hisobi shu sanadan; berilmasa — ishga olingan sana"
+          },
           "hiredAt": {
             "type": "string",
             "example": "2026-01-15"
@@ -14528,6 +14977,23 @@
             "type": "number",
             "example": 4500000,
             "description": "Butun so‘m"
+          },
+          "salaryDay": {
+            "type": "number",
+            "example": 1,
+            "default": 1,
+            "description": "Maosh hisoblanadigan kun, 1–28"
+          },
+          "salesBonusPct": {
+            "type": "number",
+            "example": 2,
+            "default": 0,
+            "description": "Savdodan bonus, % (0–100, 2 kasrgacha)"
+          },
+          "payrollFrom": {
+            "type": "string",
+            "example": "2026-10-01",
+            "description": "Maosh hisobi shu sanadan; berilmasa — ishga olingan sana"
           },
           "hiredAt": {
             "type": "string",
@@ -16185,6 +16651,10 @@
             "type": "number",
             "description": "Naqd xarajatlar"
           },
+          "salaryPayments": {
+            "type": "number",
+            "description": "Xodimlarga naqd to‘lovlar — avans va maosh (T-142)"
+          },
           "debtPaymentsCash": {
             "type": "number",
             "description": "Naqd qarz to‘lovlari"
@@ -16209,6 +16679,7 @@
           "manualIn",
           "manualOut",
           "expenses",
+          "salaryPayments",
           "debtPaymentsCash",
           "debtPaymentsBank",
           "supplierPayments",
@@ -17313,6 +17784,409 @@
             "maxLength": 500
           }
         }
+      },
+      "PayrollSheetRowDto": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "position": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "on_leave",
+              "fired"
+            ]
+          },
+          "salary": {
+            "type": "number",
+            "description": "Oylik maosh (sozlama)"
+          },
+          "salaryDay": {
+            "type": "number"
+          },
+          "salesBonusPct": {
+            "type": "number"
+          },
+          "payrollFrom": {
+            "type": "string",
+            "example": "2026-10-01"
+          },
+          "opening": {
+            "type": "number",
+            "description": "Davr boshidagi qoldiq (oldingi oylardan): musbat — do‘kon qarzi"
+          },
+          "accruedSalary": {
+            "type": "number",
+            "description": "Davrda hisoblangan maosh"
+          },
+          "bonus": {
+            "type": "number",
+            "description": "Savdodan bonus"
+          },
+          "award": {
+            "type": "number",
+            "description": "Mukofot"
+          },
+          "penalty": {
+            "type": "number",
+            "description": "Jarima"
+          },
+          "earned": {
+            "type": "number",
+            "description": "Ishlab topilgani: maosh + bonus + mukofot − jarima"
+          },
+          "advance": {
+            "type": "number",
+            "description": "Avanslar"
+          },
+          "payment": {
+            "type": "number",
+            "description": "Maosh to‘lovlari"
+          },
+          "paid": {
+            "type": "number",
+            "description": "To‘langani: avans + to‘lov"
+          },
+          "closing": {
+            "type": "number",
+            "description": "Davr oxiridagi qoldiq: opening + earned − paid"
+          },
+          "accrued": {
+            "type": "boolean",
+            "description": "Shu davr uchun avtomatik hisoblash bo‘lgan"
+          }
+        },
+        "required": [
+          "employeeId",
+          "name",
+          "position",
+          "status",
+          "salary",
+          "salaryDay",
+          "salesBonusPct",
+          "payrollFrom",
+          "opening",
+          "accruedSalary",
+          "bonus",
+          "award",
+          "penalty",
+          "earned",
+          "advance",
+          "payment",
+          "paid",
+          "closing",
+          "accrued"
+        ]
+      },
+      "PayrollSheetTotalsDto": {
+        "type": "object",
+        "properties": {
+          "opening": {
+            "type": "number"
+          },
+          "accruedSalary": {
+            "type": "number"
+          },
+          "bonus": {
+            "type": "number"
+          },
+          "award": {
+            "type": "number"
+          },
+          "penalty": {
+            "type": "number"
+          },
+          "earned": {
+            "type": "number"
+          },
+          "advance": {
+            "type": "number"
+          },
+          "payment": {
+            "type": "number"
+          },
+          "paid": {
+            "type": "number"
+          },
+          "closing": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "opening",
+          "accruedSalary",
+          "bonus",
+          "award",
+          "penalty",
+          "earned",
+          "advance",
+          "payment",
+          "paid",
+          "closing"
+        ]
+      },
+      "PayrollSheetDto": {
+        "type": "object",
+        "properties": {
+          "period": {
+            "type": "string",
+            "example": "2026-10"
+          },
+          "start": {
+            "type": "string",
+            "example": "2026-10-01"
+          },
+          "end": {
+            "type": "string",
+            "example": "2026-10-31"
+          },
+          "rows": {
+            "description": "Faol va ta’tildagi xodimlar + davrda yozuvi bor bo‘shatilganlar",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollSheetRowDto"
+            }
+          },
+          "totals": {
+            "$ref": "#/components/schemas/PayrollSheetTotalsDto"
+          }
+        },
+        "required": [
+          "period",
+          "start",
+          "end",
+          "rows",
+          "totals"
+        ]
+      },
+      "PayrollEntryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "employeeId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "salary",
+              "bonus",
+              "award",
+              "penalty",
+              "advance",
+              "payment"
+            ],
+            "description": "Hisoblash: `salary`, `bonus`, `award`, `penalty`; to‘lov: `advance`, `payment`"
+          },
+          "amount": {
+            "type": "number",
+            "example": 3000000,
+            "description": "Doim musbat; jarima ishlab topilganidan ayriladi"
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-09-30",
+            "description": "Avtomatik hisoblashda — davr (o‘tgan oy) oxirgi kuni"
+          },
+          "period": {
+            "type": "string",
+            "example": "2026-09",
+            "description": "Yozuv qaysi oyga tegishli (sanadan)"
+          },
+          "method": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "cash",
+              "bank"
+            ],
+            "description": "Faqat to‘lovda"
+          },
+          "shiftId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Naqd to‘lov yozilgan smena"
+          },
+          "auto": {
+            "type": "boolean",
+            "description": "Tungi ish hisoblagan (xodim + davr + tur bo‘yicha bir marta)"
+          },
+          "baseAmount": {
+            "type": "number",
+            "nullable": true,
+            "description": "Hisoblash asosi: bonus — davr savdosi, maosh — oylik maosh"
+          },
+          "rate": {
+            "type": "number",
+            "nullable": true,
+            "description": "Bonus foizi (hisoblangan paytdagi)"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "userId": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "deletedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "employeeId",
+          "type",
+          "amount",
+          "date",
+          "period",
+          "method",
+          "shiftId",
+          "auto",
+          "baseAmount",
+          "rate",
+          "note",
+          "userId",
+          "createdAt",
+          "deletedAt"
+        ]
+      },
+      "PayrollEntryPageDto": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayrollEntryDto"
+            }
+          },
+          "page": {
+            "type": "number"
+          },
+          "pageSize": {
+            "type": "number"
+          },
+          "total": {
+            "type": "number"
+          },
+          "pageCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "total",
+          "pageCount"
+        ]
+      },
+      "CreateAccrualDto": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "example": 500000
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-05",
+            "description": "Berilmasa — bugun; yozuv shu oy varag‘iga tushadi"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "salary",
+              "bonus",
+              "award",
+              "penalty"
+            ],
+            "description": "`penalty` — ishlab topilganidan ayriladi"
+          }
+        },
+        "required": [
+          "employeeId",
+          "amount",
+          "type"
+        ]
+      },
+      "CreatePaymentDto": {
+        "type": "object",
+        "properties": {
+          "employeeId": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number",
+            "example": 500000
+          },
+          "date": {
+            "type": "string",
+            "example": "2026-10-05",
+            "description": "Berilmasa — bugun; yozuv shu oy varag‘iga tushadi"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "advance",
+              "payment"
+            ]
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "bank"
+            ],
+            "description": "`cash` — kassadan chiqadi (ochiq smena shart, I8)"
+          }
+        },
+        "required": [
+          "employeeId",
+          "amount",
+          "type",
+          "method"
+        ]
+      },
+      "PayrollRunResultDto": {
+        "type": "object",
+        "properties": {
+          "created": {
+            "type": "number",
+            "example": 4,
+            "description": "Yaratilgan yozuvlar soni (maosh + bonus)"
+          }
+        },
+        "required": [
+          "created"
+        ]
       },
       "DebtPartyDto": {
         "type": "object",

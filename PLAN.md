@@ -49,7 +49,7 @@ Umumiy «tayyor» ta'rifi —
 | E4 | Spravochniklar (CRUD) | 9 | 9/9 | B2 |
 | E5 | Ombor amallari | 8 | 8/8 | B3 |
 | E6 | Savdo yadrosi | 10 | 10/10 | B3 |
-| E7 | Kassa va moliya | 9 | 9/9 | B3 |
+| E7 | Kassa va moliya | 10 | 10/10 | B3 |
 | E8 | Ta'minot va kreditorlik | 6 | 6/6 | B3 |
 | E9 | Yetkazib berish va xabarlar | 6 | 6/6 | B3 |
 | E10 | Hisobot va analitika | 7 | 7/7 | B3 |
@@ -60,7 +60,7 @@ Umumiy «tayyor» ta'rifi —
 | E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
 | E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
-| | **Jami** | **141** | **125/141** | |
+| | **Jami** | **142** | **126/142** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -526,6 +526,16 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Manba: [05 I21](../../backend-tz/profiles/qurilish-crm/03-invariants.md#i21--takrorlanuvchi-xarajat-davriga-bir-marta), `packages/shared/recurring.ts`
   - Qabul: bir davrga bir marta (I21); server cron bilan ishlaydi, brauzer ochilishiga bog'liq emas; `lastRunKey` yangilanadi
   - Tekshirish: `npm test -w apps/api -- recurring-once-per-period`
+
+- [x] **T-142 · Maosh hisobi — hisoblangan maosh, bonus, avans va to'lovlar (`/payroll`)**
+  - Bog'liq: T-062, T-134, T-082
+  - Manba: egasi so'rovi (2026-10-17), [docs/api/README.md §10.22](docs/api/README.md#payroll), `packages/shared/payroll.ts`
+  - Qabul: xodimda `salaryDay` (1–28, sukut 1), `salesBonusPct`, `payrollFrom`; tungi ish (00:10) hisoblash kuni kelganda
+    O'TGAN OY uchun `salary` (qisman oy — kunlarga) va `bonus` (oy savdosi − qaytarishlar × foiz) yozadi — davrga bir marta
+    (qisman noyob indeks, parallel ham), o'chirilgani qayta hisoblanmaydi; qo'lda `award`/`penalty`; to'lov `advance`/`payment`
+    (naqd — kassadan, ochiq smena, smena hisobotida `salaryPayments`); oylik varaq (`GET /payroll?period=`) qoldiq ko'chishi
+    bilan — bitta so'rov; foyda hisobotida hisoblangan maosh `salary` xarajati, to'lov emas; ruxsatlar `payroll.view|accrue|pay`
+  - Tekshirish: `npm run test:e2e -- payroll`, `npm test -w packages/shared -- payroll`
 
 - [x] **T-064 · Qarz to'lovi (`POST /debts/payments`)**
   - Bog'liq: T-053

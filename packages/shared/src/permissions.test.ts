@@ -56,6 +56,8 @@ function legacyCheck(p: Permission): (role: Exclude<Role, 'admin'>) => boolean {
     'debts.view': can('finance', 'view'), 'debts.collect': can('finance', 'create'),
     'expenses.view': can('expenses', 'view'), 'expenses.create': can('expenses', 'create'),
     'expenses.edit': can('expenses', 'edit'), 'expenses.delete': can('expenses', 'delete'),
+    // T-142: maosh hisobi — sukut rollarda yo'q (administrator beradi)
+    'payroll.view': () => false, 'payroll.accrue': () => false, 'payroll.pay': () => false,
     'reports.view': can('finance', 'view'),
     'customers.view': can('customers', 'view'), 'customers.create': can('customers', 'create'),
     'customers.edit': can('customers', 'edit'), 'customers.delete': can('customers', 'delete'),
