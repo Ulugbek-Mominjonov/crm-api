@@ -10,7 +10,7 @@ GROUPS = [
         "Har bir do'kon (SaaS mijozi) — `tenants` dagi bitta qator. Boshqa barcha jadvallarda `tenant_id` "
         "bor va shu do'konga tegishli. Xodim — shaxs, foydalanuvchi — uning kirish hisobi."),
      ['tenants', 'tenant_state', 'settings', 'employees', 'users', 'roles', 'refresh_tokens', 'doc_counters',
-      'idempotency_keys', 'audit_log']),
+      'idempotency_keys', 'audit_log', 'tenant_requests', 'tenant_request_messages']),
     ('catalog', 'Katalog va ombor', (
         "Mahsulotlar, kategoriyalar va omborlar. Qoldiq ombor bo'yicha `product_stocks` da, har bir "
         "o'zgarish — `stock_movements` jurnalida (faqat qo'shiladi)."),
@@ -168,8 +168,19 @@ TABLES = {
         "chatga), havola xeshi va muddati (mijozlar kabi shaxsiy havola). Tenantga bog'lanmaydi — tokeni do'kon yo'llarida o'tmaydi."),
     'platform_settings': (
         "Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `open` (har kim do'kon ochadi) yoki "
-        "`closed` (`POST /tenants/register` 403, do'konni faqat egasi paneli ochadi); kim va qachon o'zgartirgan. "
+        "`closed` (`POST /tenants/register` 403, do'konni faqat egasi paneli ochadi); egasining aloqasi (`support_phone`, "
+        "`support_telegram`, `support_hours` — do'kon ilovasida bannerda va murojaat oynasida, T-140); kim va qachon o'zgartirgan. "
         "Env emas — egasi panelidan qayta ishga tushirishsiz o'zgaradi."),
+    'tenant_requests': (
+        "Do'konning platforma egasiga murojaati (T-140): bloklangan do'kon administratori tizim ichidan yozadi, egasi "
+        "panelidan javob beradi. `type` — `unblock` (blokdan chiqarish), `billing` (to'lov), `other`; `status` — `open` "
+        "(do'kon yozdi, egasi javobini kutadi), `answered` (egasi javob berdi), `closed` (yopilgan). Bir do'konda bir vaqtda "
+        "bitta yopilmagan murojaat (qisman noyob indeks `status <> 'closed'`). Egasi tenantlararo ro'yxatni "
+        "`platform_requests()` orqali o'qiydi, javobni do'kon tranzaksiyasida yozadi."),
+    'tenant_request_messages': (
+        "Murojaat xabarlari (ikkala tomon): `author` — `store` (do'kon administratori) yoki `platform` (egasi/operator), "
+        "`author_name` — yozilgan paytdagi ism (hisob o'chsa ham qoladi). Do'kon 24 soatda 5 ta xabar yozadi (chegara "
+        "`author = 'store'` bo'yicha indeks bilan sanaladi)."),
     'platform_refresh_tokens': (
         "Egasi sessiyalari: `refresh_tokens` bilan bir xil qoida (xesh, rotatsiya zanjiri, bekor qilinganini qayta "
         "ishlatish — barcha sessiyalar yopiladi), lekin o'z jadvalida — do'kon sessiyalari bilan aralashmaydi."),
@@ -320,6 +331,14 @@ COLUMNS = {
     'recipient_label': "Qabul qiluvchi (ko'rinadigan nom)",
     'target': 'Kimga: bitta mijoz, guruh, qarzdorlar, hamma',
     'action': "Amal (masalan `sale.create`)",
+    'request_id': 'Murojaat',
+    'author': "Kim yozdi: `store` — do'kon administratori, `platform` — egasi yoki operator",
+    'author_name': "Yozilgan paytdagi ism",
+    'body': 'Xabar matni',
+    'last_message_at': "So'nggi xabar vaqti (ikkala tomondan)",
+    'support_phone': "Egasining telefoni (ko'rsatish uchun)",
+    'support_telegram': "Egasining Telegram foydalanuvchi nomi (`@`siz)",
+    'support_hours': 'Egasining ish vaqti (erkin matn)',
     'detail': 'Tafsilot',
     'entity_type': "Qaysi obyekt turi",
     'entity_id': "Qaysi obyekt",

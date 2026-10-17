@@ -2,14 +2,14 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **192** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **199** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
 ## Mundarija
 
 - [Autentifikatsiya va ro‘yxatdan o‘tish](#auth) — 8 ta
-- [Do‘kon hisobi: tarif, holat, o‘chirish](#account) — 3 ta
+- [Do‘kon hisobi: tarif, holat, o‘chirish, egasiga murojaat](#account) — 6 ta
 - [Obuna to‘lovi (Payme, Click)](#billing) — 5 ta
 - [Do‘kon sozlamalari](#settings) — 2 ta
 - [Omborlar](#warehouses) — 7 ta
@@ -35,7 +35,7 @@ Jami **192** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Eksport (CSV/JSON)](#exports) — 3 ta
 - [Do‘kon zaxirasi](#backup) — 1 ta
 - [Migratsiya (brauzerdagi eski ma’lumotni serverga ko‘chirish)](#migration) — 2 ta
-- [Platforma egasi paneli](#platform) — 31 ta
+- [Platforma egasi paneli](#platform) — 35 ta
 - [Sog‘liq tekshiruvi](#health) — 2 ta
 
 <a id="auth"></a>
@@ -52,7 +52,7 @@ Kirish, tokenni yangilash, chiqish, joriy foydalanuvchi, parol va yangi do‘kon
 | `POST` | [`/auth/logout-all`](#post-auth-logout-all) | Barcha qurilmalardan chiqish | servisda / hamma |
 | `GET` | [`/auth/me`](#get-auth-me) | Joriy foydalanuvchi | servisda / hamma |
 | `POST` | [`/auth/change-password`](#post-auth-change-password) | Parolni o‘zgartirish | servisda / hamma |
-| `GET` | [`/tenants/registration`](#get-tenants-registration) 🔓 | Ro‘yxatdan o‘tish ochiqmi | ochiq |
+| `GET` | [`/tenants/registration`](#get-tenants-registration) 🔓 | Ro‘yxatdan o‘tish ochiqmi va egasining aloqasi | ochiq |
 | `POST` | [`/tenants/register`](#post-tenants-register) 🔓 | Yangi do‘kon ochish | ochiq |
 
 <a id="post-auth-login"></a>
@@ -200,11 +200,11 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 <a id="get-tenants-registration"></a>
 
-### `GET /tenants/registration` — Ro‘yxatdan o‘tish ochiqmi
+### `GET /tenants/registration` — Ro‘yxatdan o‘tish ochiqmi va egasining aloqasi
 
-> Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi.
+> Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi; `support` — egasining telefoni/Telegram’i (yopiq rejimda va bloklangan do‘kon bannerida ko‘rsating).
 
-**Qachon / qanday:** Kirish sahifasi ochilganda (hisobsiz): `mode: closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish sahifasini yashiring (`/register` ga kirilsa — xabar). `open` — avvalgidek.
+**Qachon / qanday:** Kirish sahifasi ochilganda (hisobsiz): `mode: closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish sahifasini yashiring (`/register` ga kirilsa — xabar va `support` dagi aloqa). `open` — avvalgidek.
 
 | | |
 |---|---|
@@ -252,21 +252,24 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 <a id="account"></a>
 
-## Do‘kon hisobi: tarif, holat, o‘chirish
+## Do‘kon hisobi: tarif, holat, o‘chirish, egasiga murojaat
 
-Sozlamalar → «Tarif va hisob» sahifasi. Faqat administrator. Holatlar va cheklovlar — [README → Do‘kon holati va tarif](README.md#tenant).
+Sozlamalar → «Tarif va hisob» sahifasi va faqat-o‘qish banneridagi «Egasiga murojaat». Faqat administrator. Holatlar va cheklovlar — [README → Do‘kon holati va tarif](README.md#tenant), murojaat — [README → 8.5](README.md#support).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
 | `GET` | [`/tenants/current`](#get-tenants-current) | Tarif, holat, chegaralar va ishlatilgan hajm | faqat `admin` |
 | `POST` | [`/tenants/current/delete`](#post-tenants-current-delete) | Do‘konni o‘chirish (30 kun muhlat) | faqat `admin` |
 | `POST` | [`/tenants/current/restore`](#post-tenants-current-restore) | O‘chirish so‘rovini bekor qilish | faqat `admin` |
+| `GET` | [`/tenants/current/requests`](#get-tenants-current-requests) | Murojaatlar tarixi | faqat `admin` |
+| `POST` | [`/tenants/current/requests`](#post-tenants-current-requests) | Egasiga murojaat yuborish | faqat `admin` |
+| `POST` | [`/tenants/current/requests/:id/messages`](#post-tenants-current-requests-id-messages) | Murojaatga xabar qo‘shish | faqat `admin` |
 
 <a id="get-tenants-current"></a>
 
 ### `GET /tenants/current` — Tarif, holat, chegaralar va ishlatilgan hajm
 
-**Qachon / qanday:** «Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `deletionScheduledAt`, `limits` va `usage` — «3 / 10 foydalanuvchi», «1,2 GB / 2 GB» kabi. Banner uchun holat hamma rolga login/refresh javobida ham bor (`user.tenant.status`) — README → Do‘kon holati.
+**Qachon / qanday:** «Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `deletionScheduledAt`, `limits` va `usage` — «3 / 10 foydalanuvchi», «1,2 GB / 2 GB» kabi; `support` — egasining aloqasi (banner va murojaat oynasi). Banner uchun holat hamma rolga login/refresh javobida ham bor (`user.tenant.status`) — README → Do‘kon holati.
 
 | | |
 |---|---|
@@ -325,6 +328,102 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | Javob | `200` → [`TenantAccountDto`](schemas.md#tenantaccountdto) |
 | Audit jurnali | ha |
 | Faqat-o‘qish do‘kon | ruxsat (to‘xtatilgan / o‘chirilayotgan do‘konda ham ishlaydi) |
+
+[↑ Bo‘lim boshiga](#account)
+
+---
+
+<a id="get-tenants-current-requests"></a>
+
+### `GET /tenants/current/requests` — Murojaatlar tarixi
+
+> Eng yangisi birinchi (20 tagacha), har birida barcha xabarlar. Yopilmagani (`status ≠ closed`) — bannerda ko‘rsatiladigani.
+
+**Qachon / qanday:** Banner («Egasiga murojaat») va «Tarif va hisob» sahifasidagi murojaatlar bo‘limi: yopilmagani bo‘lsa — oyna uni ko‘rsatadi (xabarlar, javob yozish), bo‘lmasa — yangi murojaat formasi. `tenant.request` hodisasida qayta so‘rang.
+
+| | |
+|---|---|
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`TenantRequestDto`](schemas.md#tenantrequestdto)[] |
+
+[↑ Bo‘lim boshiga](#account)
+
+---
+
+<a id="post-tenants-current-requests"></a>
+
+### `POST /tenants/current/requests` — Egasiga murojaat yuborish
+
+> Bloklangan va to‘xtatilgan do‘konda ham ishlaydi. Egasiga Telegram orqali darhol yetadi; javob — shu ro‘yxatda (`tenant.request` hodisasi). Bir vaqtda bitta yopilmagan murojaat: bor bo‘lsa 409 `ALREADY_EXISTS` (`meta.requestId`) — xabarni unga yozing.
+
+**Qachon / qanday:** Forma: tur (`unblock` «Blokdan chiqarish», `billing` «To‘lov», `other` «Boshqa»), matn (1–1000), telefon (ixtiyoriy, sukut — administrator telefoni). Bloklangan/to‘xtatilgan do‘konda ham ishlaydi. 409 `ALREADY_EXISTS` — yopilmagani bor (`errors[0].meta.requestId`), unga xabar yozing; 429 — 24 soatda 5 ta xabar.
+
+| | |
+|---|---|
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `201` → [`TenantRequestDto`](schemas.md#tenantrequestdto) |
+| Audit jurnali | ha |
+| Faqat-o‘qish do‘kon | ruxsat (to‘xtatilgan / o‘chirilayotgan do‘konda ham ishlaydi) |
+
+**So‘rov tanasi** — [`CreateTenantRequestDto`](schemas.md#createtenantrequestdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `type` | `unblock` \| `billing` \| `other` | ✔ | `unblock` — blokdan chiqarish, `billing` — to‘lov masalasi, `other` — boshqa |
+| `message` | `string` | ✔ | maks. uzunlik `1000`, misol `To‘lovni kecha o‘tkazdik, blokni olib tashlang` |
+| `phone` | `string` |  | Aloqa telefoni — egasi qo‘ng‘iroq qilishi uchun (ixtiyoriy) — misol `+998901234567` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `409` | `ALREADY_EXISTS` — yopilmagan murojaat bor (`errors[0].meta.requestId`) |
+| `429` | `MESSAGE_LIMIT_EXCEEDED` — 24 soatda 5 ta xabar (`meta.limit/used`) |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#account)
+
+---
+
+<a id="post-tenants-current-requests-id-messages"></a>
+
+### `POST /tenants/current/requests/:id/messages` — Murojaatga xabar qo‘shish
+
+> Yopilmagan murojaatga qo‘shimcha gap yoki egasi javobiga javob; holat yana `open` bo‘ladi.
+
+**Qachon / qanday:** Murojaat oynasidagi «Yuborish»: egasi javobiga javob yoki qo‘shimcha gap; holat yana `open`. Yopilganiga — 422, yangisini oching.
+
+| | |
+|---|---|
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `201` → [`TenantRequestDto`](schemas.md#tenantrequestdto) |
+| Faqat-o‘qish do‘kon | ruxsat (to‘xtatilgan / o‘chirilayotgan do‘konda ham ishlaydi) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`AddRequestMessageDto`](schemas.md#addrequestmessagedto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `message` | `string` | ✔ | maks. uzunlik `1000` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `404` | `NOT_FOUND` |
+| `422` | `INVALID_STATUS_TRANSITION` — murojaat yopilgan, yangisini yuboring |
+| `429` | `MESSAGE_LIMIT_EXCEEDED` — 24 soatda 5 ta xabar (`meta.limit/used`) |
+
+Umumiy: 400 `VALIDATION_FAILED`.
 
 [↑ Bo‘lim boshiga](#account)
 
@@ -5610,7 +5709,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 ## Platforma egasi paneli
 
-DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali; egasi hisoblari va operatorlar (`role`), ikki bosqichli kirish (TOTP), egasining Telegram’i, platforma sozlamasi. O‘z kirishi (`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).
+DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali; egasi hisoblari va operatorlar (`role`), ikki bosqichli kirish (TOTP), egasining Telegram’i, platforma sozlamasi (ro‘yxatdan o‘tish, aloqa); do‘kon murojaatlari (javob, yopish). O‘z kirishi (`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
@@ -5635,6 +5734,10 @@ DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do
 | `GET` | [`/platform/tenants/:id/users`](#get-platform-tenants-id-users) | Do‘kon kirish hisoblari | egasi tokeni |
 | `POST` | [`/platform/tenants/:id/users/:userId/reset-password`](#post-platform-tenants-id-users-userid-reset-password) | Do‘kon hisobiga yangi parol | egasi tokeni |
 | `GET` | [`/platform/tenants/:id/invoices`](#get-platform-tenants-id-invoices) | Do‘kon hisob-fakturalari | egasi tokeni |
+| `GET` | [`/platform/requests`](#get-platform-requests) | Do‘kon murojaatlari | egasi tokeni |
+| `GET` | [`/platform/requests/:id`](#get-platform-requests-id) | Murojaat va xabarlari | egasi tokeni |
+| `POST` | [`/platform/requests/:id/reply`](#post-platform-requests-id-reply) 📡 | Javob yozish | egasi tokeni |
+| `POST` | [`/platform/requests/:id/close`](#post-platform-requests-id-close) 📡 | Murojaatni yopish | egasi tokeni |
 | `GET` | [`/platform/admins`](#get-platform-admins) | Egasi hisoblari ro‘yxati | egasi tokeni |
 | `POST` | [`/platform/admins`](#post-platform-admins) | Hisob ochish | egasi tokeni |
 | `PATCH` | [`/platform/admins/:id`](#patch-platform-admins-id) | Nom, rol, faollik | egasi tokeni |
@@ -6341,6 +6444,157 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 ---
 
+<a id="get-platform-requests"></a>
+
+### `GET /platform/requests` — Do‘kon murojaatlari
+
+> Yopilmaganlar birinchi, keyin so‘nggi xabar bo‘yicha. `status=open` — javob kutayotganlar (menyu belgisi — `GET /platform/stats` → `openRequests`); `tenantId` — do‘kon kartasi.
+
+**Qachon / qanday:** «Murojaatlar» sahifasi: yopilmaganlar birinchi; `status=open` — javob kutayotganlar, `type`, `tenantId` (do‘kon kartasidagi bo‘lim). Qatorda do‘kon (holati bilan), kim yozgan, telefon, birinchi xabar qisqacha, xabarlar soni.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → `application/json` |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `page` | query | `number` |  | min `1`, sukut `1` |
+| `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
+| `tenantId` | query | `string` (uuid) |  | Bitta do‘kon murojaatlari (do‘kon kartasi) |
+| `status` | query | `open` \| `answered` \| `closed` |  | `open` — javob kutayotganlar (sukut: hammasi, yopilmaganlar birinchi) |
+| `type` | query | `unblock` \| `billing` \| `other` |  |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-requests-id"></a>
+
+### `GET /platform/requests/:id` — Murojaat va xabarlari
+
+**Qachon / qanday:** Murojaat oynasi: barcha xabarlar (`author`: `store` / `platform`), javob va yopish tugmalari.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformRequestDetailDto`](schemas.md#platformrequestdetaildto) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-requests-id-reply"></a>
+
+### `POST /platform/requests/:id/reply` — Javob yozish
+
+> Holat `answered`; do‘kon administratori javobni bannerda va murojaat oynasida ko‘radi (`tenant.request` hodisasi). Blokni olish — alohida `POST /platform/tenants/:id/unblock`.
+
+**Qachon / qanday:** Javob matni (1–1000 belgi) → `answered`; do‘kon administratori bannerda ko‘radi. Blokdan chiqarish — alohida tugma (`POST /platform/tenants/:id/unblock`). Yopilganiga — 422.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformRequestDetailDto`](schemas.md#platformrequestdetaildto) |
+| Realtime | `tenant.request` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`ReplyRequestDto`](schemas.md#replyrequestdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `message` | `string` | ✔ | maks. uzunlik `1000`, misol `To‘lov keldi, blokni olib tashladik` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+| `422` | `INVALID_STATUS_TRANSITION` — murojaat allaqachon yopilgan |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-requests-id-close"></a>
+
+### `POST /platform/requests/:id/close` — Murojaatni yopish
+
+> Ixtiyoriy yakuniy javob bilan. Yopilganiga do‘kon yozolmaydi — kerak bo‘lsa yangisini ochadi.
+
+**Qachon / qanday:** «Yopish» (ixtiyoriy yakuniy javob bilan) → `closed`; do‘kon unga yozolmaydi, yangisini ochadi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformRequestDetailDto`](schemas.md#platformrequestdetaildto) |
+| Realtime | `tenant.request` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`CloseRequestDto`](schemas.md#closerequestdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `message` | `string` |  | Yakuniy javob (ixtiyoriy) — do‘kon ko‘radi — maks. uzunlik `1000` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+| `422` | `INVALID_STATUS_TRANSITION` — murojaat allaqachon yopilgan |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
 <a id="get-platform-admins"></a>
 
 ### `GET /platform/admins` — Egasi hisoblari ro‘yxati
@@ -6525,7 +6779,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 > Do‘konlar holat va tarif bo‘yicha, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy).
 
-**Qachon / qanday:** Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar) va 12 oylik tushum grafigi.
+**Qachon / qanday:** Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar), 12 oylik tushum grafigi, `openRequests` — menyudagi «Murojaatlar» belgisi.
 
 | | |
 |---|---|
@@ -6622,7 +6876,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Ro‘yxatdan o‘tish ochiq yoki yopiq; kim va qachon o‘zgartirgan.
 
-**Qachon / qanday:** «Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, kim va qachon o‘zgartirgan.
+**Qachon / qanday:** «Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, egasining aloqasi (`support` — do‘kon ilovasida bannerda ko‘rinadi), kim va qachon o‘zgartirgan.
 
 | | |
 |---|---|
@@ -6646,7 +6900,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Faqat egasi (operator — 403). `registrationMode: closed` — `POST /tenants/register` darhol 403 `REGISTRATION_CLOSED`, do‘konni faqat panel ochadi. Qayta ishga tushirish shart emas.
 
-**Qachon / qanday:** Almashtirgich (faqat egasi): `closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. Darhol kuchga kiradi.
+**Qachon / qanday:** Faqat egasi, faqat yuborilgan maydonlar. `registrationMode: closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. `support { phone, telegram, hours }` — `""` o‘chiradi. Darhol kuchga kiradi.
 
 | | |
 |---|---|
@@ -6659,7 +6913,8 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `registrationMode` | `open` \| `closed` | ✔ |  |
+| `registrationMode` | `open` \| `closed` |  |  |
+| `support` | [`UpdatePlatformSupportDto`](schemas.md#updateplatformsupportdto) |  | Aloqa: faqat yuborilgan maydonlar o‘zgaradi |
 
 **Xatolar**
 

@@ -214,12 +214,12 @@ describe('Egasi hisoblari, TOTP va sozlama', () => {
 
     it('yopiq: ochiq yo‘l 403 `REGISTRATION_CLOSED`, holat hisobsiz ko‘rinadi, egasi baribir ochadi; ochiq — yana ishlaydi', async () => {
       expect((await api().get('/api/v1/platform/settings').set('Authorization', owner).expect(200)).body).toMatchObject({ registrationMode: 'open', updatedBy: null })
-      expect((await api().get('/api/v1/tenants/registration').expect(200)).body).toEqual({ mode: 'open' })
+      expect((await api().get('/api/v1/tenants/registration').expect(200)).body).toMatchObject({ mode: 'open' })
       await register('ali1@dokon.uz').expect(201)
 
       const closed = await api().patch('/api/v1/platform/settings').set('Authorization', owner).send({ registrationMode: 'closed' }).expect(200)
       expect(closed.body).toMatchObject({ registrationMode: 'closed', updatedBy: 'Egasi' })
-      expect((await api().get('/api/v1/tenants/registration').expect(200)).body).toEqual({ mode: 'closed' })
+      expect((await api().get('/api/v1/tenants/registration').expect(200)).body).toMatchObject({ mode: 'closed' })
       expect((await register('ali2@dokon.uz').expect(403)).body.code).toBe('REGISTRATION_CLOSED')
       await api().post('/api/v1/platform/tenants').set('Authorization', owner)
         .send({ storeName: 'Egasi ochdi', ownerName: 'Vali', phone: '+998901234568', email: 'vali@dokon.uz', password: PASSWORD }).expect(201)

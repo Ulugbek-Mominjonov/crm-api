@@ -16,7 +16,7 @@ export class PlatformStatsService {
   async stats(): Promise<PlatformStatsDto> {
     const now = new Date()
     const thisMonth = monthStart(now, 0)
-    const [byStatus, byPlan, newThisMonth, expiringIn7Days, overdue, revenue] = await Promise.all([
+    const [byStatus, byPlan, newThisMonth, expiringIn7Days, overdue, revenue, [requests]] = await Promise.all([
       this.prisma.tenant.groupBy({ by: ['status'], _count: { _all: true } }),
       this.prisma.tenant.groupBy({ by: ['plan'], _count: { _all: true } }),
       this.prisma.tenant.count({ where: { createdAt: { gte: thisMonth } } }),
@@ -28,6 +28,7 @@ export class PlatformStatsService {
       }),
       this.prisma.$queryRaw<{ month: Date; amount: bigint; invoices: number }[]>`
         SELECT month, amount, invoices FROM platform_revenue(${monthStart(now, -(REVENUE_MONTHS - 1))}::timestamptz)`,
+      this.prisma.$queryRaw<[{ open: number }]>`SELECT platform_open_requests() AS open`,
     ])
     const months: RevenueMonthDto[] = revenue.map((r) => ({ month: r.month.toISOString().slice(0, 10), amount: Number(r.amount), invoices: r.invoices }))
     const amountOf = (month: Date): number => months.find((m) => m.month === businessDate(month))?.amount ?? 0
@@ -41,6 +42,7 @@ export class PlatformStatsService {
         overdue,
       },
       revenue: { thisMonth: amountOf(thisMonth), lastMonth: amountOf(monthStart(now, -1)), months },
+      openRequests: requests.open,
     }
   }
 }

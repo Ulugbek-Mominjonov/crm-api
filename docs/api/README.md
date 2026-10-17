@@ -980,7 +980,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `REGISTRATION_CLOSED` | 403 | `POST /tenants/register` — platforma egasi ro‘yxatdan o‘tishni yopgan (oldindan `GET /tenants/registration` → `mode`) | «Yangi do‘kon ochish vaqtincha yopiq» |
 | `NOT_FOUND` | 404 | Yo‘ldagi yozuv yo‘q / o‘chirilgan / boshqa do‘konniki | Ro‘yxatga qaytish |
 | `AUTH_TENANT_REQUIRED` | 409 | Email bir necha do‘konda — `errors[].meta.{tenantId, tenantName}` | Do‘kon tanlash |
-| `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field` | Maydon ostida |
+| `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field`; yopilmagan murojaat bor (`errors[0].meta.requestId`, [8.5](#support)) | Maydon ostida; murojaatda — mavjudini ochish |
 | `DUPLICATE_SKU` | 409 | SKU band | «Bunday artikul bor» |
 | `VERSION_CONFLICT` | 409 | `If-Match` eskirgan — `current` bilan | [4.5](#ifmatch) |
 | `IDEMPOTENCY_MISMATCH` | 409 | Kalit boshqa tana bilan ishlatilgan | Frontend xatosi: yangi amalga yangi kalit |
@@ -1017,13 +1017,13 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `SELF_DELETE` / `SELF_ROLE_CHANGE` | 422 | O‘zini o‘chirish / o‘z rolini o‘zgartirish | Tugmani yashiring |
 | `ROLE_PROTECTED` | 422 | Tizim rolini o‘zgartirib bo‘lmaydigan qilib tahrir: `admin` rolining har qanday tahriri; boshqa tizim rolining nomi (`field: name`); tizim rolini o‘chirish | `admin` — faqat ko‘rish; tizim rolida nom maydoni o‘chiq, «O‘chirish» yo‘q |
 | `FILE_REJECTED` | 422 | Fayl tarkibi e’lon qilingan MIME/xeshga mos emas — karantinda (`meta.id`) | «Fayl buzilgan yoki turi noto‘g‘ri» |
-| `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati orqaga (`meta.from/to`); do‘kon o‘chirish muhlatida emas | — |
+| `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati orqaga (`meta.from/to`); do‘kon o‘chirish muhlatida emas; murojaat yopilgan ([8.5](#support)) | — |
 | `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot, rol `roleId`, `replaceWith`…) yo‘q yoki boshqa do‘konniki — `errors[].field`; xodimi o‘chirilgan hisobni tiklash (`field: employeeId`) | Tanlovni yangilash |
 | `SHIFT_REQUIRED` | 423 | Smena ochilmagan (sotuv, qaytarish, naqd amal) | Smena ochish oynasi |
 | `TENANT_READ_ONLY` | 423 | Do‘kon `suspended`/`deleting` — yozish yopiq (`meta.status`) | Banner + to‘lov/qaytarish tugmasi |
 | `AUTH_ACCOUNT_LOCKED` | 423 | Xodim ishdan bo‘shatilgan (login/refresh) | Login sahifasida xabar |
 | `RECIPIENT_UNREACHABLE` | 422 | Mijozga yetkazib bo‘lmaydi (xabar, chek, Telegram havolasi): `meta.reason` — `not_linked` (botga ulanmagan), `blocked` (botni bloklagan), `no_customer` (chekda mijoz yo‘q), `no_channel` (bot/SMS sozlanmagan); guruhda `meta.unreachable` | «Telegram’ga ulash» (shaxsiy QR) |
-| `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit`, `used`, `requested`) | — |
+| `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit`, `used`, `requested`); egasiga murojaat — 24 soatda 5 ta xabar (`meta.limit`, `used`) | — |
 | `INTERNAL` | 500 | Kutilmagan xato (tafsilot loglarda, `traceId` bo‘yicha) | Xato kodi bilan |
 
 ---
@@ -1038,7 +1038,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 |----------|--------|-------------|
 | `active` | Oddiy holat | Hammasi |
 | `suspended` | Pullik tarif muddati (`planExpiresAt`) + 3 kun imtiyoz o‘tdi (har kecha 01:00 da tekshiriladi) | Faqat O‘QISH + to‘lov (`POST /billing/invoices`), zaxira, chiqish, parol |
-| `blocked` | Platforma egasi do‘konni blokladi (sabab — `GET /tenants/current` → `blockedReason`) | Faqat O‘QISH, zaxira, chiqish, parol. To‘lov blokni OCHMAYDI (tarif uzayadi, holat qoladi); do‘kon o‘zi blokni olib tashlay olmaydi — platformaga murojaat |
+| `blocked` | Platforma egasi do‘konni blokladi (sabab — `GET /tenants/current` → `blockedReason`) | Faqat O‘QISH, zaxira, chiqish, parol, egasiga murojaat ([8.5](#support)). To‘lov blokni OCHMAYDI (tarif uzayadi, holat qoladi); do‘kon o‘zi blokni olib tashlay olmaydi — egasiga murojaat yuboradi |
 | `deleting` | Admin do‘konni o‘chirishni so‘radi (`POST /tenants/current/delete`) | Faqat O‘QISH + o‘chirishni bekor qilish, zaxira, chiqish, parol. 30 kundan keyin hamma ma’lumot va fayllar o‘chadi |
 
 Faqat-o‘qish holatida har yozuvchi so‘rov (POST/PATCH/DELETE) → **423 `TENANT_READ_ONLY`**
@@ -1052,8 +1052,8 @@ uchun batafsil — `GET /tenants/current` (`planExpiresAt`, `deletionScheduledAt
 
 UI: `status` bo‘yicha butun ilova tepasida banner, yozuvchi tugmalar o‘chirilgan:
 `suspended` — «Tarif muddati tugagan — to‘lovdan keyin yozish ochiladi» + «To‘lash» (admin);
-`blocked` — «Do‘kon platforma tomonidan to‘xtatilgan — faqat o‘qish» + admin uchun `blockedReason` va
-«Platforma bilan bog‘laning» (to‘lash tugmasi blokni ochmaydi);
+`blocked` — «Do‘kon platforma tomonidan to‘xtatilgan — faqat o‘qish» + admin uchun `blockedReason`,
+«Egasiga murojaat» tugmasi va egasining aloqasi `support` ([8.5](#support); to‘lash tugmasi blokni ochmaydi);
 `deleting` — «Do‘kon {deletionScheduledAt} da o‘chiriladi» + «Bekor qilish» (admin). To‘lov yoki
 bekor qilishdan keyin holatni yangilash uchun `POST /auth/refresh` yoki `GET /auth/me` ni qayta
 chaqiring (yoki 423 dagi `meta.status` ga tayaning). Platforma holatni o‘zgartirganda (blok, tarif)
@@ -1102,6 +1102,31 @@ mumkin — platforma egasi qo‘lda yozgan to‘lov (naqd, o‘tkazma, bonus mud
 Muhlat ichida `POST /tenants/current/restore` qaytaradi (tarif muddati o‘tgan bo‘lsa — `suspended`).
 Muhlat tugagach barcha ma’lumot va fayllar butunlay o‘chadi. O‘chirishdan oldin zaxira taklif
 qiling (`GET /backup/export`).
+
+<a id="support"></a>
+
+### 8.5 Platforma egasiga murojaat
+
+Bloklangan (yoki boshqa) do‘kon administratori egasiga tizim ichidan yozadi — telefonga javob bo‘lmasa ham xabar
+yo‘qolmaydi (egasiga Telegram orqali darhol yetadi), javob shu yerda ko‘rinadi. Faqat administrator; faqat-o‘qish
+holatida (`blocked`, `suspended`, `deleting`) ham ishlaydi.
+
+| So‘rov | Nima |
+|---|---|
+| `GET /tenants/current/requests` | Tarix (20 tagacha, eng yangisi birinchi) — massiv `TenantRequestDto`, har birida `messages[]` (`author`: `store` — do‘kon, `platform` — egasi/operator; `authorName`, `body`, `createdAt`). Yopilmagani (`status ≠ closed`) — ko‘pi bilan bittasi |
+| `POST /tenants/current/requests { type, message, phone? }` | 201 `TenantRequestDto`. `type`: `unblock` «Blokdan chiqarish», `billing` «To‘lov masalasi», `other` «Boshqa»; `message` 1–1000 belgi; `phone` ixtiyoriy (`+998901234567`). 409 `ALREADY_EXISTS` (`errors[0].meta.requestId`) — yopilmagani bor, unga yozing; 429 `MESSAGE_LIMIT_EXCEEDED` — 24 soatda 5 ta xabar |
+| `POST /tenants/current/requests/:id/messages { message }` | Qo‘shimcha gap yoki egasi javobiga javob → 201 `TenantRequestDto`, holat yana `open`. 422 `INVALID_STATUS_TRANSITION` — yopilgan, yangisini oching |
+
+`status`: `open` — egasi javobini kutmoqda; `answered` — egasi javob berdi; `closed` — egasi yopdi (yangi xabar
+yozilmaydi, kerak bo‘lsa yangi murojaat ochiladi).
+
+**UI.** Faqat-o‘qish bannerida (admin) «Egasiga murojaat» tugmasi: yopilmagan murojaat bo‘lsa — oyna uni ko‘rsatadi
+(xabarlar chat ko‘rinishida, javob maydoni), bo‘lmasa — forma (`blocked` da sukut `type: unblock`, telefon maydoni
+administrator telefoni bilan to‘ldirilgan). Egasi javob berganda yoki yopganda `tenant.request` hodisasi keladi
+([9.2](#realtime)) — ro‘yxatni qayta so‘rang, bannerda «Egasi javob berdi» ko‘rsating. «Tarif va hisob» sahifasida ham
+«Murojaatlar» bo‘limi (tarix, yangi murojaat). Egasining aloqasi — `GET /tenants/current` → `support { phone, telegram, hours }`
+(hammasi `null` bo‘lishi mumkin): bannerda va oynada ko‘rsating (`tel:` — raqamlarni oling, Telegram — `https://t.me/<telegram>`);
+hisobsiz sahifalar (yopiq ro‘yxatdan o‘tish) uchun `GET /tenants/registration` → `support`.
 
 ---
 
@@ -1158,6 +1183,7 @@ COMMIT’dan keyin, do‘konning BARCHA ulanishlariga (amalni qilgan foydalanuvc
 | `settings.updated` | `{}` | `PATCH /settings` (rang, logotip, nom …), logotip faylini o‘chirish | `GET /settings` (brend rangi va logotip sahifa yangilanmasdan o‘zgaradi) |
 | `access.changed` | `{}` | Rol ruxsatlari tahriri (`PATCH /roles/:id`), rolni o‘chirish, foydalanuvchiga boshqa rol (`PATCH /users/:id`) | `GET /auth/me` (o‘z `permissions` i — menyu va tugmalar), `GET /roles`, `GET /users`. Refresh CHAQIRILMAYDI ([6.5](#access-changed)) |
 | `tenant.status` | `{ status, plan }` | Platforma egasi: blok / blokdan chiqarish, tarif yoki qo‘lda to‘lov, o‘chirish / qaytarish ([8.1](#tenant)) | `GET /auth/me` (`user.tenant.status` — banner), `GET /tenants/current` (tarif, `blockedReason`), `GET /billing/invoices` |
+| `tenant.request` | `{ requestId, status }` | Platforma egasi do‘kon murojaatiga javob berdi (`answered`) yoki yopdi (`closed`) ([8.5](#support)) | `GET /tenants/current/requests` (banner, murojaat oynasi) |
 
 Hodisa kelmaydigan amallar (masalan spravochnik tahriri, xarajat, naqd harakat, SMS, migratsiya)
 — o‘z mutatsiyasidan keyin kesh bekor qilinadi; boshqa foydalanuvchilarda ma’lumot sahifa
@@ -1730,7 +1756,7 @@ Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. Qavsdagi r
 |---|---|---|---|
 | **Login** (`/login`) | — | `POST /auth/login` (+ do‘kon tanlash), keyin `GET /settings` | — |
 | **Ro‘yxatdan o‘tish** (yangi) | — | `POST /tenants/register` → sehrgar: `PATCH /settings`, `POST /warehouses`, `/categories`, `/products`, `/employees`, `/users` | — |
-| **Ilova qobig‘i** (Header, UserMenu, Sidebar) | `POST /auth/refresh` (token yo‘q bo‘lsa), `GET /settings`, socket ulanishi; admin — `GET /tenants/current` (banner); menyu — `user.permissions` | `POST /auth/logout`, `/auth/logout-all`, `/auth/change-password` | `access.changed` → `GET /auth/me`; `settings.updated` → `GET /settings` |
+| **Ilova qobig‘i** (Header, UserMenu, Sidebar) | `POST /auth/refresh` (token yo‘q bo‘lsa), `GET /settings`, socket ulanishi; admin — `GET /tenants/current` (banner, `support`), faqat-o‘qishda `GET /tenants/current/requests`; menyu — `user.permissions` | `POST /auth/logout`, `/auth/logout-all`, `/auth/change-password`; banner: «Egasiga murojaat» — `POST /tenants/current/requests`, `POST /tenants/current/requests/:id/messages` ([8.5](#support)) | `access.changed` → `GET /auth/me`; `settings.updated` → `GET /settings`; `tenant.status` → `GET /auth/me`; `tenant.request` → `GET /tenants/current/requests` |
 | **Dashboard** (`/`, `reports.view`) | `GET /dashboard?days=30` | davr 7/30/90 | `sale.*`, `debt.paid`, `po.received`, `stock.changed` |
 | **POS** (`/pos`, `sales.create`) | `GET /cash/shifts/current`, `GET /warehouses?archived=false`, `GET /categories`, `GET /products?warehouseId&categoryId&q&pageSize=60`, `GET /files/urls` | mijoz: `GET /clients?q=`, `GET /clients/:id/stats`; skaner: `GET /products?q=`; smena: `POST /cash/shifts/open`; to‘lash: `POST /sales` → `GET /sales/:id/receipt` (yoki `?format=pdf`); mijoz botga ulangan bo‘lsa — «Telegram’ga» (`POST /sales/:id/receipt/telegram`) | `sale.*`, `stock.changed`, `shift.*`, `po.received` |
 | **Cheklar** (`/sales`, `sales.view`) | `GET /sales` (kursor, filtrlar) | `GET /sales/:id` (`returnedQty`), `GET /sales?relatedSaleId=` (qaytarishlar), `GET /sales/:id/receipt` (JSON yoki `?format=pdf`), `POST /sales/:id/receipt/telegram`, `POST /sales/:id/return`, `POST /sales/:id/cancel`, `GET /exports/sales` | `sale.*`, `debt.paid` |
@@ -1753,7 +1779,7 @@ Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. Qavsdagi r
 | **Xodimlar** (`/employees`, `employees.view`) | `GET /employees` | CRUD, `.../restore` | — |
 | **Foydalanuvchilar** (`/users`, `users.view`) | `GET /users`, `GET /roles` (rol tanlovi va nomi), `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD (`roleId`), «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | `access.changed` |
 | **Rollar** (yangi; `/users/roles` yoki tab, `roles.view`) | `GET /roles`, `GET /roles/catalog` | `POST /roles` (`roles.create`), `PATCH /roles/:id` (`roles.edit`, `If-Match`), `DELETE /roles/:id?replaceWith=` (`roles.delete`) ([6.8](#roles-migration)) | `access.changed` |
-| **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, migratsiya sehrgari | — |
+| **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices`, `GET /tenants/current/requests` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, murojaat (`POST /tenants/current/requests`, `…/:id/messages`), migratsiya sehrgari | `tenant.request` |
 | **Audit** (`/audit`, `audit.view`) | `GET /audit` (kursor) | filtrlar, `GET /exports/audit` | — |
 | **Migratsiya sehrgari** (yangi, admin) | brauzer `localStorage` | `POST /migration/validate`, `POST /migration/import` | — |
 | **Bildirishnomalar** (Notifications) | `GET /products?lowStock=true&pageSize=5`, `GET /debts?overdue=true&pageSize=5` (`debts.view`) | — | `stock.changed`, `sale.*`, `debt.paid` |
@@ -2056,8 +2082,8 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
 sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
-do‘konni o‘chirish), faqat-o‘qish banneri, haydovchi ko‘rinishi (`/deliveries/my`), audit sahifasi
-(serverdan), eksport tugmalari (server eksporti).
+do‘konni o‘chirish, murojaatlar tarixi), faqat-o‘qish banneri («Egasiga murojaat» tugmasi va oynasi — [8.5](#support)),
+haydovchi ko‘rinishi (`/deliveries/my`), audit sahifasi (serverdan), eksport tugmalari (server eksporti).
 
 **Brauzerdan olib tashlanadigan narsalar:** lokal store’dagi biznes ma’lumoti (mahsulot, chek,
 qoldiq…), demo foydalanuvchilar va parollar, brauzerdagi moliyaviy hisoblar (tushum, qarz, foyda
@@ -2077,7 +2103,14 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
 
-**2026-10-18** — egasi paneli, davomi (T-137…T-139: egasiga Telegram xabarlar, ro‘yxatdan o‘tishni yopish, operatorlar va
+**2026-10-17** — egasiga murojaat (T-140, [owner-panel.md → 5.11](owner-panel.md#requests)); do‘kon ilovasiga ta’siri:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Bloklangan do‘kon egasiga faqat telefon qila olardi | `GET/POST /tenants/current/requests`, `POST …/:id/messages` — tizim ichidan murojaat (bloklangan/to‘xtatilgan holatda ham); egasi javobi — `tenant.request` hodisasi ([8.5](#support), [9.2](#realtime)) | Bannerda «Egasiga murojaat» tugmasi va oyna (chat); «Tarif va hisob» da tarix |
+| Egasining aloqasi hech qayerda yo‘q edi | `GET /tenants/current` → `support { phone, telegram, hours }`; `GET /tenants/registration` → `{ mode, support }` | Bannerda va yopiq ro‘yxatdan o‘tish sahifasida telefon / Telegram havolasi |
+
+**2026-10-16** — egasi paneli, davomi (T-137…T-139: egasiga Telegram xabarlar, ro‘yxatdan o‘tishni yopish, operatorlar va
 ikki bosqichli kirish — [owner-panel.md](owner-panel.md)); do‘kon ilovasiga ta’siri bitta:
 
 | Avval | Endi | Frontendda |

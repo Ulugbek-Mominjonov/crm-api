@@ -28,6 +28,11 @@ export interface DomainEventMap {
    * `GET /tenants/current` ni qayta so'raydi (banner, tarif)
    */
   'tenant.status': { status: string; plan: string }
+  /**
+   * Platforma egasi do'kon murojaatiga javob berdi yoki uni yopdi (T-140) —
+   * administrator ilovasi `GET /tenants/current/requests` ni qayta so'raydi (banner, murojaat oynasi)
+   */
+  'tenant.request': { requestId: string; status: string }
 }
 
 export type DomainEventType = keyof DomainEventMap

@@ -8,14 +8,15 @@ savol qolmasligi: nima qurish kerak, qaysi endpoint, qanday javob, qanday xato, 
 |---|---|
 | Repo | `https://github.com/Ulugbek-Mominjonov/crm-owner` (Vite + React 19 + TypeScript + Tailwind v4, CI/CD sozlangan; `README.md`, `DEPLOY.md`) |
 | Production | `https://owner.workspaces.uz` — frontend va API bitta domenda; API — `/api/v1/platform/*` (so‘rovlar nisbiy, `VITE_API_URL` bo‘sh) |
-| Backend manba | [endpoints.md → Platforma egasi paneli](endpoints.md#platform) (31 ta endpoint, generatsiya), [schemas.md](schemas.md) (`Platform*`, `GrantPlanDto`, `CreateTenantDto` …), `apps/api/openapi.json` |
+| Backend manba | [endpoints.md → Platforma egasi paneli](endpoints.md#platform) (35 ta endpoint, generatsiya), [schemas.md](schemas.md) (`Platform*`, `GrantPlanDto`, `CreateTenantDto` …), `apps/api/openapi.json` |
 | Tiplar | `npm run gen:api` → `src/api/schema.d.ts` (`openapi-typescript`, manba — backend `master` dagi `openapi.json`) |
 | Kim nima qiladi | Kod — frontend dasturchi (shu repo). Deploy, secret, domen, serverdagi Caddy, birinchi egasi hisobi — server egasi |
 
 Backend tayyor: barcha endpointlar e2e testlar bilan qoplangan (`apps/api/test/platform.e2e-spec.ts`,
-`platform-admins.e2e-spec.ts`, `platform-notify.e2e-spec.ts`). Ikkinchi bosqich (T-137…T-139) qo‘shgani: egasi
-hisoblari va operatorlar (rol), ikki bosqichli kirish (TOTP), egasining Telegram’i (xabarlar), ro‘yxatdan o‘tishni
-yopish — [5.8](#admins), [5.9](#settings), [5.10](#profile).
+`platform-admins.e2e-spec.ts`, `platform-notify.e2e-spec.ts`, `tenant-requests.e2e-spec.ts`). Ikkinchi bosqich
+(T-137…T-139) qo‘shgani: egasi hisoblari va operatorlar (rol), ikki bosqichli kirish (TOTP), egasining Telegram’i
+(xabarlar), ro‘yxatdan o‘tishni yopish — [5.8](#admins), [5.9](#settings), [5.10](#profile). Uchinchi bosqich (T-140):
+do‘kon murojaatlari va egasining aloqa ma’lumoti — [5.11](#requests), [5.9](#settings).
 
 ## Mundarija
 
@@ -179,14 +180,16 @@ Email + parol → `POST /platform/auth/login`. Xato matni: 401 `AUTH_INVALID_CRE
     "thisMonth": 447000,
     "lastMonth": 198000,
     "months": [ { "month": "2026-09-01", "amount": 198000, "invoices": 2 }, { "month": "2026-10-01", "amount": 447000, "invoices": 4 } ]
-  }
+  },
+  "openRequests": 2
 }
 ```
 
 Kartalar: jami do‘konlar (holat bo‘yicha taqsimot), tarif bo‘yicha, shu oyda ochilganlar, **7 kunda tugaydiganlar**
 (bosilsa → `/tenants?expiresWithinDays=7`), **muddati o‘tganlar** (`overdue` — 3 kunlik imtiyozda, hali
-to‘xtatilmagan; bosilsa → `/tenants?expiresWithinDays=0`), joriy/o‘tgan oy tushumi, 12 oylik ustunli grafik
-(`months` — to‘lov bo‘lmagan oy ro‘yxatda **yo‘q**, grafikda 0 deb chizing). `byStatus`/`byPlan` da bo‘lmagan kalit = 0.
+to‘xtatilmagan; bosilsa → `/tenants?expiresWithinDays=0`), **javob kutayotgan murojaatlar** (`openRequests`; bosilsa →
+`/requests?status=open`; shu son menyudagi «Murojaatlar» yonida belgi — [5.11](#requests)), joriy/o‘tgan oy tushumi, 12 oylik
+ustunli grafik (`months` — to‘lov bo‘lmagan oy ro‘yxatda **yo‘q**, grafikda 0 deb chizing). `byStatus`/`byPlan` da bo‘lmagan kalit = 0.
 
 ### 5.3 `/tenants` — Do‘konlar ro‘yxati
 
@@ -202,7 +205,8 @@ to‘xtatilmagan; bosilsa → `/tenants?expiresWithinDays=0`), joriy/o‘tgan oy
   "limits": { "users": 10, "warehouses": 5, "storageBytes": 2147483648, "fileBytes": 10485760, "smsPerDay": 500 },
   "usage": { "users": 4, "warehouses": 2, "storageBytes": 15728640 },
   "admin": { "name": "Ali Valiyev", "email": "ali@dokon.uz", "phone": "+998901234567" },
-  "activity": { "lastSaleAt": "2026-10-16T14:02:00.000Z", "sales30d": 312 }
+  "activity": { "lastSaleAt": "2026-10-16T14:02:00.000Z", "sales30d": 312 },
+  "openRequests": 0
 }
 ```
 
@@ -212,7 +216,7 @@ to‘xtatilmagan; bosilsa → `/tenants?expiresWithinDays=0`), joriy/o‘tgan oy
 | Filtr: holat, tarif | `status`, `plan` |
 | Filtr: «Tez orada tugaydi» | `expiresWithinDays=7` (muddati o‘tganlar ham kiradi); `0` — faqat o‘tganlar |
 | Saralash | `sort`: `-createdAt` (sukut), `name`, `-name`, `planExpiresAt`, `-planExpiresAt` |
-| Ustunlar | Nom, holat (belgi; `blockedAt` bo‘lsa «Bloklangan»), tarif + muddati (qolgan kunlar; `free` — «—»), foydalanuvchi `usage.users/limits.users`, hajm, administrator (ism, telefon), so‘nggi faollik (`activity.lastSaleAt`, `sales30d`), ochilgan sana |
+| Ustunlar | Nom (yonida murojaat belgisi — `openRequests > 0`), holat (belgi; `blockedAt` bo‘lsa «Bloklangan»), tarif + muddati (qolgan kunlar; `free` — «—»), foydalanuvchi `usage.users/limits.users`, hajm, administrator (ism, telefon), so‘nggi faollik (`activity.lastSaleAt`, `sales30d`), ochilgan sana |
 | Qator | bosilsa → `/tenants/:id` |
 | Tugma | «Do‘kon ochish» → `/tenants/new` |
 
@@ -242,7 +246,8 @@ ko‘rsatmaydi), keyin `/tenants/:id`. Do‘kon egasi `https://crm.workspaces.uz
 administrator aloqasi (telefonga `tel:` havola). Bo‘limlar (tab):
 
 **Umumiy.** Ko‘rsatkichlar (`usage` / `limits` progress), faollik, ochilgan sana, `blockedReason` (bloklangan
-bo‘lsa — qizil blok), `deletionScheduledAt` (o‘chirilayotgan bo‘lsa). Nom va izoh tahriri — `PATCH /platform/tenants/:id`
+bo‘lsa — qizil blok), `deletionScheduledAt` (o‘chirilayotgan bo‘lsa), `openRequests` (javob kutayotgan murojaat bo‘lsa —
+«Murojaatlar» bo‘limiga havola). Nom va izoh tahriri — `PATCH /platform/tenants/:id`
 `{ name?, notes? }` (`notes: ""` — izoh o‘chadi) → yangilangan obyekt.
 
 **Amallar** (sarlavhadagi tugmalar, holatga qarab — 4.1 jadvali):
@@ -283,6 +288,9 @@ Xodimning barcha sessiyalari yopiladi; parolni egasi xodimga o‘zi yetkazadi.
 
 **Jurnal.** `GET /platform/audit?tenantId=:id` — shu do‘kon bo‘yicha egasi amallari (5.7).
 
+**Murojaatlar.** `GET /platform/requests?tenantId=:id` — shu do‘kon murojaatlari, qator bosilsa — murojaat oynasi
+([5.11](#requests)). Bloklangan do‘konda bu bo‘limni birinchi ko‘rsating: administrator «blokni oling» deb shu yerga yozadi.
+
 ### 5.6 `/invoices` — Barcha to‘lovlar
 
 `GET /platform/invoices?page&pageSize&tenantId&state&provider&dateFrom&dateTo` → sahifali `PlatformInvoiceDto`
@@ -313,9 +321,10 @@ Jadval tagida sahifadagi `paid` summalar yig‘indisi — UI hisoblaydi (umumiy 
 | `platform.admin.resetPassword` / `platform.admin.totpReset` | Hisobga parol / TOTP olib tashlandi | `entityId` — hisob |
 | `platform.totp.enable` / `platform.totp.disable` | O‘zi TOTP yoqdi / o‘chirdi | — |
 | `platform.telegram.link` / `platform.telegram.unlink` | Telegram ulandi / uzildi | — |
-| `platform.settings.update` | Ro‘yxatdan o‘tish rejimi | `{ before, after }` |
+| `platform.settings.update` | Ro‘yxatdan o‘tish rejimi, aloqa | `{ before, after }` — faqat o‘zgargan maydonlar |
+| `request.reply` / `request.close` | Do‘kon murojaatiga javob / yopish (`entityId` — murojaat) | `{ type }` / `{ type, withMessage }` |
 
-`group` filtri — `tenant`, `user`, `platform`. `targetTenantName` `null` — do‘kon allaqachon butunlay o‘chirilgan.
+`group` filtri — `tenant`, `user`, `platform`, `request`. `targetTenantName` `null` — do‘kon allaqachon butunlay o‘chirilgan.
 Egasi hisoblari bilan bog‘liq yozuvlarda `targetTenantId` yo‘q, `entityType: "admin"`.
 
 <a id="admins"></a>
@@ -342,11 +351,17 @@ Yagona egasi o‘z TOTP qurilmasini yo‘qotsa — server egasi bazada olib tash
 ### 5.9 `/settings` — Platforma sozlamasi (faqat `owner`)
 
 `GET /platform/settings` → [`PlatformSettingsDto`](schemas.md#platformsettingsdto)
-`{ registrationMode: "open" | "closed", updatedAt, updatedBy }` (o‘qish — operator uchun ham ochiq);
-`PATCH /platform/settings { registrationMode }` → 200, darhol kuchga kiradi (qayta ishga tushirish yo‘q).
+`{ registrationMode: "open" | "closed", support: { phone, telegram, hours }, updatedAt, updatedBy }` (o‘qish — operator
+uchun ham ochiq); `PATCH /platform/settings { registrationMode?, support? }` → 200 — faqat yuborilgan maydonlar o‘zgaradi,
+darhol kuchga kiradi (qayta ishga tushirish yo‘q). Ikki blok:
 
-Almashtirgich «Ro‘yxatdan o‘tish ochiq» bilan izoh: *yopiq bo‘lsa do‘kon ilovasidagi «Do‘kon ochish» yo‘qoladi
-(`POST /tenants/register` → 403 `REGISTRATION_CLOSED`), yangi do‘kon faqat shu paneldan ochiladi.*
+**Ro‘yxatdan o‘tish.** Almashtirgich «Ro‘yxatdan o‘tish ochiq» bilan izoh: *yopiq bo‘lsa do‘kon ilovasidagi «Do‘kon ochish»
+yo‘qoladi (`POST /tenants/register` → 403 `REGISTRATION_CLOSED`), yangi do‘kon faqat shu paneldan ochiladi.*
+
+**Aloqa (do‘konlar ko‘radi, T-140).** Telefon (maks. 32 belgi, erkin ko‘rinishda), Telegram foydalanuvchi nomi (`@`siz,
+5–32 belgi; `@` bilan yuborilsa olib tashlanadi; noto‘g‘ri — 400), ish vaqti (maks. 120). Do‘kon ilovasi ularni
+faqat-o‘qish bannerida, murojaat oynasida va yopiq ro‘yxatdan o‘tish sahifasida ko‘rsatadi — telefonga javob berolmagan
+paytda ham do‘kon sizni topa oladi. Maydonni bo‘shatish — `""` yuboriladi (`null` emas); hammasi ixtiyoriy.
 `updatedBy` — oxirgi o‘zgartirgan hisob nomi (`null` — hech qachon o‘zgartirilmagan).
 
 <a id="profile"></a>
@@ -373,7 +388,49 @@ sozlanmagan: blokni «Telegram bot sozlanmagan» deb ko‘rsating. `telegramLink
 Ulangan hisobga bot yuboradigan xabarlar (hammasi **ulangan faol** hisoblarga, egasi ham, operator ham):
 🆕 yangi do‘kon ro‘yxatdan o‘tdi (nom, administrator ismi, telefon, email); 💳 onlayn to‘lov keldi (do‘kon, summa,
 tarif, oy, Payme/Click — qo‘lda yozilgan to‘lov haqida xabar yo‘q); 🗑 do‘kon administratori o‘chirishni so‘radi
-(30 kun muhlat — panelda qaytarish mumkin). Egasi botni bloklasa ulanish o‘zi olib tashlanadi (`telegramLinked: false`).
+(30 kun muhlat — panelda qaytarish mumkin); 📨 do‘kon murojaat yubordi (do‘kon, tur, blok sababi, kim va telefoni, matn);
+💬 murojaatga qo‘shimcha xabar ([5.11](#requests)). Egasi botni bloklasa ulanish o‘zi olib tashlanadi (`telegramLinked: false`).
+
+<a id="requests"></a>
+
+### 5.11 `/requests` — Do‘kon murojaatlari
+
+Do‘kon administratori (bloklangan yoki to‘xtatilgan bo‘lsa ham) do‘kon ilovasidan egasiga yozadi; egasi va operator shu
+yerda javob beradi. Telefonga javob bo‘lmasa ham xabar yo‘qolmaydi: yangi murojaat va qo‘shimcha xabar haqida ulangan
+hisoblarga Telegram keladi (📨 / 💬). Menyuda «Murojaatlar» yonida belgi — `GET /platform/stats` → `openRequests`
+(javob kutayotganlar; bosh sahifada ham karta).
+
+`GET /platform/requests?page&pageSize&status&type&tenantId` → sahifali [`PlatformRequestDto`](schemas.md#platformrequestdto)
+(yopilmaganlar birinchi, keyin so‘nggi xabar bo‘yicha):
+
+```json
+{ "id": "0192…", "tenantId": "0192…", "tenantName": "Qurilish Mollari", "tenantStatus": "blocked",
+  "type": "unblock", "status": "open", "phone": "+998901234567", "authorName": "Ali Valiyev",
+  "message": "To‘lovni kecha o‘tkazdik, blokni olib tashlang", "messageCount": 1,
+  "lastMessageAt": "2026-10-17T06:30:00.000Z", "createdAt": "2026-10-17T06:30:00.000Z", "closedAt": null }
+```
+
+| Element | Manba |
+|---|---|
+| Filtr: holat | `status` — `open` «Javob kutmoqda», `answered` «Javob berilgan», `closed` «Yopilgan» |
+| Filtr: tur | `type` — `unblock` «Blokdan chiqarish», `billing` «To‘lov», `other` «Boshqa» |
+| Ustunlar | Do‘kon (`tenantStatus` belgisi bilan; bosilsa → `/tenants/:tenantId`), tur, holat, kim yozgan + telefon (`tel:`), xabar (`message`, qisqartirib), `messageCount`, so‘nggi xabar vaqti |
+| Qator | bosilsa → murojaat oynasi |
+
+**Murojaat oynasi** — `GET /platform/requests/:id` → [`PlatformRequestDetailDto`](schemas.md#platformrequestdetaildto):
+ro‘yxat qatori + `messages[]` (`author`: `store` — do‘kon administratori, `platform` — egasi/operator; `authorName`, `body`,
+`createdAt`; eskisi birinchi) — chat ko‘rinishida chizing. Tugmalar:
+
+| Tugma | So‘rov | Izoh |
+|---|---|---|
+| Javob yozish | `POST /platform/requests/:id/reply { message }` (1–1000 belgi) → 200 `PlatformRequestDetailDto`, `status: answered` | Do‘kon administratori javobni darhol ko‘radi (`tenant.request` hodisasi) |
+| Yopish | `POST /platform/requests/:id/close { message? }` → 200, `status: closed`, `closedAt` | Ixtiyoriy yakuniy javob bilan; do‘kon unga yozolmaydi, kerak bo‘lsa yangisini ochadi |
+| Blokdan chiqarish | `POST /platform/tenants/:tenantId/unblock` (5.5) | `tenantStatus === "blocked"` bo‘lsa ko‘rsating; blokni olgach javob yozib yoping |
+
+Yopilgan murojaatga `reply` / `close` — 422 `INVALID_STATUS_TRANSITION`. Do‘kon yana yozsa holat `answered` → `open` ga
+qaytadi (ro‘yxatda yana «javob kutmoqda») va Telegram keladi. Do‘kon tomonida bir vaqtda bitta yopilmagan murojaat bo‘ladi
+— yopmaguningizcha yangisini ocholmaydi (qo‘shimcha gapni shu murojaatga yozadi). Do‘kon kartasida (5.5, «Murojaatlar») —
+`GET /platform/requests?tenantId=:id`.
 
 ---
 
@@ -396,9 +453,9 @@ Shakl do‘kon ilovasi bilan bir xil ([README → 7](README.md#errors)):
 | `AUTH_TOKEN_REUSE` | 401 | Bekor qilingan refresh qayta ishlatildi — hamma sessiya yopildi | Kirish sahifasi + «Xavfsizlik sababli qayta kiring» |
 | `PERMISSION_DENIED` | 403 | `operator` egasiga tegishli amalni chaqirdi (o‘chirish/qaytarish, `/platform/admins`, `PATCH /platform/settings`) | Tugma ko‘rinmasligi kerak edi — `GET /platform/auth/me` ni qayta so‘rab menyuni yangilash |
 | `VALIDATION_FAILED` | 400 | Maydon xato (`errors[].field`), noma’lum maydon, yaroqsiz UUID, noma’lum `sort`/`status` | Maydon ostida xabar |
-| `NOT_FOUND` | 404 | Do‘kon/hisob yo‘q | «Topilmadi» sahifasi yoki ro‘yxatga qaytish |
+| `NOT_FOUND` | 404 | Do‘kon/hisob/murojaat yo‘q | «Topilmadi» sahifasi yoki ro‘yxatga qaytish |
 | `ALREADY_EXISTS` | 409 | `POST /platform/admins` — email band | Maydon ostida |
-| `INVALID_STATUS_TRANSITION` | 422 | Holat amalni rad etdi (do‘kon holati; TOTP allaqachon yoqilgan/yoqilmagan) | `detail` ni ko‘rsatib, kartani qayta so‘rash |
+| `INVALID_STATUS_TRANSITION` | 422 | Holat amalni rad etdi (do‘kon holati; TOTP allaqachon yoqilgan/yoqilmagan; murojaat allaqachon yopilgan) | `detail` ni ko‘rsatib, kartani/murojaatni qayta so‘rash |
 | `SELF_ROLE_CHANGE` / `SELF_DELETE` | 422 | O‘z rolini o‘zgartirish / o‘zini faolsizlantirish | Maydonlar o‘chiq bo‘lishi kerak edi |
 | `RECIPIENT_UNREACHABLE` | 422 | `telegram-link`: bot sozlanmagan (`meta.reason: "no_channel"`) | Telegram blokini «sozlanmagan» deb ko‘rsatish |
 | — | 429 | Login va TOTP kod chegarasi (5/daqiqa) yoki umumiy (300/daqiqa) | «Bir ozdan keyin urinib ko‘ring» |
@@ -438,8 +495,9 @@ Production’da `VITE_API_URL` bo‘sh, so‘rovlar nisbiy; deploy — `DEPLOY.m
 - Rol: `operator` ga «O‘chirish»/«Qaytarish» tugmalari, «Hisoblar» va «Sozlamalar» menyusi ko‘rinmaydi; 403 kelsa `me` qayta so‘raladi.
 - Kirishda `AUTH_TOTP_REQUIRED` → kod maydoni (email/parol saqlanadi); profil: TOTP yoqish (QR + qo‘lda sir, kod bilan tasdiq) va o‘chirish (kod bilan).
 - Hisoblar sahifasi (`owner`): ochish, nom/rol/faollik tahriri (o‘z qatorida rol va faollik o‘chiq), parolni tiklash, TOTP’ni olib tashlash.
-- Sozlamalar (`owner`): ro‘yxatdan o‘tish almashtirgichi, kim/qachon o‘zgartirgani.
+- Sozlamalar (`owner`): ro‘yxatdan o‘tish almashtirgichi, aloqa maydonlari (telefon, Telegram, ish vaqti; bo‘shatish `""`), kim/qachon o‘zgartirgani.
 - Profil: Telegram ulash (QR + «Telegramda ochish», «Tekshirish»), uzish; bot sozlanmagan — blok «sozlanmagan».
+- Murojaatlar: menyuda `openRequests` belgisi (bosh sahifa kartasi ham); ro‘yxat holat/tur filtrlari bilan; oynada chat, «Javob yozish», «Yopish»; bloklangan do‘konda «Blokdan chiqarish» tugmasi; do‘kon kartasida «Murojaatlar» bo‘limi; 422 xabari ko‘rsatiladi.
 - Responsiv (planshet/telefon), o‘zbek tili, sanalar Toshkent vaqtida, summalar `99 000 so‘m` ko‘rinishida.
 - `npm run lint`, `npm run build`, `npm test` yashil (CI shuni tekshiradi, deploy — `main` ga push).
 
@@ -462,5 +520,10 @@ Egasi paneli bilan birga do‘kon API’sida kichik o‘zgarishlar bor ([README 
 4. **Ro‘yxatdan o‘tish yopilishi mumkin** (T-138): kirish sahifasi ochilganda `GET /tenants/registration` (ochiq yo‘l) →
    `{ mode: "open" | "closed" }`; `closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish sahifasini yashiring.
    `POST /tenants/register` yopiq rejimda 403 `REGISTRATION_CLOSED` — «Yangi do‘kon ochish vaqtincha yopiq».
+5. **Egasiga murojaat** (T-140): faqat-o‘qish bannerida (administrator uchun) «Egasiga murojaat» tugmasi va oyna —
+   `GET/POST /tenants/current/requests`, `POST /tenants/current/requests/:id/messages`; egasi javob berganda
+   `tenant.request` hodisasi; `GET /tenants/current` → `support` (egasining telefoni, Telegram’i, ish vaqti) bannerda
+   ([README → 8.5](README.md#support)).
+6. **`GET /tenants/registration`** endi `{ mode, support }` qaytaradi — yopiq ro‘yxatdan o‘tish sahifasida aloqani ko‘rsating.
 
 Qolgan hamma narsa o‘zgarmagan.

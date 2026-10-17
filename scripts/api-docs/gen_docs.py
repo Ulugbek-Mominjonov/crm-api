@@ -111,6 +111,8 @@ EVENTS = {
     ('POST', '/platform/tenants/:id/plan'): '`tenant.status` (do‘konga)',
     ('POST', '/platform/tenants/:id/delete'): '`tenant.status` (do‘konga)',
     ('POST', '/platform/tenants/:id/restore'): '`tenant.status` (do‘konga)',
+    ('POST', '/platform/requests/:id/reply'): '`tenant.request` (do‘konga)',
+    ('POST', '/platform/requests/:id/close'): '`tenant.request` (do‘konga)',
 }
 
 # ───────────────────────────── Bo'limlar tartibi va kirish matni
@@ -119,9 +121,9 @@ GROUPS = [
      'Kirish, tokenni yangilash, chiqish, joriy foydalanuvchi, parol va yangi do‘kon ochish. '
      'To‘liq oqim (token qayerda saqlanadi, 401 da nima qilinadi, bir nechta tab) — '
      '[README → Autentifikatsiya](README.md#auth).'),
-    ('account', 'Do‘kon hisobi: tarif, holat, o‘chirish', [r'^/tenants/current'],
-     'Sozlamalar → «Tarif va hisob» sahifasi. Faqat administrator. Holatlar va cheklovlar — '
-     '[README → Do‘kon holati va tarif](README.md#tenant).'),
+    ('account', 'Do‘kon hisobi: tarif, holat, o‘chirish, egasiga murojaat', [r'^/tenants/current'],
+     'Sozlamalar → «Tarif va hisob» sahifasi va faqat-o‘qish banneridagi «Egasiga murojaat». Faqat administrator. '
+     'Holatlar va cheklovlar — [README → Do‘kon holati va tarif](README.md#tenant), murojaat — [README → 8.5](README.md#support).'),
     ('billing', 'Obuna to‘lovi (Payme, Click)', [r'^/billing'],
      'Tarifni to‘lash: hisob-faktura yaratiladi, foydalanuvchi Payme/Click sahifasida to‘laydi, provayder '
      'serverimizga webhook yuboradi va tarif uzayadi. Frontend faqat `POST/GET /billing/invoices` ni chaqiradi.'),
@@ -202,7 +204,8 @@ GROUPS = [
     ('platform', 'Platforma egasi paneli', [r'^/platform'],
      'DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do‘konlar ro‘yxati, ochish, '
      'bloklash, tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali; egasi hisoblari va '
-     'operatorlar (`role`), ikki bosqichli kirish (TOTP), egasining Telegram’i, platforma sozlamasi. O‘z kirishi '
+     'operatorlar (`role`), ikki bosqichli kirish (TOTP), egasining Telegram’i, platforma sozlamasi (ro‘yxatdan o‘tish, aloqa); '
+     'do‘kon murojaatlari (javob, yopish). O‘z kirishi '
      '(`/platform/auth/*`, token `kind: platform`, cookie `platform_refresh`), do‘kon tokeni o‘tmaydi. '
      'To‘liq qo‘llanma — [owner-panel.md](owner-panel.md).'),
     ('health', 'Sog‘liq tekshiruvi', [r'^/health'],
@@ -255,11 +258,22 @@ NOTES = {
         '«Parolni tiklash» oynasi (yangi parol). 204; hisobning barcha sessiyalari yopiladi — o‘ziniki bo‘lsa qayta kiradi.',
     ('POST', '/platform/admins/:id/totp/reset'):
         '«TOTP’ni olib tashlash» (qurilma yo‘qolganda), tasdiq oynasi bilan. 204; 422 — yoqilmagan.',
-    ('GET', '/platform/settings'): '«Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, kim va qachon o‘zgartirgan.',
+    ('GET', '/platform/settings'):
+        '«Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, egasining aloqasi (`support` — do‘kon ilovasida bannerda ko‘rinadi), '
+        'kim va qachon o‘zgartirgan.',
     ('PATCH', '/platform/settings'):
-        'Almashtirgich (faqat egasi): `closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; '
-        'do‘konni faqat panel ochadi. Darhol kuchga kiradi.',
-    ('GET', '/platform/stats'): 'Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar) va 12 oylik tushum grafigi.',
+        'Faqat egasi, faqat yuborilgan maydonlar. `registrationMode: closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va '
+        '`POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. `support { phone, telegram, hours }` — `""` o‘chiradi. Darhol kuchga kiradi.',
+    ('GET', '/platform/stats'):
+        'Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar), 12 oylik tushum grafigi, `openRequests` — menyudagi «Murojaatlar» belgisi.',
+    ('GET', '/platform/requests'):
+        '«Murojaatlar» sahifasi: yopilmaganlar birinchi; `status=open` — javob kutayotganlar, `type`, `tenantId` (do‘kon kartasidagi bo‘lim). '
+        'Qatorda do‘kon (holati bilan), kim yozgan, telefon, birinchi xabar qisqacha, xabarlar soni.',
+    ('GET', '/platform/requests/:id'): 'Murojaat oynasi: barcha xabarlar (`author`: `store` / `platform`), javob va yopish tugmalari.',
+    ('POST', '/platform/requests/:id/reply'):
+        'Javob matni (1–1000 belgi) → `answered`; do‘kon administratori bannerda ko‘radi. Blokdan chiqarish — alohida tugma '
+        '(`POST /platform/tenants/:id/unblock`). Yopilganiga — 422.',
+    ('POST', '/platform/requests/:id/close'): '«Yopish» (ixtiyoriy yakuniy javob bilan) → `closed`; do‘kon unga yozolmaydi, yangisini ochadi.',
     ('GET', '/platform/tenants'):
         'Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, '
         '`sort` (`-createdAt` sukut, `name`, `planExpiresAt`). Har qator: `usage`, `admin` (aloqa), `activity` (so‘nggi chek).',
@@ -321,12 +335,22 @@ NOTES = {
         'platforma egasi ro‘yxatdan o‘tishni yopgan: «Yangi do‘kon ochish vaqtincha yopiq» (oldindan `GET /tenants/registration`).',
     ('GET', '/tenants/registration'):
         'Kirish sahifasi ochilganda (hisobsiz): `mode: closed` bo‘lsa «Do‘kon ochish» havolasini va ro‘yxatdan o‘tish '
-        'sahifasini yashiring (`/register` ga kirilsa — xabar). `open` — avvalgidek.',
+        'sahifasini yashiring (`/register` ga kirilsa — xabar va `support` dagi aloqa). `open` — avvalgidek.',
     # account
     ('GET', '/tenants/current'):
         '«Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `deletionScheduledAt`, `limits` va '
-        '`usage` — «3 / 10 foydalanuvchi», «1,2 GB / 2 GB» kabi. Banner uchun holat hamma rolga login/refresh javobida ham '
-        'bor (`user.tenant.status`) — README → Do‘kon holati.',
+        '`usage` — «3 / 10 foydalanuvchi», «1,2 GB / 2 GB» kabi; `support` — egasining aloqasi (banner va murojaat oynasi). '
+        'Banner uchun holat hamma rolga login/refresh javobida ham bor (`user.tenant.status`) — README → Do‘kon holati.',
+    ('GET', '/tenants/current/requests'):
+        'Banner («Egasiga murojaat») va «Tarif va hisob» sahifasidagi murojaatlar bo‘limi: yopilmagani bo‘lsa — oyna uni ko‘rsatadi '
+        '(xabarlar, javob yozish), bo‘lmasa — yangi murojaat formasi. `tenant.request` hodisasida qayta so‘rang.',
+    ('POST', '/tenants/current/requests'):
+        'Forma: tur (`unblock` «Blokdan chiqarish», `billing` «To‘lov», `other` «Boshqa»), matn (1–1000), telefon (ixtiyoriy, '
+        'sukut — administrator telefoni). Bloklangan/to‘xtatilgan do‘konda ham ishlaydi. 409 `ALREADY_EXISTS` — yopilmagani bor '
+        '(`errors[0].meta.requestId`), unga xabar yozing; 429 — 24 soatda 5 ta xabar.',
+    ('POST', '/tenants/current/requests/:id/messages'):
+        'Murojaat oynasidagi «Yuborish»: egasi javobiga javob yoki qo‘shimcha gap; holat yana `open`. Yopilganiga — 422, '
+        'yangisini oching.',
     ('POST', '/tenants/current/delete'):
         '«Xavfli zona». Parol bilan tasdiq; javobda yangilangan hisob (`status: deleting`, `deletionScheduledAt`). '
         '30 kun — faqat o‘qish, keyin hamma narsa o‘chadi. Oldin zaxira olishni taklif qiling (`GET /backup/export`).',

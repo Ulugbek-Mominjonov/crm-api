@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { IsEmail, IsNotEmpty, IsString, MaxLength } from 'class-validator'
 import { IsPhone } from '@/common/validation/phone'
 import { Trim } from '@/common/validation/decorators'
+import { PlatformSupportDto } from '@/modules/platform/dto/platform-settings.dto'
 import { MAX_PASSWORD_LENGTH } from '../password.service'
 
 /** Yangi do'kon (07 §7.9, T-124): do'kon + egasi (administrator) */
@@ -36,8 +37,13 @@ export class RegisterDto {
   password!: string
 }
 
-/** Ro'yxatdan o'tish ochiqmi (T-138) — kirish sahifasi «Do'kon ochish» havolasini shunga qarab ko'rsatadi */
+/**
+ * Ro'yxatdan o'tish ochiqmi (T-138) — kirish sahifasi «Do'kon ochish» havolasini shunga qarab
+ * ko'rsatadi; egasining aloqasi (T-140) — yopiq bo'lsa «platformaga murojaat qiling» uchun
+ */
 export class RegistrationInfoDto {
   @ApiProperty({ enum: ['open', 'closed'], description: '`closed` — platforma egasi yopgan; `POST /tenants/register` 403 `REGISTRATION_CLOSED`' })
   mode!: 'open' | 'closed'
+  @ApiProperty({ type: PlatformSupportDto, description: 'Platforma egasining aloqasi (telefon, Telegram, ish vaqti) — hammasi `null` bo‘lishi mumkin' })
+  support!: PlatformSupportDto
 }

@@ -25,12 +25,14 @@ export class RegistrationController {
   @Public()
   @Get('registration')
   @ApiOperation({
-    summary: 'Ro‘yxatdan o‘tish ochiqmi',
-    description: 'Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi.',
+    summary: 'Ro‘yxatdan o‘tish ochiqmi va egasining aloqasi',
+    description:
+      'Kirish sahifasi «Do‘kon ochish» havolasini shunga qarab ko‘rsatadi. `closed` — platforma egasi yopgan, do‘konni u ochadi; ' +
+      '`support` — egasining telefoni/Telegram’i (yopiq rejimda va bloklangan do‘kon bannerida ko‘rsating).',
   })
   @ApiOkResponse({ type: RegistrationInfoDto })
-  async registration(): Promise<RegistrationInfoDto> {
-    return { mode: await this.settings.registrationMode() }
+  registration(): Promise<RegistrationInfoDto> {
+    return this.settings.publicInfo()
   }
 
   @Public()
