@@ -72,6 +72,9 @@ describe('Smena hisoboti (GET /cash/shifts/:id/report)', () => {
       debtPaymentsCash: 20_000,
       debtPaymentsBank: 10_000,
       supplierPayments: 0,
+      deliveryFees: 0,
+      // Shu smenada bekor qilingan chek: puli kirgan va qaytgan — ikkalasi teskari amallar qatorida (T-145)
+      reversals: { cancelledSalesIn: 100_000, cancelledSalesOut: 100_000, cancelledReturnsOut: 0, cancelledReturnsIn: 0, deletedExpensesIn: 0, deletedSalaryIn: 0 },
       expectedBalance: 155_000,
     })
     // Smena kirim/chiqimi va ochilish qoldig'i hisobiy qoldiqni aynan beradi
@@ -84,6 +87,35 @@ describe('Smena hisoboti (GET /cash/shifts/:id/report)', () => {
     await post('cash/shifts/close', { countedBalance: 150_000 }, 200)
     const closed = await request(app.getHttpServer()).get(`/api/v1/cash/shifts/${shift.id}/report`).set('Authorization', auth).expect(200)
     expect(closed.body).toMatchObject({ expectedBalance: 155_000, shift: { status: 'closed', difference: -5_000, cashierName: 'Test Admin' } })
+  })
+
+  it('kassa daftari (T-145): boshqa smenada bekor qilingan chek va o‘chirilgan xarajat — har ikki smena hisobotida teskari amallar qatori, qatorlar yig‘indisi = kirim/chiqim', async () => {
+    const p = await seedProduct(a.tenantId, a.warehouseId, { qty: '100', price: 100_000n })
+    const first = await post('cash/shifts/open', { openingBalance: 0 })
+    const sale = await post('sales', { items: [{ productId: p, qty: 1 }], paid: { cash: 100_000, card: 0, transfer: 0 } })
+    const expense = await post('expenses', { category: 'transport', amount: 10_000, method: 'cash' })
+    await post('cash/shifts/close', { countedBalance: 90_000 }, 200)
+
+    const second = await post('cash/shifts/open', { openingBalance: 90_000 })
+    await post(`sales/${sale.id}/cancel`, {}, 200)
+    await request(app.getHttpServer()).delete(`/api/v1/expenses/${expense.id}`).set('Authorization', auth).expect(204)
+
+    const a1 = (await request(app.getHttpServer()).get(`/api/v1/cash/shifts/${first.id}/report`).set('Authorization', auth).expect(200)).body
+    // Birinchi smena: sotuv naqdi «bekor qilinganlar» qatorida (chek endi bekor), xarajat chiqimi o'z qatorida
+    expect(a1).toMatchObject({
+      sales: { count: 0, cash: 0, cancelled: 1 }, expenses: 10_000,
+      reversals: { cancelledSalesIn: 100_000, cancelledSalesOut: 0, deletedExpensesIn: 0 },
+      shift: { cashIn: 100_000, cashOut: 10_000 },
+    })
+    const a2 = (await request(app.getHttpServer()).get(`/api/v1/cash/shifts/${second.id}/report`).set('Authorization', auth).expect(200)).body
+    // Ikkinchi smena: chek puli qaytarildi, xarajat puli qaytdi — hujjatlar boshqa smenada, lekin pul shu yerda
+    expect(a2).toMatchObject({
+      sales: { count: 0, cash: 0, cancelled: 0 }, expenses: 0,
+      reversals: { cancelledSalesIn: 0, cancelledSalesOut: 100_000, deletedExpensesIn: 10_000 },
+      shift: { cashIn: 10_000, cashOut: 100_000 },
+      expectedBalance: 0,
+    })
+    expect(await testDb.cashLedgerEntry.count({ where: { shiftId: { in: [first.id, second.id] } } })).toBe(4)
   })
 
   it('boshqa do‘kon smenasi — 404', async () => {

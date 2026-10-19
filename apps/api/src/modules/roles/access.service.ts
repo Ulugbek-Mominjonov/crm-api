@@ -32,9 +32,15 @@ const MAX_ENTRIES = 10_000
  * JOIN). Rol tahriri faqat rol yozuvini, rol almashtirish — foydalanuvchi
  * yozuvini bekor qiladi.
  */
+/** Foydalanuvchi keshi: roli va sessiyalar yopilgan vaqt (soniya, `iat` bilan solishtiriladi) */
+interface UserEntry {
+  roleId: string
+  invalidBefore: number | null
+}
+
 @Injectable()
 export class AccessService {
-  private readonly userRoles: TtlCache<string, string>
+  private readonly userRoles: TtlCache<string, UserEntry>
   private readonly roles: TtlCache<string, Access>
 
   constructor(
@@ -46,25 +52,44 @@ export class AccessService {
     this.roles = cached ? new TtlCache(ACCESS_TTL_MS, MAX_ENTRIES) : TtlCache.disabled()
   }
 
-  /** Faol, o'chirilmagan hisobning huquqi; aks holda `null` (kirish yopiq) */
-  async forUser(tenantId: string, userId: string): Promise<Access | null> {
-    const roleId = this.userRoles.get(userId)
-    const cached = roleId === undefined ? undefined : this.roles.get(roleId)
-    if (cached) return cached
+  /**
+   * Faol, o'chirilmagan hisobning huquqi; aks holda `null` (kirish yopiq).
+   * `issuedAt` (token `iat`, soniya) sessiyalar yopilgan vaqtdan oldin bo'lsa
+   * ham `null` — parol almashgach eski access token darhol o'chadi (T-147).
+   */
+  async forUser(tenantId: string, userId: string, issuedAt?: number): Promise<Access | null> {
+    const cachedEntry = this.userRoles.get(userId)
+    const cachedAccess = cachedEntry && this.roles.get(cachedEntry.roleId)
+    const loaded = cachedEntry && cachedAccess ? { entry: cachedEntry, access: cachedAccess } : await this.loadUser(tenantId, userId)
+    if (!loaded) return null
+    if (issuedAt !== undefined && loaded.entry.invalidBefore !== null && issuedAt < loaded.entry.invalidBefore) return null
+    return loaded.access
+  }
 
-    // So'rov tranzaksiyasidan OLDIN (guard) — o'z qisqa tranzaksiyasida, RLS bilan
+  /** So'rov tranzaksiyasidan OLDIN (guard) — o'z qisqa tranzaksiyasida, RLS bilan; ikkala keshga yoziladi */
+  private async loadUser(tenantId: string, userId: string): Promise<{ entry: UserEntry; access: Access } | null> {
     const user = await this.prisma.inTenantTransaction(tenantId, (tx) =>
       tx.user.findFirst({
         // Bo'shatilgan xodim ham kira olmaydi (login bilan bir xil qoida) — tokeni tugashini kutmaydi
         where: { id: userId, deletedAt: null, isActive: true, employee: { status: { not: 'fired' } } },
-        select: { role: { select: { id: true, key: true, permissions: true } } },
+        select: { tokensInvalidBefore: true, role: { select: { id: true, key: true, permissions: true } } },
       }),
     )
     if (!user) return null
     const access = toAccess(user.role)
-    this.userRoles.set(userId, access.roleId)
+    const entry: UserEntry = {
+      roleId: access.roleId,
+      // Soniyagacha (JWT `iat` soniyada): shu soniyada berilgan token amal qiladi
+      invalidBefore: user.tokensInvalidBefore ? Math.floor(user.tokensInvalidBefore.getTime() / 1000) : null,
+    }
+    this.userRoles.set(userId, entry)
     this.roles.set(access.roleId, access)
-    return access
+    return { entry, access }
+  }
+
+  /** Foydalanuvchi keshini DARHOL tashlash — tenant tranzaksiyasidan tashqarida (refresh oqimi) */
+  forget(userId: string): void {
+    this.userRoles.delete(userId)
   }
 
   /** Rol ruxsatlari o'zgardi yoki rol o'chirildi — COMMIT'dan keyin */

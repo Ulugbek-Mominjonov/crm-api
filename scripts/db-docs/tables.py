@@ -18,7 +18,7 @@ GROUPS = [
     ('sales', 'Savdo, kassa va mijozlar', (
         "Chek (sotuv va qaytarish), uning qatorlari, nasiya to'lovlari, kassa smenalari, takliflar, "
         "yetkazib berish va fiskal cheklar."),
-     ['clients', 'sales', 'sale_items', 'debt_payments', 'cash_shifts', 'cash_movements', 'quotes',
+     ['clients', 'sales', 'sale_items', 'debt_payments', 'cash_shifts', 'cash_movements', 'cash_ledger', 'quotes',
       'quote_items', 'deliveries', 'fiscal_receipts']),
     ('purchase', "Xarid va ta'minotchilar", (
         "Ta'minotchidan kirim buyurtmasi, qabul qilish va to'lov."),
@@ -119,6 +119,10 @@ TABLES = {
         "Kassa smenalari: ochilish qoldig'i, kirim va chiqim, yopilishda kutilgan va sanalgan summa, farq. "
         "Do'konda bir vaqtda bitta ochiq smena."),
     'cash_movements': "Kassaga sotuvdan tashqari naqd kirim yoki chiqim (maydalash, egasi olib ketdi …) — smenaga bog'liq.",
+    'cash_ledger': (
+        "Kassa daftari (T-145): har bir naqd harakati — qaysi smenada, qaysi turda, qaysi hujjatdan; `amount` ishorali. "
+        "`cashCtes` hujjat bilan bitta so'rovda yozadi; smena hisoboti shundan tuziladi (qatorlar yig'indisi = "
+        "`cash_in`/`cash_out`), tungi invariant solishtiradi. Faqat qo'shiladi; tarix vaqt tamg'asi bo'yicha tiklangan."),
     'quotes': (
         "Takliflar (smeta): mijoz, mas'ul xodim, summalar, amal qilish muddati, holat. Sotuvga aylantirilganda "
         "`sale_id` bir marta to'ldiriladi."),
@@ -226,6 +230,14 @@ ENUM_LABELS = {
         'transfer_in': "boshqa ombordan ko'chirish (kirim)",
     },
     'SaleStatus': {'completed': "to'langan", 'pending': 'nasiya (qarz bor)', 'cancelled': 'bekor qilingan'},
+    'CashLedgerKind': {
+        'sale': 'chek naqdi (kirim)', 'sale_cancel': 'chek bekor qilindi (chiqim)', 'return': 'qaytarish (chiqim)',
+        'return_cancel': 'qaytarish bekor qilindi (kirim)', 'expense': 'naqd xarajat (chiqim; tahrir/tiklash ham)',
+        'expense_reversal': "xarajat o'chirildi (kirim)", 'payroll': "xodimga naqd to'lov (chiqim)",
+        'payroll_reversal': "maosh to'lovi o'chirildi (kirim)", 'debt_payment': "naqd qarz to'lovi (kirim)",
+        'supplier_payment': "ta'minotchiga naqd (chiqim)", 'movement': "qo'lda kirim/chiqim",
+        'delivery_fee': 'alohida yetkazish narxi (kirim)',
+    },
     'POStatus': {'ordered': 'buyurtma berildi', 'partial': 'qisman qabul qilindi', 'received': 'qabul qilindi',
                  'cancelled': 'bekor qilindi'},
     'QuoteStatus': {'draft': 'qoralama', 'sent': 'yuborildi', 'accepted': 'qabul qilindi',
@@ -284,6 +296,8 @@ COLUMNS = {
     'price_tier': 'Narx turi: chakana yoki ulgurji',
     'unit': "O'lchov birligi",
     'shift_id': 'Kassa smenasi',
+    'fee_shift_id': "Alohida yetkazish narxi kassaga tushgan smena; bo'sh — tushmagan (smena yopiq edi) yoki chekli yetkazish",
+    'tokens_invalid_before': "Shu vaqtdan oldin berilgan access tokenlar yaroqsiz — sessiyalar yopilganda (T-147)",
     'warehouse_id': 'Ombor',
     'customer_id': 'Mijoz',
     'seller_id': "Sotuvchi / mas'ul xodim",

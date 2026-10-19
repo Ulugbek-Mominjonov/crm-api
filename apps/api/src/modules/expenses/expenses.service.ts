@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Prisma, type PayMethod } from '@prisma/client'
+import { Prisma, type CashLedgerKind, type PayMethod } from '@prisma/client'
 import { currentContext } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, moneyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
@@ -144,7 +144,7 @@ export class ExpensesService {
                     ${dto.method}::"PayMethod", ${dto.date ?? businessDate()}::date, ${dto.note ?? null},
                     ${currentContext().userId ?? null}::uuid, ${shiftId}::uuid)
             RETURNING 1)`,
-          ...this.cash(shiftId, delta),
+          ...this.cash(shiftId, delta, 'expense', id),
         ],
         Prisma.sql`SELECT 1`,
       ),
@@ -170,7 +170,7 @@ export class ExpensesService {
     const delta = unapplied ? 0n : cashEffect(method, amount) - cashEffect(before.method, before.amount)
     const shiftId = this.shiftFor(register, delta)
 
-    await this.write(id, delta, shiftId, Prisma.sql`
+    await this.write(id, delta, shiftId, 'expense', Prisma.sql`
       category = ${dto.category ?? before.category}::"ExpenseCategory", amount = ${amount},
       method = ${method}::"PayMethod", date = ${dto.date ?? dateFromDb(before.date)}::date,
       note = ${dto.note === undefined ? before.note : dto.note},
@@ -193,7 +193,7 @@ export class ExpensesService {
     const before = await this.lockExpense(id)
     if (before.deletedAt) throw new NotFoundError(RESOURCE, id)
     const delta = -appliedCashEffect(before)
-    await this.write(id, delta, this.shiftFor(register, delta), Prisma.sql`deleted_at = now()`)
+    await this.write(id, delta, this.shiftFor(register, delta), 'expense_reversal', Prisma.sql`deleted_at = now()`)
     await this.audit.log({
       action: 'expense.delete',
       entityType: 'expense',
@@ -209,7 +209,7 @@ export class ExpensesService {
     if (!before.deletedAt) return toExpenseDto(before)
     const delta = appliedCashEffect(before)
     const shiftId = this.shiftFor(register, delta)
-    await this.write(id, delta, shiftId, Prisma.sql`deleted_at = NULL, shift_id = COALESCE(${shiftId}::uuid, shift_id)`)
+    await this.write(id, delta, shiftId, 'expense', Prisma.sql`deleted_at = NULL, shift_id = COALESCE(${shiftId}::uuid, shift_id)`)
     await this.audit.log({ action: 'expense.restore', entityType: 'expense', entityId: id })
     return this.get(id)
   }
@@ -219,12 +219,13 @@ export class ExpensesService {
     return delta === 0n ? null : this.register.requireOpenShift(register)
   }
 
-  private cash(shiftId: string | null, delta: bigint): Prisma.Sql[] {
-    return shiftId ? this.register.cashCtes(shiftId, delta) : []
+  /** Kassa ta'siri — daftarga hujjat va turi bilan (`expense` — yozish/tahrir/tiklash, `expense_reversal` — o'chirish) */
+  private cash(shiftId: string | null, delta: bigint, kind: CashLedgerKind, refId: string): Prisma.Sql[] {
+    return shiftId ? this.register.cashCtes(shiftId, delta, { kind, refId }) : []
   }
 
   /** Xarajat qatori va kassa ta'siri — bitta so'rov */
-  private async write(id: string, delta: bigint, shiftId: string | null, set: Prisma.Sql): Promise<void> {
+  private async write(id: string, delta: bigint, shiftId: string | null, kind: CashLedgerKind, set: Prisma.Sql): Promise<void> {
     const { tenantId } = requireTenantTx()
     await this.prisma.scoped
       .$executeRaw(
@@ -234,7 +235,7 @@ export class ExpensesService {
               UPDATE expenses SET ${set}
                WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid
               RETURNING 1)`,
-            ...this.cash(shiftId, delta),
+            ...this.cash(shiftId, delta, kind, id),
           ],
           Prisma.sql`SELECT 1`,
         ),

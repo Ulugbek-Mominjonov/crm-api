@@ -3,8 +3,10 @@ import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import type { RefreshToken } from '@prisma/client'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
+import { currentTenantTx } from '@/prisma/tenant-tx'
 import { DomainError } from '@/common/errors/domain.error'
 import type { Env } from '@/config/env.schema'
+import { AccessService } from '@/modules/roles/access.service'
 import { ttlToSeconds } from './token.service'
 
 /** Token uzunligi — 32 bayt = 256 bit entropiya */
@@ -39,6 +41,7 @@ export class RefreshTokenService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly access: AccessService,
     config: ConfigService<Env, true>,
   ) {
     this.ttlSec = ttlToSeconds(config.get('REFRESH_TOKEN_TTL', { infer: true }))
@@ -120,12 +123,21 @@ export class RefreshTokenService {
    * Barcha qurilmalardan chiqish. `tx` berilsa — o'sha tranzaksiyada:
    * foydalanuvchi o'chirilib, sessiyalari ochiq qolmasin.
    */
+  /**
+   * Barcha sessiyalarni yopish: refresh tokenlar bekor, undan oldin berilgan
+   * ACCESS tokenlar ham (`users.tokens_invalid_before`, T-147) — keyingi
+   * so'rovdanoq 401, token muddatini kutmaydi. Huquq keshi: tranzaksiya
+   * ichida — COMMIT'dan keyin, tashqarida (refresh oqimi) — darhol tozalanadi.
+   */
   async revokeAllForUser(userId: string, tx?: TenantTx): Promise<number> {
     const client = tx ?? this.prisma
     const { count } = await client.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     })
+    await client.$executeRaw`SELECT auth_invalidate_tokens(${userId}::uuid)`
+    if (currentTenantTx()) this.access.userChanged(userId)
+    else this.access.forget(userId)
     return count
   }
 

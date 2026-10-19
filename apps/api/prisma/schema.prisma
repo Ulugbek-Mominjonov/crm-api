@@ -195,6 +195,8 @@ model User {
   /// Ketma-ket noto'g'ri parollar soni va blok muddati (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi
   failedLogins Int       @default(0) @map("failed_logins") @db.SmallInt
   lockedUntil  DateTime? @map("locked_until") @db.Timestamptz
+  /// Shu vaqtdan OLDIN berilgan access tokenlar yaroqsiz (sessiyalar yopilganda; T-147)
+  tokensInvalidBefore DateTime? @map("tokens_invalid_before") @db.Timestamptz
 
   @@unique([tenantId, email])
   @@unique([tenantId, id])
@@ -683,6 +685,8 @@ model CashShift {
 
   /// Bir tenantda faqat BITTA ochiq smena (I8) — qisman noyob indeks
   /// migratsiyada qo'lda qo'shiladi (Prisma buni ifodalay olmaydi).
+  ledger CashLedgerEntry[]
+
   @@unique([tenantId, id])
   @@index([tenantId, status])
   @@index([tenantId, openedAt])
@@ -709,6 +713,44 @@ model CashMovement {
   @@index([tenantId, shiftId])
   @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("cash_movements")
+}
+
+/// Kassa daftari (T-145): har bir naqd harakati — smena, tur, hujjat; `amount` ishorali (+ kirim, − chiqim).
+/// Smena hisoboti shundan tuziladi: qatorlar yig'indisi = `cash_in`/`cash_out`. Faqat qo'shiladi.
+model CashLedgerEntry {
+  id        String         @id @default(uuid(7)) @db.Uuid
+  tenantId  String         @map("tenant_id") @db.Uuid
+  /// Pul harakati bo'lgan smena (hujjat smenasi emas — bekor qilish/o'chirish boshqa smenada bo'lishi mumkin)
+  shiftId   String         @map("shift_id") @db.Uuid
+  /// Harakat turi: sotuv, bekor qilish, qaytarish, xarajat, maosh, qarz/ta'minotchi to'lovi, qo'lda harakat, yetkazish narxi
+  kind      CashLedgerKind
+  /// Ishorali summa: + kassaga kirdi, − chiqdi
+  amount    BigInt
+  /// Hujjat (chek, xarajat, to'lov, harakat); shablon xarajatlari to'plami — null
+  refId     String?        @map("ref_id") @db.Uuid
+  userId    String?        @map("user_id") @db.Uuid
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz
+
+  shift CashShift @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Cascade)
+
+  @@index([tenantId, shiftId])
+  @@index([tenantId, refId])
+  @@map("cash_ledger")
+}
+
+enum CashLedgerKind {
+  sale
+  sale_cancel
+  return
+  return_cancel
+  expense
+  expense_reversal
+  payroll
+  payroll_reversal
+  debt_payment
+  supplier_payment
+  movement
+  delivery_fee
 }
 
 enum CashDirection {
@@ -989,6 +1031,8 @@ model Delivery {
   lng           Float?
   createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz
   deliveredAt   DateTime?      @map("delivered_at") @db.Timestamptz
+  /// Alohida yetkazish narxi kassaga tushgan smena (T-146); NULL — tushmagan (smena yopiq edi) yoki chekli yetkazish
+  feeShiftId    String?        @map("fee_shift_id") @db.Uuid
   deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz
 
   sale     Sale?     @relation(fields: [saleId], references: [id], onDelete: SetNull)
@@ -1215,6 +1259,8 @@ model PlatformAdmin {
   /// Ketma-ket noto'g'ri parol yoki kod bloki (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi
   failedLogins  Int       @default(0) @map("failed_logins") @db.SmallInt
   lockedUntil   DateTime? @map("locked_until") @db.Timestamptz
+  /// Shu vaqtdan OLDIN berilgan access tokenlar yaroqsiz (sessiyalar yopilganda; T-147)
+  tokensInvalidBefore DateTime? @map("tokens_invalid_before") @db.Timestamptz
   totpSecret    String?   @map("totp_secret")
   totpEnabledAt DateTime? @map("totp_enabled_at") @db.Timestamptz
   /// Oxirgi qabul qilingan 30 soniyalik qadam — bitta kod ikki marta o'tmaydi

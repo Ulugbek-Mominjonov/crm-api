@@ -16627,6 +16627,43 @@
           "cash"
         ]
       },
+      "ShiftReversalsDto": {
+        "type": "object",
+        "properties": {
+          "cancelledSalesIn": {
+            "type": "number",
+            "description": "Keyin bekor qilingan cheklar naqdi (shu smenada kirgan edi)"
+          },
+          "cancelledSalesOut": {
+            "type": "number",
+            "description": "Chek bekor qilinganda qaytarilgan naqd"
+          },
+          "cancelledReturnsOut": {
+            "type": "number",
+            "description": "Keyin bekor qilingan qaytarishlar naqdi (shu smenada chiqqan edi)"
+          },
+          "cancelledReturnsIn": {
+            "type": "number",
+            "description": "Qaytarish bekor qilinganda qaytib kirgan naqd"
+          },
+          "deletedExpensesIn": {
+            "type": "number",
+            "description": "O‘chirilgan naqd xarajat puli qaytgani"
+          },
+          "deletedSalaryIn": {
+            "type": "number",
+            "description": "O‘chirilgan naqd maosh to‘lovi qaytgani"
+          }
+        },
+        "required": [
+          "cancelledSalesIn",
+          "cancelledSalesOut",
+          "cancelledReturnsOut",
+          "cancelledReturnsIn",
+          "deletedExpensesIn",
+          "deletedSalaryIn"
+        ]
+      },
       "ShiftReportDto": {
         "type": "object",
         "properties": {
@@ -16667,6 +16704,18 @@
             "type": "number",
             "description": "Ta’minotchiga naqd to‘lovlar"
           },
+          "deliveryFees": {
+            "type": "number",
+            "description": "Alohida yetkazish narxi — haydovchi olgan naqd (T-146)"
+          },
+          "reversals": {
+            "description": "Qatorlar + teskari amallar = cashIn/cashOut (kassa daftari)",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ShiftReversalsDto"
+              }
+            ]
+          },
           "expectedBalance": {
             "type": "number",
             "description": "Hisobiy qoldiq: ochiq smenada — joriy, yopilganda — yopish paytidagi"
@@ -16683,6 +16732,8 @@
           "debtPaymentsCash",
           "debtPaymentsBank",
           "supplierPayments",
+          "deliveryFees",
+          "reversals",
           "expectedBalance"
         ]
       },
@@ -19015,6 +19066,11 @@
             "type": "string",
             "nullable": true,
             "format": "date-time"
+          },
+          "feeShiftId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Alohida narx kassaga tushgan smena (T-146); null — tushmagan (smena yopiq edi) yoki chekli"
           }
         },
         "required": [
@@ -19033,7 +19089,8 @@
           "lat",
           "lng",
           "createdAt",
-          "deliveredAt"
+          "deliveredAt",
+          "feeShiftId"
         ]
       },
       "DeliveryPageDto": {
@@ -19106,6 +19163,10 @@
             "type": "number",
             "description": "Yetkazilganlar narxi (chekli — chekdagi, D3)"
           },
+          "feesNotInRegister": {
+            "type": "number",
+            "description": "Alohida narx kassaga tushmagan yetkazilganlar summasi (smena yopiq edi) — qo‘lda kiriting"
+          },
           "workload": {
             "description": "Haydovchilar yuki — kattasi birinchi",
             "type": "array",
@@ -19119,6 +19180,7 @@
           "onWay",
           "delivered",
           "feeRevenue",
+          "feesNotInRegister",
           "workload"
         ]
       },
@@ -19202,6 +19264,11 @@
             "nullable": true,
             "format": "date-time"
           },
+          "feeShiftId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Alohida narx kassaga tushgan smena (T-146); null — tushmagan (smena yopiq edi) yoki chekli"
+          },
           "sequence": {
             "type": "number",
             "example": 1
@@ -19228,6 +19295,7 @@
           "lng",
           "createdAt",
           "deliveredAt",
+          "feeShiftId",
           "sequence",
           "collect"
         ]
@@ -19846,6 +19914,10 @@
           "expenses": {
             "type": "number"
           },
+          "otherIncome": {
+            "type": "number",
+            "description": "Boshqa daromad: alohida yetkazish narxi (yetkazilgan kuni bo‘yicha, T-146) — tushumga kirmaydi, sof foydaga qo‘shiladi"
+          },
           "netProfit": {
             "type": "number",
             "description": "Sotuvchi rolida yo‘q"
@@ -19857,6 +19929,7 @@
         "required": [
           "revenue",
           "expenses",
+          "otherIncome",
           "salesCount"
         ]
       },

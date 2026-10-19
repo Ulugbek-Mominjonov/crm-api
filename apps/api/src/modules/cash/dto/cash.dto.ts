@@ -141,6 +141,19 @@ export class ShiftReturnsDto {
   @ApiProperty({ description: 'Kassadan qaytarilgan naqd' }) cash!: number
 }
 
+/**
+ * Teskari amallar (T-145): boshqa (yoki shu) smenadagi hujjatning puli shu smenada qaytgan.
+ * Hamma summalar musbat; `In` — kassaga kirgan, `Out` — chiqqan.
+ */
+export class ShiftReversalsDto {
+  @ApiProperty({ description: 'Keyin bekor qilingan cheklar naqdi (shu smenada kirgan edi)' }) cancelledSalesIn!: number
+  @ApiProperty({ description: 'Chek bekor qilinganda qaytarilgan naqd' }) cancelledSalesOut!: number
+  @ApiProperty({ description: 'Keyin bekor qilingan qaytarishlar naqdi (shu smenada chiqqan edi)' }) cancelledReturnsOut!: number
+  @ApiProperty({ description: 'Qaytarish bekor qilinganda qaytib kirgan naqd' }) cancelledReturnsIn!: number
+  @ApiProperty({ description: 'O‘chirilgan naqd xarajat puli qaytgani' }) deletedExpensesIn!: number
+  @ApiProperty({ description: 'O‘chirilgan naqd maosh to‘lovi qaytgani' }) deletedSalaryIn!: number
+}
+
 export class ShiftReportDto {
   @ApiProperty({ type: ShiftDto }) shift!: ShiftDto
   @ApiProperty({ type: ShiftSalesDto }) sales!: ShiftSalesDto
@@ -152,5 +165,8 @@ export class ShiftReportDto {
   @ApiProperty({ description: 'Naqd qarz to‘lovlari' }) debtPaymentsCash!: number
   @ApiProperty({ description: 'Bank orqali qarz to‘lovlari (kassaga tegmaydi)' }) debtPaymentsBank!: number
   @ApiProperty({ description: 'Ta’minotchiga naqd to‘lovlar' }) supplierPayments!: number
+  @ApiProperty({ description: 'Alohida yetkazish narxi — haydovchi olgan naqd (T-146)' }) deliveryFees!: number
+  @ApiProperty({ type: ShiftReversalsDto, description: 'Qatorlar + teskari amallar = cashIn/cashOut (kassa daftari)' })
+  reversals!: ShiftReversalsDto
   @ApiProperty({ description: 'Hisobiy qoldiq: ochiq smenada — joriy, yopilganda — yopish paytidagi' }) expectedBalance!: number
 }

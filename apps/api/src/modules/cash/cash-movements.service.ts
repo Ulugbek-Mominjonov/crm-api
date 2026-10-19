@@ -42,7 +42,7 @@ export class CashMovementsService {
             VALUES (${id}::uuid, ${tenantId}::uuid, ${shiftId}::uuid, ${dto.direction}::"CashDirection",
                     ${dto.amount}::bigint, ${dto.reason}, ${userId}::uuid)
             RETURNING created_at)`,
-          ...this.register.cashCtes(shiftId, delta),
+          ...this.register.cashCtes(shiftId, delta, { kind: 'movement', refId: id }),
         ],
         Prisma.sql`SELECT created_at AS "createdAt" FROM movement`,
       ),

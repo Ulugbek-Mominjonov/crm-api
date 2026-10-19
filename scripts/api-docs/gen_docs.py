@@ -322,7 +322,7 @@ NOTES = {
         'so‘rovlar keshini tozalang va socket’ni uzing. Token yubormasa ham bo‘ladi.',
     ('POST', '/auth/logout-all'):
         'Profil → «Barcha qurilmalardan chiqish». Qaytgan `revoked` — yopilgan sessiyalar soni. Boshqa '
-        'qurilmalardagi access token muddati tugaguncha (≤ 15 daqiqa) ishlashi mumkin. Shu qurilmada darhol login sahifasiga o‘ting.',
+        'qurilmalardagi access token ham keyingi so‘rovdanoq 401 (T-147). Shu qurilmada darhol login sahifasiga o‘ting.',
     ('GET', '/auth/me'):
         'Joriy foydalanuvchi (ism, lavozim, rol, do‘kon). Login/refresh javobida ham xuddi shu `user` bor — '
         'ilova ochilganda alohida chaqirish shart emas. Menyu, sahifa va tugmalar — `permissions` ro‘yxatidan (README → Rollar). '
@@ -549,7 +549,7 @@ NOTES = {
     ('POST', '/cash/shifts/close'):
         'Smena yopish: sanalgan naqd (`countedBalance`), ixtiyoriy kupyuralar (`{"100000": 3, ...}` — yig‘indisi teng bo‘lsin). '
         'Javobda kutilgan/sanalgan/farq. So‘ng Z-hisobot: `GET /cash/shifts/:id/report`.',
-    ('GET', '/cash/shifts/:id/report'): 'X-hisobot (ochiq smena) yoki Z-hisobot (yopilgan): sotuv, qaytarish, naqd kirim/chiqim, xarajat, qarz va ta’minotchi to‘lovlari.',
+    ('GET', '/cash/shifts/:id/report'): 'X-hisobot (ochiq smena) yoki Z-hisobot (yopilgan). Naqd qatorlar kassa daftaridan: sotuv, qaytarish, naqd kirim/chiqim, xarajat, maosh, qarz va ta’minotchi to‘lovlari, yetkazish narxi (`deliveryFees`) va `reversals` (boshqa smenadagi chek bekor qilinishi / xarajat o‘chirilishi puli) — yig‘indisi aynan `cashIn`/`cashOut` ([README → 10.3](README.md#shifts)).',
     ('POST', '/cash/movements'): 'Naqd kirim/chiqim (inkassatsiya, maydalash). Sabab majburiy; faqat ochiq smenada.',
     ('GET', '/cash/movements'): 'Smena ichidagi naqd harakatlar; `shiftId` berilmasa — joriy smena.',
     # debts
@@ -598,7 +598,7 @@ NOTES = {
     ('DELETE', '/purchase-orders/:id'): 'Faqat `ordered` yoki `cancelled` va to‘lanmagan buyurtma (aks holda 409 `PO_ALREADY_RECEIVED`); toast’dagi «Qaytarish» → `.../restore`.',
     # deliveries
     ('GET', '/deliveries'): 'Yetkazishlar sahifasi; `overdue=true` — rejalashtirilgan sanasi o‘tgan faollari.',
-    ('GET', '/deliveries/summary'): 'Kartalar: holatlar bo‘yicha son, yetkazilganlar narxi, haydovchilar yuki.',
+    ('GET', '/deliveries/summary'): 'Kartalar: holatlar bo‘yicha son, yetkazilganlar narxi, `feesNotInRegister` — kassaga tushmagan alohida narxlar (smena yopiq edi; egasi qo‘lda kiritadi), haydovchilar yuki.',
     ('GET', '/deliveries/my'): 'Haydovchi ko‘rinishi: faqat O‘ZIGA (token’dagi xodim) biriktirilgan faol yetkazishlar. Alohida haydovchi roli yo‘q.',
     ('GET', '/deliveries/route'): 'Marshrut varaqasi: haydovchining kungi yetkazishlari va olinadigan pul (`date`, `driverId`).',
     ('POST', '/deliveries'):
@@ -608,6 +608,7 @@ NOTES = {
     ('POST', '/deliveries/:id/status'):
         'Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries.edit` bor rol '
         'HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (haydovchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). '
+        'Alohida narxli yetkazish `delivered` bo‘lganda narx ochiq smena kassasiga kiradi (`feeShiftId`); smena yopiq — kiramaydi (`feeShiftId: null`). '
         'Orqaga — 422 `INVALID_STATUS_TRANSITION`.',
     # expenses
     ('GET', '/expenses'): 'Xarajatlar jurnali. `withDeleted=true` — o‘chirilganlari ham (tiklash uchun).',
@@ -651,7 +652,7 @@ NOTES = {
     ('GET', '/reports/pnl'):
         'Hisobotlar sahifasi: `from`/`to` (YYYY-MM-DD, ≤ 3 yil) — oldingi teng davr bilan solishtirish, trend (kun/oy), to‘lov turlari, '
         'xarajat kategoriyalari, top mahsulot, sotuvchilar va sotilmayotgan tovar (`limit` — shu uchala ro‘yxat uzunligi, sukut 20). Jami (`current/previous`) '
-        'qaytarishlar ayirilgan; `trend` va top ro‘yxatlar — yalpi sotuv (qaytarishsiz), `trend` faqat sotuv bo‘lgan kunlar.',
+        'va `trend` — qaytarishlar ayirilgan (I4); top ro‘yxatlar — yalpi sotuv. `otherIncome` — alohida yetkazish narxi (tushumga kirmaydi, sof foydaga qo‘shiladi).',
     ('GET', '/analytics'):
         'Analitika sahifasi: ABC tahlil (80/95 %) — sotilgan BARCHA mahsulot (jadvalni brauzerda sahifalang), kategoriya va to‘lov '
         'taqsimoti, kunlik trend — yalpi sotuv (qaytarishsiz). Faqat `from`/`to` — `limit` yuborilsa 400.',

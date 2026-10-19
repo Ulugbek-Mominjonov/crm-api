@@ -66,6 +66,7 @@ Oqim do‘kon ilovasidagi bilan bir xil ([README → 5](README.md#auth), [12.1](
 | Yangilash | `POST /platform/auth/refresh` (cookie’ni brauzer o‘zi yuboradi: `credentials: "include"`) → 201, javob login bilan bir xil. 401 da **bir marta**, parallel 401’lar bitta refresh’ni kutadi |
 | Ilova ochilganda | Token yo‘q → `refresh` → muvaffaqiyatli bo‘lsa `GET /platform/auth/me` (sarlavhadagi egasi nomi), aks holda kirish sahifasi |
 | Chiqish | `POST /platform/auth/logout` → `{ ok: true }`, cookie o‘chadi; xotiradagi tokenni ham o‘chiring |
+| Sessiyalar yopilganda | Hisob faolsizlantirilsa, parol tiklansa yoki cookie qayta ishlatilsa — undan oldingi access token ham darhol 401 (T-147); 15 daqiqa kutilmaydi |
 | Xatolar | 401 `AUTH_INVALID_CREDENTIALS` — email/parol xato yoki hisob faolsizlantirilgan (qaysi biri — aytilmaydi); 401 `AUTH_TOTP_REQUIRED` / `AUTH_TOTP_INVALID` — yuqorida; 401 `AUTH_INVALID_REFRESH` — sessiya yo‘q/muddati o‘tgan → kirish sahifasi; 401 `AUTH_TOKEN_REUSE` — bekor qilingan cookie qayta ishlatildi, **barcha** sessiyalar yopildi → kirish sahifasi; 423 `AUTH_ACCOUNT_LOCKED` — ketma-ket 5 ta noto‘g‘ri parol/kod, 15 daqiqa (`meta.until`); 429 `RATE_LIMITED` — daqiqasiga 5 urinish (IP) |
 
 ```json

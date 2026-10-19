@@ -136,7 +136,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 ### `POST /auth/logout-all` — Barcha qurilmalardan chiqish
 
-**Qachon / qanday:** Profil → «Barcha qurilmalardan chiqish». Qaytgan `revoked` — yopilgan sessiyalar soni. Boshqa qurilmalardagi access token muddati tugaguncha (≤ 15 daqiqa) ishlashi mumkin. Shu qurilmada darhol login sahifasiga o‘ting.
+**Qachon / qanday:** Profil → «Barcha qurilmalardan chiqish». Qaytgan `revoked` — yopilgan sessiyalar soni. Boshqa qurilmalardagi access token ham keyingi so‘rovdanoq 401 (T-147). Shu qurilmada darhol login sahifasiga o‘ting.
 
 | | |
 |---|---|
@@ -3356,7 +3356,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 409 `IDEMPOTENCY_MISMA
 
 > Barcha raqamlar bitta agregat so‘rovda; nasiya cheklar ham (I4).
 
-**Qachon / qanday:** X-hisobot (ochiq smena) yoki Z-hisobot (yopilgan): sotuv, qaytarish, naqd kirim/chiqim, xarajat, qarz va ta’minotchi to‘lovlari.
+**Qachon / qanday:** X-hisobot (ochiq smena) yoki Z-hisobot (yopilgan). Naqd qatorlar kassa daftaridan: sotuv, qaytarish, naqd kirim/chiqim, xarajat, maosh, qarz va ta’minotchi to‘lovlari, yetkazish narxi (`deliveryFees`) va `reversals` (boshqa smenadagi chek bekor qilinishi / xarajat o‘chirilishi puli) — yig‘indisi aynan `cashIn`/`cashOut` ([README → 10.3](README.md#shifts)).
 
 | | |
 |---|---|
@@ -4312,7 +4312,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY`
 
 > Holatlar bo‘yicha son, yetkazilganlar narxi, haydovchilar yuki
 
-**Qachon / qanday:** Kartalar: holatlar bo‘yicha son, yetkazilganlar narxi, haydovchilar yuki.
+**Qachon / qanday:** Kartalar: holatlar bo‘yicha son, yetkazilganlar narxi, `feesNotInRegister` — kassaga tushmagan alohida narxlar (smena yopiq edi; egasi qo‘lda kiritadi), haydovchilar yuki.
 
 | | |
 |---|---|
@@ -4484,7 +4484,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`; 404 `NOT_FOUND`; 423 `
 
 > Faqat oldinga: pending → on_way → delivered; faoldan — cancelled. Tahrir huquqi yo‘q bo‘lsa — faqat o‘z yetkazishi.
 
-**Qachon / qanday:** Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries.edit` bor rol HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (haydovchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). Orqaga — 422 `INVALID_STATUS_TRANSITION`.
+**Qachon / qanday:** Holat: `pending` → `on_way` → `delivered`; faol holatdan → `cancelled`. `deliveries.edit` bor rol HAR QANDAY yetkazish holatini o‘zgartiradi; `edit` siz rol (haydovchi) — faqat O‘ZIGA biriktirilganini (aks holda 403). Alohida narxli yetkazish `delivered` bo‘lganda narx ochiq smena kassasiga kiradi (`feeShiftId`); smena yopiq — kiramaydi (`feeShiftId: null`). Orqaga — 422 `INVALID_STATUS_TRANSITION`.
 
 | | |
 |---|---|
@@ -5395,7 +5395,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Oldingi davr bilan solishtirish, trend, to‘lov turlari, top mahsulot/sotuvchi, sotilmayotgan tovar
 
-**Qachon / qanday:** Hisobotlar sahifasi: `from`/`to` (YYYY-MM-DD, ≤ 3 yil) — oldingi teng davr bilan solishtirish, trend (kun/oy), to‘lov turlari, xarajat kategoriyalari, top mahsulot, sotuvchilar va sotilmayotgan tovar (`limit` — shu uchala ro‘yxat uzunligi, sukut 20). Jami (`current/previous`) qaytarishlar ayirilgan; `trend` va top ro‘yxatlar — yalpi sotuv (qaytarishsiz), `trend` faqat sotuv bo‘lgan kunlar.
+**Qachon / qanday:** Hisobotlar sahifasi: `from`/`to` (YYYY-MM-DD, ≤ 3 yil) — oldingi teng davr bilan solishtirish, trend (kun/oy), to‘lov turlari, xarajat kategoriyalari, top mahsulot, sotuvchilar va sotilmayotgan tovar (`limit` — shu uchala ro‘yxat uzunligi, sukut 20). Jami (`current/previous`) va `trend` — qaytarishlar ayirilgan (I4); top ro‘yxatlar — yalpi sotuv. `otherIncome` — alohida yetkazish narxi (tushumga kirmaydi, sof foydaga qo‘shiladi).
 
 | | |
 |---|---|

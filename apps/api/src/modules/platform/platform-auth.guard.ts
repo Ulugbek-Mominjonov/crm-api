@@ -31,8 +31,8 @@ export class PlatformAuthGuard implements CanActivate {
     const payload = await verifyBearer(this.tokens, req)
     if (!isPlatformToken(payload)) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Token bu yo‘l uchun emas')
 
-    const admin = await this.auth.forAdmin(payload.sub)
-    if (!admin) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Hisob faol emas')
+    const admin = await this.auth.forAdmin(payload.sub, payload.iat)
+    if (!admin) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Hisob faol emas yoki sessiya yopilgan')
 
     const allowed = this.reflector.getAllAndOverride<PlatformRole[] | undefined>(PLATFORM_ROLES_KEY, [ctx.getHandler(), ctx.getClass()])
     if (allowed && !allowed.includes(admin.role)) throw new PermissionDeniedError('Bu amal faqat egasi uchun')

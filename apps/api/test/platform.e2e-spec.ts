@@ -80,14 +80,19 @@ describe('Egasi paneli', () => {
 
       const refreshed = await api().post('/api/v1/platform/auth/refresh').set('Cookie', `platform_refresh=${cookie.value}`).expect(201)
       expect(refreshed.body.accessToken).toBeTruthy()
-      // Eski cookie qayta ishlatildi — o'g'irlangan deb hisoblanadi, barcha sessiyalar yopiladi
+      // Eski cookie qayta ishlatildi — o'g'irlangan deb hisoblanadi, barcha sessiyalar yopiladi.
+      // Keyingi soniyaga o'tamiz: bekor qilish vaqti soniyagacha, `owner` tokeni shu soniyada berilgan bo'lsa amal qilaverardi
+      await new Promise((r) => setTimeout(r, 1_100))
       const reuse = await api().post('/api/v1/platform/auth/refresh').set('Cookie', `platform_refresh=${cookie.value}`).expect(401)
       expect(reuse.body.code).toBe('AUTH_TOKEN_REUSE')
       await api().post('/api/v1/platform/auth/refresh').set('Cookie', `platform_refresh=${refreshCookie(refreshed).value}`).expect(401)
 
       await api().post('/api/v1/platform/auth/logout').expect(201)
+      // Barcha sessiyalar yopilgach undan oldingi ACCESS token ham darhol 401 (T-147); yangi kirish ishlaydi
+      await api().get('/api/v1/platform/auth/me').set('Authorization', owner).expect(401)
+      const fresh = `Bearer ${(await login().expect(201)).body.accessToken}`
       // Egasi kirishi egasi jurnalida
-      const audit = await api().get('/api/v1/platform/audit?group=platform').set('Authorization', owner).expect(200)
+      const audit = await api().get('/api/v1/platform/audit?group=platform').set('Authorization', fresh).expect(200)
       expect(audit.body.items.map((e: { action: string }) => e.action)).toContain('platform.login')
     })
 

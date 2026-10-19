@@ -349,7 +349,7 @@ export class PurchaseOrdersService {
               UPDATE purchase_orders SET paid = paid + ${dto.amount}::bigint
                WHERE tenant_id = ${tenantId}::uuid AND id = ${order.id}::uuid
               RETURNING 1)`,
-            ...(dto.method === 'cash' ? this.register.cashCtes(shiftId!, -BigInt(dto.amount)) : []),
+            ...(dto.method === 'cash' ? this.register.cashCtes(shiftId!, -BigInt(dto.amount), { kind: 'supplier_payment', refId: paymentId }) : []),
           ],
           Prisma.sql`SELECT created_at AS "createdAt" FROM payment`,
         ),

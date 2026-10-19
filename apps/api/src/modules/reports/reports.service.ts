@@ -73,6 +73,8 @@ type PnlRow = Omit<PnlDto, 'period' | 'previousPeriod' | 'current' | 'previous' 
   prev: PeriodTotals
   curExpenses: number
   prevExpenses: number
+  curOtherIncome: number
+  prevOtherIncome: number
   payments: Omit<PnlDto['payments'], 'debt'>
   debt: number
   stockValue: number
@@ -176,6 +178,13 @@ export class ReportsService {
              sold AS (SELECT product_id, SUM(base_qty) AS qty, SUM(revenue) AS revenue, SUM(profit) AS profit
                         FROM ${dailyProducts(tenantId, from, to)} x GROUP BY product_id),
              exp AS (SELECT date, category, amount FROM ${periodCosts(tenantId, prevFrom, to)} c),
+             -- Boshqa daromad (T-146): alohida yetkazish narxi — yetkazilgan kuni bo'yicha (tushumga kirmaydi, I4)
+             fees AS (SELECT (delivered_at AT TIME ZONE ${BUSINESS_TIME_ZONE})::date AS date, standalone_fee AS amount
+                        FROM deliveries
+                       WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL AND status = 'delivered'
+                         AND sale_id IS NULL AND standalone_fee > 0
+                         AND delivered_at >= ${prevFrom}::date::timestamp AT TIME ZONE ${BUSINESS_TIME_ZONE}
+                         AND delivered_at < (${to}::date + 1) AT TIME ZONE ${BUSINESS_TIME_ZONE}),
              dead AS (SELECT p.id, p.name, p.unit, p.stock, p.stock * p.cost AS value FROM products p
                        WHERE p.tenant_id = ${tenantId}::uuid AND p.deleted_at IS NULL AND NOT p.archived AND p.stock > 0
                          AND NOT EXISTS (SELECT 1 FROM sold s WHERE s.product_id = p.id))
@@ -184,6 +193,8 @@ export class ReportsService {
           (SELECT ${totalsJson} FROM days WHERE date BETWEEN ${prevFrom}::date AND ${prevTo}::date) AS prev,
           (SELECT COALESCE(SUM(amount), 0)::float8 FROM exp WHERE date BETWEEN ${from}::date AND ${to}::date) AS "curExpenses",
           (SELECT COALESCE(SUM(amount), 0)::float8 FROM exp WHERE date BETWEEN ${prevFrom}::date AND ${prevTo}::date) AS "prevExpenses",
+          (SELECT COALESCE(SUM(amount), 0)::float8 FROM fees WHERE date BETWEEN ${from}::date AND ${to}::date) AS "curOtherIncome",
+          (SELECT COALESCE(SUM(amount), 0)::float8 FROM fees WHERE date BETWEEN ${prevFrom}::date AND ${prevTo}::date) AS "prevOtherIncome",
           (SELECT COALESCE(json_agg(t ORDER BY t.amount DESC, t.category), '[]') FROM (
              SELECT category, SUM(amount) AS amount FROM exp WHERE date BETWEEN ${from}::date AND ${to}::date
               GROUP BY category) t) AS "expensesByCategory",
@@ -216,8 +227,8 @@ export class ReportsService {
              SELECT id AS "productId", name, unit, stock, ROUND(value) AS "stockValue" FROM dead
               ORDER BY value DESC, id LIMIT ${query.limit}) t) AS "deadStock"`
       const r = row!
-      const current = withProfit(r.cur, r.curExpenses)
-      const previous = withProfit(r.prev, r.prevExpenses)
+      const current = withProfit(r.cur, r.curExpenses, r.curOtherIncome)
+      const previous = withProfit(r.prev, r.prevExpenses, r.prevOtherIncome)
       return {
         period: { from, to },
         previousPeriod: { from: prevFrom, to: prevTo },
@@ -299,9 +310,10 @@ function assertPeriod(query: PeriodQueryDto): { from: string; to: string } {
 /** Serverdagi hisob — foyda doim bor (javobdan rolga qarab keyin olib tashlanadi) */
 type ComputedTotals = PnlTotalsDto & Required<Pick<PnlTotalsDto, 'grossProfit' | 'netProfit'>>
 
-function withProfit(t: PeriodTotals, expenses: number): ComputedTotals {
+/** Sof foyda = yalpi foyda − xarajatlar + boshqa daromad (alohida yetkazish narxi, T-146) */
+function withProfit(t: PeriodTotals, expenses: number, otherIncome: number): ComputedTotals {
   const grossProfit = t.revenue - t.cogs
-  return { ...t, grossProfit, expenses, netProfit: grossProfit - expenses }
+  return { ...t, grossProfit, expenses, otherIncome, netProfit: grossProfit - expenses + otherIncome }
 }
 
 /** Frontend `delta`: oldingi 0 bo'lsa — yo'q, aks holda butun foiz */

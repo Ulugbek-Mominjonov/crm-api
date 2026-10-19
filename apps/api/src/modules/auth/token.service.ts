@@ -21,8 +21,10 @@ export interface AccessTokenPayload {
   tid: string
   /** employeeId */
   eid: string
-  /** token identifikatori — bekor qilish uchun */
+  /** token identifikatori (jurnal uchun); bekor qilish — `iat` bo'yicha (`users.tokens_invalid_before`) */
   jti: string
+  /** Berilgan vaqt (soniya) — JWT kutubxonasi qo'yadi; sessiyalar yopilgach undan oldingi tokenlar rad etiladi */
+  iat?: number
 }
 
 /**
@@ -35,6 +37,8 @@ export interface PlatformTokenPayload {
   sub: string
   kind: 'platform'
   jti: string
+  /** Berilgan vaqt (soniya) — `platform_admins.tokens_invalid_before` bilan solishtiriladi */
+  iat?: number
 }
 
 export type TokenPayload = AccessTokenPayload | PlatformTokenPayload
