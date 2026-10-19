@@ -74,11 +74,17 @@ export class PlatformSessionService {
     })
   }
 
+  /** Barcha sessiyalar: refresh tokenlar bekor, undan oldingi access tokenlar ham (`tokens_invalid_before`, T-147) */
   async revokeAll(adminId: string): Promise<number> {
-    const { count } = await this.prisma.platformRefreshToken.updateMany({
-      where: { adminId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    })
+    const [{ count }] = await this.prisma.$transaction([
+      this.prisma.platformRefreshToken.updateMany({ where: { adminId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      // Soniyagacha: JWT `iat` soniyada — shu soniyada berilgan token amal qiladi
+      this.prisma.platformAdmin.update({
+        where: { id: adminId },
+        data: { tokensInvalidBefore: new Date(Math.floor(Date.now() / 1000) * 1000) },
+        select: { id: true },
+      }),
+    ])
     return count
   }
 }

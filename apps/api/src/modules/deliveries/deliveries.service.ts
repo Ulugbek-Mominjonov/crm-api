@@ -5,9 +5,11 @@ import { dateFromDb, dateToDb, moneyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
 import { DomainError, NotFoundError, PermissionDeniedError } from '@/common/errors/domain.error'
+import { withCtes } from '@/common/db/sql'
 import { businessDate } from '@/common/time'
 import { AuditService } from '@/modules/audit/audit.service'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
+import { CashRegisterService } from '@/modules/cash/cash-register.service'
 import { DomainEvents } from '@/modules/realtime/domain-events.service'
 import { PrismaService } from '@/prisma/prisma.service'
 import { requireTenantTx } from '@/prisma/tenant-tx'
@@ -41,12 +43,21 @@ const DELIVERY_SELECT = {
   driverId: true,
   createdAt: true,
   deliveredAt: true,
+  feeShiftId: true,
   sale: { select: { number: true, deliveryFee: true, outstanding: true } },
   customer: { select: { id: true, name: true } },
   driver: { select: { id: true, name: true } },
 } satisfies Prisma.DeliverySelect
 
 type DeliveryRecord = Prisma.DeliveryGetPayload<{ select: typeof DELIVERY_SELECT }>
+
+/** Qulflangan yetkazish — holat o'tishi va alohida narx uchun */
+interface LockedDelivery {
+  status: DeliveryStatus
+  driverId: string | null
+  saleId: string | null
+  standaloneFee: bigint | null
+}
 
 /**
  * Yetkazib berish (T-074, T-075). Chekli yetkazishning narxi chekda
@@ -59,6 +70,7 @@ export class DeliveriesService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly events: DomainEvents,
+    private readonly register: CashRegisterService,
   ) {}
 
   async list(query: DeliveryQueryDto): Promise<Paged<DeliveryDto>> {
@@ -102,11 +114,14 @@ export class DeliveriesService {
   async summary(): Promise<DeliverySummaryDto> {
     const { tenantId } = requireTenantTx()
     const [[counts], load] = await Promise.all([
-      this.prisma.scoped.$queryRaw<{ pending: bigint; onWay: bigint; delivered: bigint; fee: Prisma.Decimal }[]>`
+      this.prisma.scoped.$queryRaw<{ pending: bigint; onWay: bigint; delivered: bigint; fee: Prisma.Decimal; uncollected: Prisma.Decimal }[]>`
         SELECT COUNT(*) FILTER (WHERE d.status = 'pending') AS pending,
                COUNT(*) FILTER (WHERE d.status = 'on_way') AS "onWay",
                COUNT(*) FILTER (WHERE d.status = 'delivered') AS delivered,
-               COALESCE(SUM(COALESCE(s.delivery_fee, d.standalone_fee, 0)) FILTER (WHERE d.status = 'delivered'), 0) AS fee
+               COALESCE(SUM(COALESCE(s.delivery_fee, d.standalone_fee, 0)) FILTER (WHERE d.status = 'delivered'), 0) AS fee,
+               -- Alohida narx kassaga tushmagan (smena yopiq edi) — egasi qo'lda kiritadi (T-146)
+               COALESCE(SUM(d.standalone_fee) FILTER (WHERE d.status = 'delivered' AND d.sale_id IS NULL
+                                                        AND d.fee_shift_id IS NULL AND d.standalone_fee > 0), 0) AS uncollected
           FROM deliveries d
           LEFT JOIN sales s ON s.tenant_id = d.tenant_id AND s.id = d.sale_id
          WHERE d.tenant_id = ${tenantId}::uuid AND d.deleted_at IS NULL`,
@@ -123,6 +138,7 @@ export class DeliveriesService {
       onWay: Number(counts!.onWay),
       delivered: Number(counts!.delivered),
       feeRevenue: counts!.fee.toNumber(),
+      feesNotInRegister: counts!.uncollected.toNumber(),
       workload: load.map((l) => ({ driver: l.id ? { id: l.id, name: l.name ?? '' } : null, count: Number(l.count) })),
     }
   }
@@ -219,6 +235,8 @@ export class DeliveriesService {
    * yetkazishni (haydovchi rejimi, T-075).
    */
   async setStatus(id: string, dto: DeliveryStatusDto, user: AuthContext): Promise<DeliveryDto> {
+    // Yetkazildi: alohida narx kassaga kirishi mumkin — registr qulfi BIRINCHI (Q33), keyin hujjat
+    const register = dto.status === 'delivered' ? await this.register.lock() : null
     const current = await this.lock(id)
     if (!hasPermission(user.permissions, 'deliveries', 'edit') && current.driverId !== user.employeeId) {
       throw new PermissionDeniedError('Faqat o‘zingizga biriktirilgan yetkazish holatini o‘zgartira olasiz')
@@ -228,16 +246,31 @@ export class DeliveriesService {
         { field: 'status', code: 'INVALID_STATUS_TRANSITION', meta: { from: current.status, to: dto.status } },
       ])
     }
-    const row = await this.prisma.scoped.delivery.update({
-      where: { id },
-      data: { status: dto.status, ...(dto.status === 'delivered' && { deliveredAt: new Date() }) },
-      select: DELIVERY_SELECT,
-    })
+    // Alohida yetkazish narxi (T-146): haydovchi olgan naqd — ochiq smena bo'lsa kassaga; smena yopiq
+    // bo'lsa kassaga tushmaydi (`feeShiftId: null`, xulosada `feesNotInRegister`); chekli — chekda (D3)
+    const fee = current.saleId ? 0n : (current.standaloneFee ?? 0n)
+    const feeShiftId = register && fee > 0n ? register.activeShiftId : null
+    const { tenantId } = requireTenantTx()
+    await this.prisma.scoped.$executeRaw(
+      withCtes(
+        [
+          Prisma.sql`delivery AS (
+            UPDATE deliveries SET status = ${dto.status}::"DeliveryStatus",
+                   delivered_at = CASE WHEN ${dto.status}::"DeliveryStatus" = 'delivered' THEN now() ELSE delivered_at END,
+                   fee_shift_id = COALESCE(${feeShiftId}::uuid, fee_shift_id)
+             WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid
+            RETURNING 1)`,
+          ...(feeShiftId ? this.register.cashCtes(feeShiftId, fee, { kind: 'delivery_fee', refId: id }) : []),
+        ],
+        Prisma.sql`SELECT 1`,
+      ),
+    )
+    const row = await this.prisma.scoped.delivery.findUniqueOrThrow({ where: { id }, select: DELIVERY_SELECT })
     await this.audit.log({
       action: 'delivery.status',
       entityType: 'delivery',
       entityId: id,
-      diff: { from: current.status, to: dto.status },
+      diff: { from: current.status, to: dto.status, ...(feeShiftId && { feeToCash: moneyFromDb(fee) }) },
     })
     this.events.publish('delivery.status', { deliveryId: id, status: dto.status })
     return toDeliveryDto(row, businessDate())
@@ -310,10 +343,10 @@ export class DeliveriesService {
   }
 
   /** Qator qulfi: parallel holat o'zgarishi "oldinga" qoidasini chetlab o'tmasin */
-  private async lock(id: string): Promise<{ status: DeliveryStatus; driverId: string | null; saleId: string | null }> {
+  private async lock(id: string): Promise<LockedDelivery> {
     const { tenantId } = requireTenantTx()
-    const [row] = await this.prisma.scoped.$queryRaw<{ status: DeliveryStatus; driverId: string | null; saleId: string | null }[]>`
-      SELECT status, driver_id AS "driverId", sale_id AS "saleId"
+    const [row] = await this.prisma.scoped.$queryRaw<LockedDelivery[]>`
+      SELECT status, driver_id AS "driverId", sale_id AS "saleId", standalone_fee AS "standaloneFee"
         FROM deliveries
        WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid AND deleted_at IS NULL
          FOR UPDATE`
@@ -354,5 +387,6 @@ function toDeliveryDto(d: DeliveryRecord, today: string): DeliveryDto {
     lng: d.lng,
     createdAt: d.createdAt,
     deliveredAt: d.deliveredAt,
+    feeShiftId: d.feeShiftId,
   }
 }

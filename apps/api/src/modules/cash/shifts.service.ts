@@ -53,6 +53,13 @@ interface ReportRow extends ShiftRecord {
   debtCash: bigint
   debtBank: bigint
   supplierCash: bigint
+  deliveryFees: bigint
+  cancelledSalesIn: bigint
+  cancelledSalesOut: bigint
+  cancelledReturnsOut: bigint
+  cancelledReturnsIn: bigint
+  deletedExpensesIn: bigint
+  deletedSalaryIn: bigint
   cashBalance: bigint
 }
 
@@ -210,41 +217,44 @@ export class ShiftsService {
              (SELECT em.name FROM users u
                 JOIN employees em ON em.tenant_id = u.tenant_id AND em.id = u.employee_id
                WHERE u.tenant_id = sh.tenant_id AND u.id = sh.user_id) AS "cashierName",
-             s.*, m.*, e.*, pr.*, d.*, sp.*, ts.cash_balance AS "cashBalance"
+             s.*, l.*, d.*, ts.cash_balance AS "cashBalance"
         FROM cash_shifts sh
         JOIN tenant_state ts ON ts.tenant_id = sh.tenant_id
        CROSS JOIN LATERAL (
          SELECT COUNT(*) FILTER (WHERE type = 'sale' AND status <> 'cancelled')                      AS "salesCount",
                 COALESCE(SUM(total) FILTER (WHERE type = 'sale' AND status <> 'cancelled'), 0)       AS "salesTotal",
-                COALESCE(SUM(paid_cash) FILTER (WHERE type = 'sale' AND status <> 'cancelled'), 0)   AS "salesCash",
                 COALESCE(SUM(paid_card) FILTER (WHERE type = 'sale' AND status <> 'cancelled'), 0)   AS "salesCard",
                 COALESCE(SUM(paid_transfer) FILTER (WHERE type = 'sale' AND status <> 'cancelled'), 0) AS "salesTransfer",
                 COALESCE(SUM(total - paid_cash - paid_card - paid_transfer)
                          FILTER (WHERE type = 'sale' AND status <> 'cancelled'), 0)                  AS "salesCredit",
                 COUNT(*) FILTER (WHERE type = 'sale' AND status = 'cancelled')                       AS cancelled,
                 COUNT(*) FILTER (WHERE type = 'return' AND status <> 'cancelled')                    AS "returnsCount",
-                COALESCE(SUM(total) FILTER (WHERE type = 'return' AND status <> 'cancelled'), 0)     AS "returnsTotal",
-                COALESCE(SUM(paid_cash) FILTER (WHERE type = 'return' AND status <> 'cancelled'), 0) AS "returnsCash"
+                COALESCE(SUM(total) FILTER (WHERE type = 'return' AND status <> 'cancelled'), 0)     AS "returnsTotal"
            FROM sales WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid) s
        CROSS JOIN LATERAL (
-         SELECT COALESCE(SUM(amount) FILTER (WHERE direction = 'in'), 0)  AS "manualIn",
-                COALESCE(SUM(amount) FILTER (WHERE direction = 'out'), 0) AS "manualOut"
-           FROM cash_movements WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid) m
+         -- Naqd qatorlar KASSA DAFTARIDAN (T-145): yig'indisi aynan cash_in/cash_out; bekor qilingan
+         -- chek/qaytarish puli va o'chirilgan xarajat/maosh qaytarilgani — alohida «teskari amallar»
+         SELECT COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'sale' AND s.status <> 'cancelled'), 0)      AS "salesCash",
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'return' AND s.status <> 'cancelled'), 0)   AS "returnsCash",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'movement' AND l.amount > 0), 0)             AS "manualIn",
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'movement' AND l.amount < 0), 0)            AS "manualOut",
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'expense'), 0)                              AS expenses,
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'payroll'), 0)                              AS "salaryPayments",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'debt_payment'), 0)                          AS "debtCash",
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'supplier_payment'), 0)                     AS "supplierCash",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'delivery_fee'), 0)                          AS "deliveryFees",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'sale' AND s.status = 'cancelled'), 0)       AS "cancelledSalesIn",
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'sale_cancel'), 0)                          AS "cancelledSalesOut",
+                COALESCE(-SUM(l.amount) FILTER (WHERE l.kind = 'return' AND s.status = 'cancelled'), 0)    AS "cancelledReturnsOut",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'return_cancel'), 0)                         AS "cancelledReturnsIn",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'expense_reversal'), 0)                      AS "deletedExpensesIn",
+                COALESCE(SUM(l.amount) FILTER (WHERE l.kind = 'payroll_reversal'), 0)                      AS "deletedSalaryIn"
+           FROM cash_ledger l
+           LEFT JOIN sales s ON s.tenant_id = l.tenant_id AND s.id = l.ref_id AND l.kind IN ('sale', 'return')
+          WHERE l.tenant_id = ts.tenant_id AND l.shift_id = ${id}::uuid) l
        CROSS JOIN LATERAL (
-         SELECT COALESCE(SUM(amount), 0) AS expenses
-           FROM expenses WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid
-            AND method = 'cash' AND deleted_at IS NULL) e
-       CROSS JOIN LATERAL (
-         SELECT COALESCE(SUM(amount), 0) AS "salaryPayments"
-           FROM payroll_entries WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid
-            AND method = 'cash' AND deleted_at IS NULL) pr
-       CROSS JOIN LATERAL (
-         SELECT COALESCE(SUM(amount) FILTER (WHERE method = 'cash'), 0) AS "debtCash",
-                COALESCE(SUM(amount) FILTER (WHERE method = 'bank'), 0) AS "debtBank"
+         SELECT COALESCE(SUM(amount) FILTER (WHERE method = 'bank'), 0) AS "debtBank"
            FROM debt_payments WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid) d
-       CROSS JOIN LATERAL (
-         SELECT COALESCE(SUM(amount), 0) AS "supplierCash"
-           FROM supplier_payments WHERE tenant_id = ts.tenant_id AND shift_id = ${id}::uuid AND method = 'cash') sp
        WHERE sh.tenant_id = ${tenantId}::uuid AND sh.id = ${id}::uuid`
     if (!r) throw new NotFoundError(RESOURCE, id)
     const n = (v: bigint) => Number(v)
@@ -267,6 +277,15 @@ export class ShiftsService {
       debtPaymentsCash: n(r.debtCash),
       debtPaymentsBank: n(r.debtBank),
       supplierPayments: n(r.supplierCash),
+      deliveryFees: n(r.deliveryFees),
+      reversals: {
+        cancelledSalesIn: n(r.cancelledSalesIn),
+        cancelledSalesOut: n(r.cancelledSalesOut),
+        cancelledReturnsOut: n(r.cancelledReturnsOut),
+        cancelledReturnsIn: n(r.cancelledReturnsIn),
+        deletedExpensesIn: n(r.deletedExpensesIn),
+        deletedSalaryIn: n(r.deletedSalaryIn),
+      },
       expectedBalance: r.status === 'open' ? n(r.cashBalance) : moneyFromDb(r.expectedBalance ?? 0n),
     }
   }

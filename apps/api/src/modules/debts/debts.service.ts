@@ -108,7 +108,7 @@ export class DebtsService {
                       ${dto.method}::"PayMethod", ${date}::date, ${userId}::uuid, ${shiftId}::uuid)
               RETURNING created_at)`,
             ...debtPaidCtes(tenantId, sale.id, dto.amount),
-            ...(dto.method === 'cash' ? this.register.cashCtes(shiftId!, BigInt(dto.amount)) : []),
+            ...(dto.method === 'cash' ? this.register.cashCtes(shiftId!, BigInt(dto.amount), { kind: 'debt_payment', refId: id }) : []),
           ],
           Prisma.sql`SELECT created_at AS "createdAt" FROM payment`,
         ),

@@ -12,7 +12,7 @@ export const TENANT_MODELS = new Set([
   'Client', 'Supplier', 'Category', 'Warehouse',
   'Product', 'ProductStock', 'StockMovement',
   'Sale', 'SaleItem', 'DebtPayment',
-  'CashShift', 'CashMovement',
+  'CashShift', 'CashMovement', 'CashLedgerEntry',
   'Expense', 'ExpenseTemplate', 'PayrollEntry',
   'PurchaseOrder', 'POItem', 'SupplierPayment',
   'Quote', 'QuoteItem', 'Delivery',

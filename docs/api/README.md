@@ -514,6 +514,7 @@ Refresh xatolari — barchasida xotirani tozalab login sahifasiga («Sessiya tug
   keyin — bu oddiy holat, foydalanuvchiga «o‘g‘irlik» ogohlantirishi ko‘rsatmang;
 - 423 `AUTH_ACCOUNT_DISABLED` — xodim ishdan bo‘shatilgan (bo‘shatilgan zahoti sessiyalari ham yopiladi).
 
+<a id="sessions"></a>
 ### 5.4 Chiqish va sessiyalar
 
 | Amal | Endpoint | Natija |
@@ -523,9 +524,13 @@ Refresh xatolari — barchasida xotirani tozalab login sahifasiga («Sessiya tug
 | Parolni o‘zgartirish | `POST /auth/change-password` `{ currentPassword, newPassword }` | Barcha sessiyalar (shu qurilma ham) yopiladi → login sahifasi |
 | Admin parolni tiklasa / hisobni o‘chirsa | `PATCH /users/:id` (`password` yoki `isActive:false`) | O‘sha foydalanuvchining barcha sessiyalari yopiladi |
 
-Access token bekor qilinmaydi, lekin huquq tokenda emas: rol o‘zgarishi va hisobni faolsizlantirish/o‘chirish
-foydalanuvchining KEYINGI so‘rovidanoq kuchga kiradi (faolsiz hisob — 401). Xodimni ishdan bo‘shatish esa
-login/refresh’ni yopadi — ochiq sessiya access token muddati (≤ 15 daq) tugaguncha ishlaydi.
+Huquq tokenda emas: rol o‘zgarishi va hisobni faolsizlantirish/o‘chirish foydalanuvchining KEYINGI so‘rovidanoq
+kuchga kiradi (faolsiz hisob — 401). **Sessiyalar yopilganda access token ham darhol o‘chadi** (T-147): «barcha
+qurilmalardan chiqish», parol o‘zgarishi, admin parolni tiklashi, faolsizlantirish, o‘chirish, xodimni bo‘shatish,
+refresh tokenni qayta ishlatish — shu paytdan OLDIN berilgan har qanday access token keyingi so‘rovda 401
+`AUTH_INVALID_CREDENTIALS` (realtime ham shu token bilan ulanmaydi). Boshqa server instansiyasi ko‘pi bilan 30 s
+kechikib ko‘radi. Oddiy `POST /auth/logout` faqat shu qurilma refresh’ini bekor qiladi — access token muddati
+(≤ 15 daq) tugaguncha amal qiladi.
 
 Parol siyosati: kamida 8 belgi, ommabop parollar rad etiladi (400 `VALIDATION_FAILED`).
 
@@ -1153,7 +1158,8 @@ hisobsiz sahifalar (yopiq ro‘yxatdan o‘tish) uchun `GET /tenants/registratio
 - **Token muddati tugaganda server ulanishni uzadi** (`disconnect` sababi `"io server disconnect"`) —
   socket.io bu holatda o‘zi QAYTA ULANMAYDI: refresh qilib, `socket.connect()` chaqiring.
   `auth` ni funksiya qilib bering — har ulanishda joriy token olinadi. Hisob faolsizlantirilganda,
-  o‘chirilganda, paroli almashganda yoki xodim bo‘shatilganda ham shu zahoti uziladi — refresh 401 beradi → login sahifasi.
+  o‘chirilganda, paroli almashganda yoki xodim bo‘shatilganda ham shu zahoti uziladi — eski token bilan qayta
+  ulanib bo‘lmaydi (`connect_error`), refresh 401 beradi → login sahifasi.
 - Qayta ulanganda uzilish paytidagi hodisalar kelmaydi → faol so‘rovlarni (ekrandagi ma’lumotni)
   qayta so‘rang.
 
@@ -1339,9 +1345,18 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
 - Yopish — `POST /cash/shifts/close { countedBalance, note?, denominations? }` →
   `expectedBalance`, `countedBalance`, `difference` saqlanadi. `denominations` — `{"100000": 3, "50000": 2}`
   (kupyura → soni, yig‘indisi `countedBalance` ga teng bo‘lishi shart).
-- Hisobot — `GET /cash/shifts/:id/report`: ochiq smena — X, yopilgan — Z (sotuv/qaytarish to‘lov
-  turlari bo‘yicha, naqd kirim/chiqim, xarajat, xodimlarga naqd to‘lovlar — `salaryPayments` ([10.22](#payroll)),
-  qarz va ta’minotchi to‘lovlari, kutilgan balans).
+- Hisobot — `GET /cash/shifts/:id/report`: ochiq smena — X, yopilgan — Z. Naqd qatorlar **kassa daftaridan**
+  (T-145, `cash_ledger`: har naqd harakati — smena, tur, hujjat), shuning uchun yig‘indisi aynan `shift.cashIn` /
+  `shift.cashOut` ga teng: `sales.cash` (bekor qilinmagan cheklar), `returns.cash`, `manualIn/Out`, `expenses`,
+  `salaryPayments` ([10.22](#payroll)), `debtPaymentsCash`, `supplierPayments`, `deliveryFees` (alohida yetkazish
+  narxi, [10.9](#deliveries)) va **`reversals`** — boshqa (yoki shu) smenadagi hujjatning puli shu smenada
+  qaytgani: `cancelledSalesIn` (keyin bekor qilingan chek naqdi shu smenada kirgan edi), `cancelledSalesOut`
+  (bekor qilishda qaytarilgan), `cancelledReturnsOut`/`cancelledReturnsIn`, `deletedExpensesIn`,
+  `deletedSalaryIn`. Solishtirish: `cashIn = sales.cash + cancelledSalesIn + cancelledReturnsIn + manualIn +
+  debtPaymentsCash + deliveryFees + deletedExpensesIn + deletedSalaryIn`, `cashOut = returns.cash +
+  cancelledReturnsOut + cancelledSalesOut + manualOut + expenses + salaryPayments + supplierPayments`;
+  `expectedBalance = openingBalance + cashIn − cashOut`. Yopilgan smenada `expectedBalance` — yopish paytidagi.
+  `debtPaymentsBank` kassaga tegmaydi (ma’lumot uchun).
 - Kassa balansi faqat ochiq smenada o‘zgaradi.
 
 **Ochiq smena talab qiladigan amallar** (aks holda 423 `SHIFT_REQUIRED`):
@@ -1462,6 +1477,7 @@ import qilingan naqd xarajatlar ham shunday.
   taklif (`draft`, `rejected`, muddati o‘tgan ham) aylantiriladi — «Sotuvga aylantirish» tugmasini faqat
   `accepted` da ko‘rsating. Javob — yaratilgan chek (`SaleDto`); taklifda `saleId`.
 
+<a id="deliveries"></a>
 ### 10.9 Yetkazib berish
 
 - Yaratish: POS’da chek bilan (`POST /sales` → `delivery`) yoki alohida `POST /deliveries`
@@ -1474,6 +1490,11 @@ import qilingan naqd xarajatlar ham shunday.
   yetkazishni; `edit` siz rol (haydovchi, omborchi) — faqat o‘ziga biriktirilganini (aks holda 403).
 - `GET /deliveries/route?date&driverId` — marshrut varaqasi (olinadigan pul bilan).
 - `overdue: true` — `scheduledDate` o‘tgan faol yetkazish. Tahrir — faqat faol holatda.
+- **Alohida yetkazish narxi** (cheksiz yetkazish, `fee`; T-146): `delivered` bo‘lganda haydovchi olgan naqd
+  **ochiq smena kassasiga kiradi** (`feeShiftId` — qaysi smena; smena hisobotida `deliveryFees`, [10.3](#shifts)).
+  Smena yopiq bo‘lsa kassaga tushmaydi — `feeShiftId: null`, `GET /deliveries/summary` → `feesNotInRegister`
+  (egasi keyin `POST /cash/movements` bilan kiritadi). Foyda hisobotida — `otherIncome` ([10.14](#reports)).
+  Chekli yetkazish narxi chekning o‘zida (D3) — qayta kirmaydi. Yetkazilgan yozuv o‘chirilmaydi.
 
 ### 10.10 Xarajatlar
 
@@ -1619,6 +1640,8 @@ Qoidalar:
 - `expenses` (dashboard va P&L) = xarajatlar jurnali + hisoblangan maosh (`salary` kategoriyasi — maosh, bonus,
   mukofot, jarima manfiy; [10.22](#payroll)); xodimlarga to‘lovlar (avans, maosh) xarajat emas. `GET /expenses/summary`
   faqat jurnalni sanaydi — shuning uchun «Xarajatlar» sahifasi va P&L `expenses` farq qilishi mumkin.
+- P&L `otherIncome` — boshqa daromad: alohida yetkazish narxi, yetkazilgan kuni bo‘yicha ([10.9](#deliveries));
+  tushumga (`revenue`, I4) kirmaydi, `netProfit = grossProfit − expenses + otherIncome`.
 - Foyda/tannarx maydonlari `profit.view` / `cost.view` siz rolda yo‘q ([6.6](#hidden)). Tugagan davrlar keshlanadi, bugun — jonli.
 
 ### 10.15 Audit jurnali
@@ -2205,20 +2228,19 @@ tanlangan ombor, til, mavzu, offline navbat.
 <a id="known"></a>
 ### 14.1 Backend’da ochiq qolgan masalalar (qaror kutilmoqda)
 
-Texnik tekshiruvda (2026-10-17) aniqlangan, hozircha dizayn cheklovi sifatida qoldirilganlar:
-
-- **Smena hisobotida boshqa smenadagi hujjatning teskari amali** — chek A smenada sotilgan, B smenada bekor
-  qilingan: pul B smenada qaytariladi (`cashOut`), lekin B hisobotining qatorlari (sotuv, qaytarish, xarajat)
-  uni ko‘rsatmaydi — `expectedBalance` to‘g‘ri, qo‘lda solishtirishda farq ko‘rinadi. Shu kabi: boshqa
-  smenada o‘chirilgan/tiklangan naqd xarajat va maosh to‘lovi. Yechim (reja): hisobotga «teskari amallar»
-  qatori (bekor qilish/o‘chirish smenasi saqlanadi).
-- **Alohida yetkazish narxi** (`standaloneFee`, chekka bog‘lanmagan yetkazish) hech qayerga pul sifatida
-  tushmaydi — kassaga ham, tushumga ham; `GET /deliveries/summary` dagi `feeRevenue` da ko‘rinadi. Haydovchi
-  olgan naqdni hozircha `POST /cash/movements` bilan kiriting. Yechim (reja): `delivered` da kassa harakati.
-
-(Avvalgi «narxni qo‘lda o‘zgartirish cheklanmagan» masalasi T-141 bilan yopildi — [10.1](#pos).)
+Hozircha yo‘q. (Avvalgi masalalar yopildi: «narxni qo‘lda o‘zgartirish cheklanmagan» — T-141, [10.1](#pos);
+«smena hisobotida boshqa smenadagi teskari amal» — T-145 kassa daftari, [10.3](#shifts); «alohida yetkazish narxi
+kassaga tushmaydi» — T-146, [10.9](#deliveries).)
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-19** — kassa daftari, alohida yetkazish narxi, access tokenni darhol bekor qilish (T-145…T-147); frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Smena hisoboti qatorlari hujjatlardan yig‘ilardi — boshqa smenada bekor qilingan chek / o‘chirilgan xarajat puli qatorlarda ko‘rinmasdi | Qatorlar kassa daftaridan; yangi `reversals { cancelledSalesIn, cancelledSalesOut, cancelledReturnsOut, cancelledReturnsIn, deletedExpensesIn, deletedSalaryIn }` va `deliveryFees`; qatorlar yig‘indisi = `cashIn`/`cashOut` ([10.3](#shifts)). Mavjud maydonlar ma’nosi o‘zgarmadi | Z-hisobotda «Teskari amallar» va «Yetkazish narxi» qatorlari; solishtirish formulasi §10.3 |
+| Alohida yetkazish narxi kassaga tushmasdi | `delivered` da ochiq smena kassasiga (`feeShiftId`); smena yopiq — `feeShiftId: null`, `summary.feesNotInRegister`; P&L `otherIncome` ([10.9](#deliveries), [10.14](#reports)) | Yetkazish kartasida «kassaga tushdi / tushmadi» belgisi; xulosada `feesNotInRegister` ogohlantirishi; P&L da «Boshqa daromad» qatori |
+| Sessiyalar yopilgach eski access token 15 daqiqagacha ishlardi | Darhol 401 (`logout-all`, parol, faolsizlantirish, bo‘shatish, token reuse) — do‘kon va egasi paneli ([5.4](#sessions)) | 401 → login sahifasi (avvalgidek); `logout-all` dan keyin tokenni darhol tashlang |
 
 **2026-10-19** — texnik tekshiruv sayqali (T-144): realtime ulanish hisob faolsizlantirilganda, o‘chirilganda, paroli
 almashganda yoki xodim bo‘shatilganda darhol uziladi (`"io server disconnect"` → refresh 401 → login, [9](#realtime));

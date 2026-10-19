@@ -57,10 +57,10 @@ Umumiy «tayyor» ta'rifi —
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
-| E15 | Deploy va ekspluatatsiya | 14 | 10/14 | B4 |
+| E15 | Deploy va ekspluatatsiya | 17 | 13/17 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
 | E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
-| | **Jami** | **144** | **128/144** | |
+| | **Jami** | **147** | **131/147** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -963,6 +963,29 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
     parol almashganda/xodim bo'shatilganda realtime soketi darhol uziladi; egasi hisobi ham 5 ta noto'g'ri parol/kod → 15 daqiqa
     (`AUTH_ACCOUNT_LOCKED`); OpenAPI sxemalari `stripHidden` chuqurligidan oshmasligi unit test bilan
   - Tekshirish: `npm run test:e2e -- ws-auth platform expenses-cash-effect payroll files-gc idempotency` + `vitest run field-visibility`
+
+- [x] **T-145 · Kassa daftari — smena hisobotida teskari amallar**
+  - Bog'liq: T-143, T-059
+  - Manba: egasi qarori (2026-10-19), README §14.1 (eski cheklov), [docs/api/README.md §10.3](docs/api/README.md#shifts)
+  - Qabul: `cash_ledger` — har naqd harakati (smena, tur, hujjat) `cashCtes` orqali bitta so'rovda; smena hisoboti qatorlari
+    daftardan, `reversals` bloki (bekor qilingan chek/qaytarish, o'chirilgan xarajat/maosh puli), yig'indi = `cashIn/cashOut`;
+    tarix vaqt tamg'asi bo'yicha tiklangan; tungi invariant `cash_shifts.cash_in_out`
+  - Tekshirish: `npm run test:e2e -- shift-report invariants`
+
+- [x] **T-146 · Alohida yetkazish narxi — kassaga va foyda hisobotiga**
+  - Bog'liq: T-145, T-073
+  - Manba: egasi qarori (2026-10-19), [docs/api/README.md §10.9](docs/api/README.md#deliveries)
+  - Qabul: `delivered` da ochiq smena kassasiga kirim (`fee_shift_id`, daftarda `delivery_fee`, hisobotda `deliveryFees`);
+    smena yopiq — `feeShiftId: null`, `summary.feesNotInRegister`; P&L `otherIncome` (yetkazilgan kuni), `netProfit` ga qo'shiladi
+  - Tekshirish: `npm run test:e2e -- deliveries`
+
+- [x] **T-147 · Access tokenni darhol bekor qilish**
+  - Bog'liq: T-143, T-134
+  - Manba: egasi qarori (2026-10-19), [03 §3.3](../../backend-tz/core/03-security.md), [docs/api/README.md §5.4](docs/api/README.md#sessions)
+  - Qabul: `users.tokens_invalid_before` / `platform_admins.tokens_invalid_before` — sessiyalar yopilganda (`logout-all`, parol,
+    faolsizlantirish, o'chirish, bo'shatish, token reuse) `iat` undan oldingi access token 401 — HTTP guard, realtime qo'l siqishi,
+    egasi guard'i; huquq keshi bilan birga (Redis'siz), boshqa instansiya ≤ 30 s
+  - Tekshirish: `npm run test:e2e -- auth-token-invalidation ws-auth platform`
 
 - [ ] **T-131 · Staging muhiti**
   - Bog'liq: T-130

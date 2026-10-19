@@ -181,6 +181,8 @@ export class DeliveryDto {
   @ApiProperty({ nullable: true, type: Number }) lng!: number | null
   @ApiProperty({ type: String, format: 'date-time' }) createdAt!: Date
   @ApiProperty({ nullable: true, type: String, format: 'date-time' }) deliveredAt!: Date | null
+  @ApiProperty({ nullable: true, type: String, description: 'Alohida narx kassaga tushgan smena (T-146); null — tushmagan (smena yopiq edi) yoki chekli' })
+  feeShiftId!: string | null
 }
 
 export class DriverLoadDto {
@@ -193,6 +195,7 @@ export class DeliverySummaryDto {
   @ApiProperty() onWay!: number
   @ApiProperty() delivered!: number
   @ApiProperty({ description: 'Yetkazilganlar narxi (chekli — chekdagi, D3)' }) feeRevenue!: number
+  @ApiProperty({ description: 'Alohida narx kassaga tushmagan yetkazilganlar summasi (smena yopiq edi) — qo‘lda kiriting' }) feesNotInRegister!: number
   @ApiProperty({ type: [DriverLoadDto], description: 'Haydovchilar yuki — kattasi birinchi' }) workload!: DriverLoadDto[]
 }
 

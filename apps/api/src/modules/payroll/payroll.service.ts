@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common'
-import { Prisma, type PayrollEntryType } from '@prisma/client'
+import { Prisma, type CashLedgerKind, type PayrollEntryType } from '@prisma/client'
 import { hasPermission, isPayrollPayment, monthPeriod, type Permission } from '@crm/shared'
 import { currentContext } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, moneyFromDb } from '@/common/crud/convert'
@@ -168,7 +168,7 @@ export class PayrollService {
                     ${dto.date ?? businessDate()}::date, ${dto.method}::"PayMethod", ${shiftId}::uuid, ${dto.note ?? null},
                     ${currentContext().userId ?? null}::uuid)
             RETURNING 1)`,
-          ...this.cash(shiftId, delta),
+          ...this.cash(shiftId, delta, 'payroll', id),
         ],
         Prisma.sql`SELECT 1`,
       ),
@@ -189,7 +189,7 @@ export class PayrollService {
     if (before.deletedAt) throw new NotFoundError(RESOURCE, id)
     assertKindAllowed(before.type)
     const delta = -cashEffect(before)
-    await this.write(id, delta, this.shiftFor(register, delta), Prisma.sql`deleted_at = now()`)
+    await this.write(id, delta, this.shiftFor(register, delta), 'payroll_reversal', Prisma.sql`deleted_at = now()`)
     await this.audit.log({
       action: 'payroll.delete',
       entityType: 'payroll-entry',
@@ -206,7 +206,7 @@ export class PayrollService {
     assertKindAllowed(before.type)
     const delta = cashEffect(before)
     const shiftId = this.shiftFor(register, delta)
-    await this.write(id, delta, shiftId, Prisma.sql`deleted_at = NULL, shift_id = COALESCE(${shiftId}::uuid, shift_id)`)
+    await this.write(id, delta, shiftId, 'payroll', Prisma.sql`deleted_at = NULL, shift_id = COALESCE(${shiftId}::uuid, shift_id)`)
     await this.audit.log({ action: 'payroll.restore', entityType: 'payroll-entry', entityId: id })
     return this.get(id)
   }
@@ -228,12 +228,13 @@ export class PayrollService {
     return delta === 0n ? null : this.register.requireOpenShift(register)
   }
 
-  private cash(shiftId: string | null, delta: bigint): Prisma.Sql[] {
-    return shiftId ? this.register.cashCtes(shiftId, delta) : []
+  /** Kassa ta'siri — daftarga hujjat va turi bilan (`payroll` — to'lov/tiklash, `payroll_reversal` — o'chirish) */
+  private cash(shiftId: string | null, delta: bigint, kind: CashLedgerKind, refId: string): Prisma.Sql[] {
+    return shiftId ? this.register.cashCtes(shiftId, delta, { kind, refId }) : []
   }
 
   /** Yozuv va kassa ta'siri — bitta so'rov */
-  private async write(id: string, delta: bigint, shiftId: string | null, set: Prisma.Sql): Promise<void> {
+  private async write(id: string, delta: bigint, shiftId: string | null, kind: CashLedgerKind, set: Prisma.Sql): Promise<void> {
     const { tenantId } = requireTenantTx()
     await this.prisma.scoped.$executeRaw(
       withCtes(
@@ -242,7 +243,7 @@ export class PayrollService {
             UPDATE payroll_entries SET ${set}
              WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid
             RETURNING 1)`,
-          ...this.cash(shiftId, delta),
+          ...this.cash(shiftId, delta, kind, id),
         ],
         Prisma.sql`SELECT 1`,
       ),

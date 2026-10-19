@@ -180,7 +180,8 @@ export class ExpenseTemplatesService {
               FROM due d
              WHERE t.tenant_id = ${tenantId}::uuid AND t.id = d.template_id
             RETURNING 1)`,
-          ...(shiftId && cashTotal > 0n ? this.register.cashCtes(shiftId, -cashTotal) : []),
+          // Bir nechta shablon — daftarda bitta yig'ma qator (hujjat yo'q)
+          ...(shiftId && cashTotal > 0n ? this.register.cashCtes(shiftId, -cashTotal, { kind: 'expense', refId: null }) : []),
         ],
         Prisma.sql`SELECT 1`,
       ),

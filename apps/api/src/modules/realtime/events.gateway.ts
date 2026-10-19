@@ -4,6 +4,7 @@ import {
 } from '@nestjs/websockets'
 import type { Namespace, Socket } from 'socket.io'
 import { isPlatformToken, TokenService } from '@/modules/auth/token.service'
+import { AccessService } from '@/modules/roles/access.service'
 import { EVENTS_NAMESPACE, tenantRoom, type DomainEventMap, type DomainEventType } from './domain-events'
 
 /** Ulanish xatosi mijozga shu matn bilan (`connect_error`) — sabab aytilmaydi */
@@ -33,7 +34,10 @@ export class EventsGateway
   private readonly logger = new Logger(EventsGateway.name)
   @WebSocketServer() private readonly server!: Namespace
 
-  constructor(private readonly tokens: TokenService) {}
+  constructor(
+    private readonly tokens: TokenService,
+    private readonly access: AccessService,
+  ) {}
 
   afterInit(server: Namespace): void {
     server.use((socket, next) => {
@@ -75,6 +79,8 @@ export class EventsGateway
     }
     // Egasi tokenida do'kon yo'q — realtime xonasi ham yo'q (T-135)
     if (isPlatformToken(payload)) throw new Error(UNAUTHORIZED)
+    // HTTP bilan bir xil qoida: faolsiz/o'chirilgan/bo'shatilgan hisob va sessiyalari yopilgan eski token — yo'q
+    if (!(await this.access.forUser(payload.tid, payload.sub, payload.iat))) throw new Error(UNAUTHORIZED)
     const expiry = setTimeout(() => socket.disconnect(true), Math.min(payload.exp * 1000 - Date.now(), MAX_TIMER_MS))
     expiry.unref()
     socket.data = { tenantId: payload.tid, userId: payload.sub, expiry } satisfies SocketData

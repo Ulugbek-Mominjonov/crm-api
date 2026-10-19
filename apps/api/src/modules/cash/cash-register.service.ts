@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common'
-import { Prisma } from '@prisma/client'
+import { Prisma, type CashLedgerKind } from '@prisma/client'
+import { currentContext } from '@/common/context/request-context'
 import { DomainError } from '@/common/errors/domain.error'
+import { uuidv7 } from '@/common/ids'
 import { PrismaService } from '@/prisma/prisma.service'
 import { requireTenantTx } from '@/prisma/tenant-tx'
 
@@ -9,6 +11,12 @@ export interface RegisterState {
   activeShiftId: string | null
   activeWarehouseId: string | null
   cashBalance: bigint
+}
+
+/** Kassa daftari uchun harakat manbai: turi va hujjat (shablon xarajatlari to'plami — `null`) */
+export interface CashSource {
+  kind: CashLedgerKind
+  refId: string | null
 }
 
 /**
@@ -58,10 +66,12 @@ export class CashRegisterService {
 
   /**
    * Naqd harakati — hujjat yozuvchi so'rov ichidagi CTE'lar: smenaning
-   * kirim/chiqimi va kassa balansi. `delta` > 0 — kirim, < 0 — chiqim.
-   * Smena registr qulfi ostida ochiq ekani tekshirilgan (`requireOpenShift`).
+   * kirim/chiqimi, kassa balansi va kassa daftari qatori (T-145: smena
+   * hisoboti shundan tuziladi — har harakat qaysi smenada, qaysi hujjatdan).
+   * `delta` > 0 — kirim, < 0 — chiqim. Smena registr qulfi ostida ochiq
+   * ekani tekshirilgan (`requireOpenShift`).
    */
-  cashCtes(shiftId: string, delta: bigint): Prisma.Sql[] {
+  cashCtes(shiftId: string, delta: bigint, source: CashSource): Prisma.Sql[] {
     if (delta === 0n) return []
     const { tenantId } = requireTenantTx()
     const cashIn = delta > 0n ? delta : 0n
@@ -74,6 +84,11 @@ export class CashRegisterService {
       Prisma.sql`cash_state AS (
         UPDATE tenant_state SET cash_balance = cash_balance + ${delta}
          WHERE tenant_id = ${tenantId}::uuid
+        RETURNING 1)`,
+      Prisma.sql`cash_ledger_entry AS (
+        INSERT INTO cash_ledger (id, tenant_id, shift_id, kind, amount, ref_id, user_id)
+        VALUES (${uuidv7()}::uuid, ${tenantId}::uuid, ${shiftId}::uuid, ${source.kind}::"CashLedgerKind", ${delta},
+                ${source.refId}::uuid, ${currentContext().userId ?? null}::uuid)
         RETURNING 1)`,
     ]
   }

@@ -106,6 +106,8 @@ export class PnlTotalsDto {
   @ApiPropertyOptional({ description: 'Tannarx (COGS). Sotuvchi rolida yo‘q' }) cogs?: number
   @ApiPropertyOptional({ description: 'Sotuvchi rolida yo‘q' }) grossProfit?: number
   @ApiProperty() expenses!: number
+  @ApiProperty({ description: 'Boshqa daromad: alohida yetkazish narxi (yetkazilgan kuni bo‘yicha, T-146) — tushumga kirmaydi, sof foydaga qo‘shiladi' })
+  otherIncome!: number
   @ApiPropertyOptional({ description: 'Sotuvchi rolida yo‘q' }) netProfit?: number
   @ApiProperty() salesCount!: number
 }

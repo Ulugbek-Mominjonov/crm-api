@@ -5,6 +5,9 @@ import { BUSINESS_TIME_ZONE } from '@/common/time'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 
 /** Har tekshiruvdan ko'pi bilan shuncha misol — hisobot va log o'lchami chegaralansin */
+/** Kassa daftari shu kundan boshlab to'liq (undan oldingi smenalar tarixi qisman tiklangan — tahrirlar yo'q) */
+const CASH_LEDGER_SINCE = '2026-10-20'
+
 const SAMPLE_LIMIT = 20
 
 export interface Violation {
@@ -116,6 +119,17 @@ export class InvariantsService {
           JOIN cash_shifts sh ON sh.tenant_id = ts.tenant_id AND sh.id = ts.active_shift_id
          WHERE ts.tenant_id = ${tenantId}::uuid
            AND ts.cash_balance <> sh.opening_balance + sh.cash_in - sh.cash_out
+      ) UNION ALL (
+        -- Kassa daftari (T-145): smena kirim/chiqimi = daftar qatorlari yig'indisi (daftar kiritilgandan keyingi smenalar)
+        SELECT 'cash_shifts.cash_in_out', sh.id::text, (sh.cash_in || '/' || sh.cash_out),
+               (COALESCE(l.in_sum, 0) || '/' || COALESCE(l.out_sum, 0))
+          FROM cash_shifts sh
+          LEFT JOIN LATERAL (SELECT SUM(amount) FILTER (WHERE amount > 0) AS in_sum,
+                                    -SUM(amount) FILTER (WHERE amount < 0) AS out_sum
+                               FROM cash_ledger WHERE tenant_id = sh.tenant_id AND shift_id = sh.id) l ON true
+         WHERE sh.tenant_id = ${tenantId}::uuid AND sh.opened_at >= ${CASH_LEDGER_SINCE}::timestamptz
+           AND (sh.cash_in <> COALESCE(l.in_sum, 0) OR sh.cash_out <> COALESCE(l.out_sum, 0))
+         LIMIT ${SAMPLE_LIMIT}
       ) UNION ALL (
         -- Fayllar: band hajm = tayyor fayllar yig'indisi (Q71)
         SELECT 'tenant_state.storage_used_bytes', NULL, ts.storage_used_bytes::text, COALESCE(f.sum, 0)::text

@@ -113,7 +113,7 @@ describe('Yetkazib berish (/deliveries)', () => {
 
     const summary = await api().get('/api/v1/deliveries/summary').set('Authorization', auth).expect(200)
     expect(summary.body).toEqual({
-      pending: 2, onWay: 1, delivered: 2, feeRevenue: 55_000,
+      pending: 2, onWay: 1, delivered: 2, feeRevenue: 55_000, feesNotInRegister: 0,
       workload: [{ driver: { id: driver, name: 'Jasur haydovchi' }, count: 2 }, { driver: null, count: 1 }],
     })
   })
@@ -126,5 +126,29 @@ describe('Yetkazib berish (/deliveries)', () => {
     expect(restored.body).toMatchObject({ id: d.id, status: 'pending' })
     await api().post(`/api/v1/deliveries/${d.id}/restore`).set('Authorization', auth).expect(404)
     expect(await testDb.auditEntry.count({ where: { action: 'delivery.restore' } })).toBe(1)
+  })
+
+  it('alohida yetkazish narxi (T-146): yetkazilganda ochiq smena kassasiga kiradi, smena hisobotida `deliveryFees`, P&L da `otherIncome`; smena yopiq — kassaga tushmaydi', async () => {
+    const shiftId = await openShift(a.tenantId, 100_000n)
+    const d = (await create({ ...base, fee: 30_000 }).expect(201)).body
+    await status(d.id, 'on_way').expect(200)
+    const delivered = await status(d.id, 'delivered').expect(200)
+    expect(delivered.body).toMatchObject({ status: 'delivered', fee: 30_000, feeShiftId: shiftId })
+    expect(Number((await testDb.tenantState.findUniqueOrThrow({ where: { tenantId: a.tenantId } })).cashBalance)).toBe(130_000)
+    const report = await api().get(`/api/v1/cash/shifts/${shiftId}/report`).set('Authorization', auth).expect(200)
+    expect(report.body).toMatchObject({ deliveryFees: 30_000, expectedBalance: 130_000 })
+    const today = new Date().toISOString().slice(0, 10)
+    const pnl = await api().get(`/api/v1/reports/pnl?from=${today}&to=${today}`).set('Authorization', auth).expect(200)
+    expect(pnl.body.current).toMatchObject({ otherIncome: 30_000, revenue: 0, netProfit: 30_000 })
+
+    // Smena yopiq: pul kassaga tushmaydi, xulosada ko'rinadi — egasi keyin qo'lda kiritadi
+    await testDb.tenantState.update({ where: { tenantId: a.tenantId }, data: { activeShiftId: null } })
+    const late = (await create({ ...base, fee: 12_000 }).expect(201)).body
+    await status(late.id, 'on_way').expect(200)
+    expect((await status(late.id, 'delivered').expect(200)).body.feeShiftId).toBeNull()
+    expect(Number((await testDb.tenantState.findUniqueOrThrow({ where: { tenantId: a.tenantId } })).cashBalance)).toBe(130_000)
+    expect((await api().get('/api/v1/deliveries/summary').set('Authorization', auth).expect(200)).body).toMatchObject({ feesNotInRegister: 12_000 })
+    // Chekli yetkazish narxi chekda — `delivered` kassaga qayta kirmaydi
+    expect((await api().get(`/api/v1/deliveries/${d.id}`).set('Authorization', auth).expect(200)).body.feeShiftId).toBe(shiftId)
   })
 })

@@ -34,9 +34,10 @@ export class JwtAuthGuard implements CanActivate {
     // Egasi tokeni do'kon yo'lida o'tmaydi — unda tenant yo'q va bo'lmasligi kerak
     if (isPlatformToken(payload)) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Token bu yo‘l uchun emas')
 
-    // Rol — tokendan emas: faolsizlantirilgan yoki o'chirilgan hisob darhol yopiladi
-    const access = await this.access.forUser(payload.tid, payload.sub)
-    if (!access) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Hisob faol emas yoki o‘chirilgan')
+    // Rol — tokendan emas: faolsizlantirilgan yoki o'chirilgan hisob darhol yopiladi;
+    // sessiyalar yopilgandan (parol almashdi, chiqish) OLDIN berilgan token ham (T-147)
+    const access = await this.access.forUser(payload.tid, payload.sub, payload.iat)
+    if (!access) throw new DomainError('AUTH_INVALID_CREDENTIALS', 'Hisob faol emas yoki sessiya yopilgan')
 
     req.auth = {
       userId: payload.sub,

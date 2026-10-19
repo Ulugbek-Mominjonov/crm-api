@@ -229,7 +229,7 @@ export class SalesService {
 
     // 7–8. Raqam (I12), chek, qatorlar, ombor, kassa, bonus (I17), yetkazish — BITTA so'rov
     const written = await this.write('CHEK', plan, row, items, [
-      ...this.register.cashCtes(shiftId, BigInt(payment.cash)),
+      ...this.register.cashCtes(shiftId, BigInt(payment.cash), { kind: 'sale', refId: saleId }),
       ...bonusCtes(tenantId, row.customerId, earned - totals.bonusUsed),
       ...deliveryCtes(tenantId, saleId, row.customerId, delivery),
       ...(order.link?.(saleId) ?? []),
@@ -353,7 +353,7 @@ export class SalesService {
     const items = lines.map((line, i): SaleItemRow => ({ ...line, id: uuidv7(), lineNo: i + 1 }))
 
     const written = await this.write('QAYT', plan, row, items, [
-      ...this.register.cashCtes(shiftId, -BigInt(cash)),
+      ...this.register.cashCtes(shiftId, -BigInt(cash), { kind: 'return', refId: returnId }),
       ...bonusCtes(tenantId, original.customerId, refund.bonusRestored - refund.bonusRevoked),
       ...debtPaidCtes(tenantId, original.id, offset),
     ])
@@ -403,7 +403,9 @@ export class SalesService {
     )
 
     const cashDelta = isSale ? -sale.paidCash : sale.paidCash
-    const cash = cashDelta === 0n ? [] : this.register.cashCtes(this.register.requireOpenShift(register), cashDelta)
+    const cash = cashDelta === 0n
+      ? []
+      : this.register.cashCtes(this.register.requireOpenShift(register), cashDelta, { kind: isSale ? 'sale_cancel' : 'return_cancel', refId: sale.id })
     const bonusUsed = moneyFromDb(sale.bonusUsed)
     const earned = moneyFromDb(sale.bonusEarned)
 

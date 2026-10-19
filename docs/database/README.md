@@ -2,7 +2,7 @@
 
 > Generatsiya qilingan: `npm run docs:db` (`scripts/db-docs/`). Tuzilma — ishlab turgan bazadan (migratsiyalar qo‘llangan), ustun izohlari — `apps/api/prisma/schema.prisma`, jadvallar vazifasi — `scripts/db-docs/tables.py`. Bu faylni qo‘lda tahrirlamang.
 
-PostgreSQL 16 · 45 jadval · 7 ko‘rinish · 25 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
+PostgreSQL 16 · 46 jadval · 7 ko‘rinish · 26 enum. Diagrammalar — [Mermaid](https://mermaid.js.org) (GitHub va VS Code o‘zi chizadi). DBeaver’da ham: `public` sxemasi → **View Diagram**.
 
 ## Umumiy qoidalar
 
@@ -23,6 +23,7 @@ Faqat bog‘lanishlar (`tenants` ga bog‘lanish ko‘rsatilmagan — u hamma ja
 
 ```mermaid
 erDiagram
+    cash_shifts ||--o{ cash_ledger : "shift_id"
     cash_shifts ||--o{ cash_movements : "shift_id"
     cash_shifts |o--o{ debt_payments : "shift_id"
     cash_shifts |o--o{ sales : "shift_id"
@@ -161,6 +162,7 @@ erDiagram
         uuid role_id FK
         smallint failed_logins
         timestamptz locked_until
+        timestamptz tokens_invalid_before
     }
     roles {
         uuid id PK
@@ -335,6 +337,7 @@ Tizimga kirish hisobi — doim bitta xodimga tegishli (ism va lavozim `employees
 | `role_id` | uuid | — | → `roles` · Do'kon roli (T-134) — ruxsatlar rolda, foydalanuvchida emas |
 | `failed_logins` | smallint | — | Email bitta tenant ichida noyob (boshqa do'konda takrorlanishi mumkin) Ketma-ket noto'g'ri parollar soni va blok muddati (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi |
 | `locked_until` | timestamptz | ha |  |
+| `tokens_invalid_before` | timestamptz | ha | Shu vaqtdan OLDIN berilgan access tokenlar yaroqsiz (sessiyalar yopilganda; T-147) |
 
 ### `roles`
 
@@ -645,6 +648,7 @@ Chek (sotuv va qaytarish), uning qatorlari, nasiya to'lovlari, kassa smenalari, 
 
 ```mermaid
 erDiagram
+    cash_shifts ||--o{ cash_ledger : "shift_id"
     cash_shifts ||--o{ cash_movements : "shift_id"
     cash_shifts |o--o{ debt_payments : "shift_id"
     cash_shifts |o--o{ sales : "shift_id"
@@ -772,6 +776,16 @@ erDiagram
         uuid user_id
         timestamptz created_at
     }
+    cash_ledger {
+        uuid id PK
+        uuid tenant_id FK
+        uuid shift_id FK
+        CashLedgerKind kind
+        bigint amount
+        uuid ref_id
+        uuid user_id
+        timestamptz created_at
+    }
     quotes {
         uuid id PK
         uuid tenant_id FK
@@ -822,6 +836,7 @@ erDiagram
         timestamptz created_at
         timestamptz delivered_at
         timestamptz deleted_at
+        uuid fee_shift_id
     }
     fiscal_receipts {
         uuid id PK
@@ -995,6 +1010,24 @@ Kassaga sotuvdan tashqari naqd kirim yoki chiqim (maydalash, egasi olib ketdi �
 | `user_id` | uuid | ha | Amalni bajargan foydalanuvchi (FK'siz — tarix buzilmasin) |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 
+### `cash_ledger`
+
+Kassa daftari (T-145): har bir naqd harakati — qaysi smenada, qaysi turda, qaysi hujjatdan; `amount` ishorali. `cashCtes` hujjat bilan bitta so'rovda yozadi; smena hisoboti shundan tuziladi (qatorlar yig'indisi = `cash_in`/`cash_out`), tungi invariant solishtiradi. Faqat qo'shiladi; tarix vaqt tamg'asi bo'yicha tiklangan.
+
+- RLS: majburiy (FORCE)
+- Bog‘lanishlar: `shift_id` → `cash_shifts` (CASCADE)
+
+| Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
+|-------|-----|----|------|
+| `id` | uuid | — | **PK** · Yozuv identifikatori (UUID v7) |
+| `tenant_id` | uuid | — | → `tenants` (RLS) |
+| `shift_id` | uuid | — | → `cash_shifts` · Pul harakati bo'lgan smena (hujjat smenasi emas — bekor qilish/o'chirish boshqa smenada bo'lishi mumkin) |
+| `kind` | `CashLedgerKind` (enum) | — | Harakat turi: sotuv, bekor qilish, qaytarish, xarajat, maosh, qarz/ta'minotchi to'lovi, qo'lda harakat, yetkazish narxi |
+| `amount` | bigint | — | Ishorali summa: + kassaga kirdi, − chiqdi |
+| `ref_id` | uuid | ha | Hujjat (chek, xarajat, to'lov, harakat); shablon xarajatlari to'plami — null |
+| `user_id` | uuid | ha | Amalni bajargan foydalanuvchi (FK'siz — tarix buzilmasin) |
+| `created_at` | timestamptz | — | Yaratilgan vaqt |
+
 ### `quotes`
 
 Takliflar (smeta): mijoz, mas'ul xodim, summalar, amal qilish muddati, holat. Sotuvga aylantirilganda `sale_id` bir marta to'ldiriladi.
@@ -1069,6 +1102,7 @@ Yetkazib berish: chekka bog'langan yoki mustaqil; manzil, telefon, haydovchi (xo
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `delivered_at` | timestamptz | ha | Yetkazilgan vaqt |
 | `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
+| `fee_shift_id` | uuid | ha | Alohida yetkazish narxi kassaga tushgan smena (T-146); NULL — tushmagan (smena yopiq edi) yoki chekli yetkazish |
 
 ### `fiscal_receipts`
 
@@ -1613,6 +1647,7 @@ erDiagram
         timestamptz telegram_link_expires_at
         smallint failed_logins
         timestamptz locked_until
+        timestamptz tokens_invalid_before
     }
     platform_refresh_tokens {
         uuid id PK
@@ -1670,6 +1705,7 @@ Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik, rol (`owner` 
 | `telegram_link_expires_at` | timestamptz | ha |  |
 | `failed_logins` | smallint | — | TOTP siri (base32); `totpEnabledAt` null — sozlash tasdiqlanmagan. Loglarga tushmaydi Ketma-ket noto'g'ri parol yoki kod bloki (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi |
 | `locked_until` | timestamptz | ha |  |
+| `tokens_invalid_before` | timestamptz | ha | Shu vaqtdan OLDIN berilgan access tokenlar yaroqsiz (sessiyalar yopilganda; T-147) |
 
 ### `platform_refresh_tokens`
 
@@ -1816,6 +1852,7 @@ Ustunlar: `tenant_id`, `date`, `revenue`, `returns`, `cogs`, `returns_cogs`, `sa
 | Enum | Qiymatlar |
 |------|-----------|
 | `CashDirection` | `in` — kirim, `out` — chiqim |
+| `CashLedgerKind` | `sale` — chek naqdi (kirim), `sale_cancel` — chek bekor qilindi (chiqim), `return` — qaytarish (chiqim), `return_cancel` — qaytarish bekor qilindi (kirim), `expense` — naqd xarajat (chiqim; tahrir/tiklash ham), `expense_reversal` — xarajat o'chirildi (kirim), `payroll` — xodimga naqd to'lov (chiqim), `payroll_reversal` — maosh to'lovi o'chirildi (kirim), `debt_payment` — naqd qarz to'lovi (kirim), `supplier_payment` — ta'minotchiga naqd (chiqim), `movement` — qo'lda kirim/chiqim, `delivery_fee` — alohida yetkazish narxi (kirim) |
 | `ClientStatus` | `lead` — potensial mijoz, `active` — faol, `inactive` — nofaol |
 | `ClientType` | `individual`, `company` |
 | `CustomerGroup` | `retail` — chakana, `wholesale` — ulgurji, `vip` — VIP |

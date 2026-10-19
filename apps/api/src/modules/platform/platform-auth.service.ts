@@ -134,9 +134,15 @@ export class PlatformAuthService {
   }
 
   /** Faol hisob; aks holda `null` (kirish yopiq) — guard har so'rovda chaqiradi */
-  async forAdmin(adminId: string): Promise<PlatformAdminDto | null> {
-    const row = await this.prisma.platformAdmin.findFirst({ where: { id: adminId, isActive: true }, select: ADMIN_SELECT })
-    return row && toAdminDto(row)
+  /** Faol egasi hisobi; `issuedAt` (token `iat`) sessiyalar yopilgan vaqtdan oldin bo'lsa — `null` (T-147) */
+  async forAdmin(adminId: string, issuedAt?: number): Promise<PlatformAdminDto | null> {
+    const row = await this.prisma.platformAdmin.findFirst({
+      where: { id: adminId, isActive: true },
+      select: { ...ADMIN_SELECT, tokensInvalidBefore: true },
+    })
+    if (!row) return null
+    if (issuedAt !== undefined && row.tokensInvalidBefore && issuedAt < Math.floor(row.tokensInvalidBefore.getTime() / 1000)) return null
+    return toAdminDto(row)
   }
 
   /**
