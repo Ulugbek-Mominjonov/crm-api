@@ -57,10 +57,10 @@ Umumiy «tayyor» ta'rifi —
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
-| E15 | Deploy va ekspluatatsiya | 13 | 9/13 | B4 |
+| E15 | Deploy va ekspluatatsiya | 14 | 10/14 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
 | E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
-| | **Jami** | **143** | **127/143** | |
+| | **Jami** | **144** | **128/144** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -954,6 +954,15 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
     kodlari; `minMarginPct` `cost.view` bilan; idempotentlik kaliti foydalanuvchi doirasida; bekor qilingan chekka yetkazish 409;
     cookie `secure` staging'da ham; egasi sessiya rotatsiyasi atomik
   - Tekshirish: `npm run test:e2e -- auth-login expenses-cash-effect sales-return reports payroll files` + butun to'plam
+
+- [x] **T-144 · Texnik tekshiruv sayqali — tungi ishlar, realtime, egasi hisobi bloklash**
+  - Bog'liq: T-143
+  - Manba: [PROGRESS Q124](PROGRESS.md) «keyinga qoldirilgan sayqal»
+  - Qabul: idempotentlik tozalash — bitta global DELETE; pending fayllar, shablon xarajatlari va maosh hisoblash — faqat
+    ishi bor tenantlar (SECURITY DEFINER `tenants_with_*`), `forEachTenant(fn, ids)`; hisob faolsizlantirilganda/o'chirilganda/
+    parol almashganda/xodim bo'shatilganda realtime soketi darhol uziladi; egasi hisobi ham 5 ta noto'g'ri parol/kod → 15 daqiqa
+    (`AUTH_ACCOUNT_LOCKED`); OpenAPI sxemalari `stripHidden` chuqurligidan oshmasligi unit test bilan
+  - Tekshirish: `npm run test:e2e -- ws-auth platform expenses-cash-effect payroll files-gc idempotency` + `vitest run field-visibility`
 
 - [ ] **T-131 · Staging muhiti**
   - Bog'liq: T-130

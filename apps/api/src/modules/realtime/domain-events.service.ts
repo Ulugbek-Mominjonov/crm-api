@@ -16,4 +16,10 @@ export class DomainEvents {
     const { tenantId } = requireTenantTx()
     onCommit(() => this.gateway.emit(tenantId, type, payload))
   }
+
+  /** Foydalanuvchi sessiyalari yopildi — realtime ulanishi ham COMMIT'dan keyin uziladi */
+  endSessions(userId: string): void {
+    requireTenantTx()
+    onCommit(() => this.gateway.disconnectUser(userId))
+  }
 }

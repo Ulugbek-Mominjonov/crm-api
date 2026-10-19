@@ -1212,6 +1212,9 @@ model PlatformAdmin {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz
 
   /// TOTP siri (base32); `totpEnabledAt` null — sozlash tasdiqlanmagan. Loglarga tushmaydi
+  /// Ketma-ket noto'g'ri parol yoki kod bloki (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi
+  failedLogins  Int       @default(0) @map("failed_logins") @db.SmallInt
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz
   totpSecret    String?   @map("totp_secret")
   totpEnabledAt DateTime? @map("totp_enabled_at") @db.Timestamptz
   /// Oxirgi qabul qilingan 30 soniyalik qadam — bitta kod ikki marta o'tmaydi

@@ -56,6 +56,17 @@ export class EventsGateway
     this.server.to(tenantRoom(tenantId)).emit(type, payload)
   }
 
+  /**
+   * Sessiyalari yopilgan foydalanuvchi (faolsizlantirish, bo'shatish, parol
+   * almashishi) hodisalarni tinglashda davom etmasin — tokeni tugashini
+   * kutmaydi. Bitta instansiya soketlari (adapter yo'q).
+   */
+  disconnectUser(userId: string): void {
+    for (const socket of this.server.sockets.values()) {
+      if ((socket.data as Partial<SocketData>).userId === userId) socket.disconnect(true)
+    }
+  }
+
   private async authenticate(socket: Socket): Promise<void> {
     const token: unknown = socket.handshake.auth?.token
     if (typeof token !== 'string' || token === '') throw new Error(UNAUTHORIZED)

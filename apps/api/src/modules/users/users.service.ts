@@ -184,7 +184,10 @@ export class UsersService extends SoftDeleteCrudService<
           select: USER_SELECT,
         })
         .catch(this.staleOr404(id, version))
-      if (endSessions) await this.refresh.revokeAllForUser(id, tx)
+      if (endSessions) {
+        await this.refresh.revokeAllForUser(id, tx)
+        this.events.endSessions(id)
+      }
       if (roleChanged || dto.isActive === false) this.access.userChanged(id)
       // Ochiq ilovasi menyuni yangi rol bilan qayta quradi
       if (roleChanged) this.events.publish('access.changed', {})
@@ -230,6 +233,7 @@ export class UsersService extends SoftDeleteCrudService<
       await tx.user.update({ where: { id }, data: { deletedAt: new Date() }, select: { id: true } })
       await this.refresh.revokeAllForUser(id, tx)
       this.access.userChanged(id)
+      this.events.endSessions(id)
     })
   }
 }

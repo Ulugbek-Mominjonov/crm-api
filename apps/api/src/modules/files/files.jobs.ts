@@ -43,10 +43,14 @@ export class FileGcJobs {
     private readonly s3: S3Service,
   ) {}
 
-  /** 24 soatdan oshgan `pending` — obyekt (yuklangan bo'lsa) va qator o'chadi; hajmga kirmagan */
+  /**
+   * 24 soatdan oshgan `pending` — obyekt (yuklangan bo'lsa) va qator o'chadi; hajmga kirmagan.
+   * Har soat — faqat shunday fayli bor tenantlar (`tenants_with_stale_pending_files`).
+   */
   @Cron('17 * * * *', { name: 'files:gc-pending' })
   async gcPending(now: Date = new Date()): Promise<number> {
     const cutoff = new Date(now.getTime() - PENDING_TTL_MS)
+    const due = await this.prisma.$queryRaw<{ id: string }[]>`SELECT tenants_with_stale_pending_files(${cutoff}) AS id`
     return this.eachTenant('files:gc-pending', async (tx, tenantId) => {
       const stale = await tx.$queryRaw<StoredObject[]>`
         SELECT id, key, bucket, variants FROM files
@@ -61,7 +65,7 @@ export class FileGcJobs {
          WHERE tenant_id = ${tenantId}::uuid
            AND id IN (SELECT jsonb_array_elements_text(${JSON.stringify(stale.map((f) => f.id))}::jsonb)::uuid)`
       return stale.length
-    })
+    }, due.map((t) => t.id))
   }
 
   /**
@@ -156,11 +160,15 @@ export class FileGcJobs {
     await Promise.all([...byBucket].map(([bucket, keys]) => this.s3.delete(bucket, keys)))
   }
 
-  private async eachTenant(job: string, fn: (tx: TenantTx, tenantId: string) => Promise<number>): Promise<number> {
+  private async eachTenant(
+    job: string,
+    fn: (tx: TenantTx, tenantId: string) => Promise<number>,
+    tenantIds?: readonly string[],
+  ): Promise<number> {
     let total = 0
     const failures = await this.prisma.forEachTenant(async (tx, tenantId) => {
       total += await fn(tx, tenantId)
-    })
+    }, tenantIds)
     for (const { tenantId, error } of failures) {
       this.logger.error({ err: error, tenantId }, `${job}: tenant fayllari tozalanmadi`)
     }
