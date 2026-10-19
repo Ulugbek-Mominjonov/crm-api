@@ -18,3 +18,14 @@ export function searchWhere<F extends string>(
     ),
   }
 }
+
+/**
+ * Hujjat ro'yxatlarida `q` ikki narsani qidirardi — raqam YOKI kontragent
+ * nomi — bitta `OR` bilan: Postgres `number` trigram indeksini bog'liq jadval
+ * sharti bilan birlashtira olmaydi va butun jadvalni ko'rib chiqadi. Qidiruv
+ * ko'rinishiga qarab bitta shoxga yo'naltiriladi — ikkalasi ham indeks bilan.
+ * `CHEK-1001`, `1001`, `TKLF-9` — raqam ko'rinishi: raqami bor, bo'shliqsiz.
+ */
+export function looksLikeDocumentNumber(q: string): boolean {
+  return /\d/.test(q) && /^[\p{L}\d-]+$/u.test(q)
+}

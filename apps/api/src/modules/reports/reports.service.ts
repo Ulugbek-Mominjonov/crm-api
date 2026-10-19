@@ -189,8 +189,8 @@ export class ReportsService {
               GROUP BY category) t) AS "expensesByCategory",
           (SELECT COALESCE(json_agg(t ORDER BY t.bucket), '[]') FROM (
              SELECT to_char(date, ${monthly ? 'YYYY-MM' : 'YYYY-MM-DD'}) AS bucket,
-                    SUM(revenue) AS revenue, ROUND(SUM(revenue - cogs)) AS profit
-               FROM days WHERE date BETWEEN ${from}::date AND ${to}::date AND sale_count > 0
+                    SUM(revenue - returns) AS revenue, ROUND(SUM(revenue - returns - cogs + returns_cogs)) AS profit
+               FROM days WHERE date BETWEEN ${from}::date AND ${to}::date AND (sale_count > 0 OR returns > 0)
               GROUP BY 1) t) AS trend,
           (SELECT json_build_object('cash', COALESCE(SUM(paid_cash), 0), 'card', COALESCE(SUM(paid_card), 0),
                                     'transfer', COALESCE(SUM(paid_transfer), 0))
@@ -256,8 +256,9 @@ export class ReportsService {
         SELECT
           (SELECT COALESCE(SUM(revenue), 0)::float8 FROM sold) AS "totalRevenue",
           (SELECT COALESCE(json_agg(t ORDER BY t.bucket), '[]') FROM (
-             SELECT to_char(date, 'YYYY-MM-DD') AS bucket, revenue, ROUND(revenue - cogs) AS profit
-               FROM days WHERE sale_count > 0) t) AS trend,
+             SELECT to_char(date, 'YYYY-MM-DD') AS bucket, revenue - returns AS revenue,
+                    ROUND(revenue - returns - cogs + returns_cogs) AS profit
+               FROM days WHERE sale_count > 0 OR returns > 0) t) AS trend,
           (SELECT COALESCE(json_agg(t ORDER BY t.revenue DESC, t.name), '[]') FROM (
              SELECT r.category_id AS "categoryId", COALESCE(c.name, 'Boshqa') AS name, SUM(r.revenue) AS revenue
                FROM ranked r LEFT JOIN categories c ON c.tenant_id = ${tenantId}::uuid AND c.id = r.category_id

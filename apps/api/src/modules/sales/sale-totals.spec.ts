@@ -210,13 +210,36 @@ describe('qaytarish', () => {
 
   it('I6: QQS asl chek foizi bo‘yicha, qisman qaytarishda mutanosib', () => {
     // 4 × 100 000, 12% → 1 tasi qaytadi: 112 000
-    const r = refundFor({ subtotal: 400_000, discount: 0, bonusUsed: 0, bonusEarned: 0, taxRate: 12 }, 100_000, 0)
-    expect(r).toMatchObject({ tax: 12_000, total: 112_000, taxRate: 12 })
+    const sale = { subtotal: 400_000, discount: 0, bonusUsed: 0, bonusEarned: 0, taxRate: 12, tax: 48_000, total: 448_000, deliveryFee: 0 }
+    expect(refundFor(sale, 100_000, 0)).toMatchObject({ tax: 12_000, total: 112_000, taxRate: 12 })
+  })
+
+  it('I6: QQS qayta hisoblanmaydi — ulush bo‘yicha: qismlar yig‘indisi to‘langan summaga aynan teng', () => {
+    // 2 × 5 005 = 10 010, 12% → QQS 1 201, to'langan 11 211; bittadan qaytarilsa 5 606 + 5 605 (qayta hisoblansa 5 606 + 5 606 bo'lardi)
+    const sale = { subtotal: 10_010, discount: 0, bonusUsed: 0, bonusEarned: 0, taxRate: 12, tax: 1_201, total: 11_211, deliveryFee: 0 }
+    const parts = [refundFor(sale, 5_005, 0), refundFor(sale, 5_005, 5_005)]
+    expect(parts.map((p) => p.total)).toEqual([5_606, 5_605])
+    expect(parts.map((p) => p.tax)).toEqual([601, 600])
+  })
+
+  it('kassa yaxlitlashi (`roundTo`) qaytarishda ham ulush bo‘yicha: mijoz qancha to‘lagan bo‘lsa, shuncha qaytadi', () => {
+    // 10 400, QQS yo'q, 1 000 gacha yaxlitlangan → to'langan 10 000: to'liq qaytarish 10 000, ikki yarmi 5 000 + 5 000
+    const down = { subtotal: 10_400, discount: 0, bonusUsed: 0, bonusEarned: 0, taxRate: 0, tax: 0, total: 10_000, deliveryFee: 0 }
+    expect(refundFor(down, 10_400, 0).total).toBe(10_000)
+    expect([refundFor(down, 5_200, 0).total, refundFor(down, 5_200, 5_200).total]).toEqual([5_000, 5_000])
+    // 10 600 → 11 000 to'langan: to'liq qaytarish 11 000
+    const up = { ...down, subtotal: 10_600, total: 11_000 }
+    expect(refundFor(up, 10_600, 0).total).toBe(11_000)
+  })
+
+  it('yetkazish narxi qaytarilmaydi (K2): to‘liq qaytarishda faqat tovar summasi', () => {
+    const sale = { subtotal: 100_000, discount: 0, bonusUsed: 0, bonusEarned: 0, taxRate: 0, tax: 0, total: 115_000, deliveryFee: 15_000 }
+    expect(refundFor(sale, 100_000, 0).total).toBe(100_000)
   })
 
   it('ball bilan to‘langan qism ball bo‘lib qaytadi, berilgan ball olib qo‘yiladi', () => {
     // 100 000, 12%, bonus 5 000 → mijoz 107 000 pul + 5 000 ball to'lagan
-    const sale = { subtotal: 100_000, discount: 5_000, bonusUsed: 5_000, bonusEarned: 1_070, taxRate: 12 }
+    const sale = { subtotal: 100_000, discount: 5_000, bonusUsed: 5_000, bonusEarned: 1_070, taxRate: 12, tax: 12_000, total: 107_000, deliveryFee: 0 }
     expect(refundFor(sale, 100_000, 0)).toMatchObject({ total: 107_000, bonusRestored: 5_000, bonusRevoked: 1_070 })
     const half = [refundFor(sale, 50_000, 0), refundFor(sale, 50_000, 50_000)]
     expect(half[0]!.total + half[1]!.total).toBe(107_000)

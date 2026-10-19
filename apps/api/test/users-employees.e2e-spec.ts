@@ -164,18 +164,17 @@ describe('Xodimlar va foydalanuvchilar (/employees, /users)', () => {
       expect(off.body.code).toBe('SELF_DELETE')
     })
 
-    it('oxirgi faol administratorni o‘chirib/pasaytirib bo‘lmaydi → 422 LAST_ADMIN', async () => {
-      // B — admin, lekin xodimi bo'shatilgan: hisobi hali faol (tokeni amal qiladi),
-      // biroq faol administrator sanalmaydi
+    it('oxirgi faol administratorni bo‘shatib bo‘lmaydi → 422 LAST_ADMIN; bo‘shatilgan admin kira olmaydi (401)', async () => {
+      // B — admin, lekin xodimi bo'shatilgan: faol administrator sanalmaydi va o'zi ham kira olmaydi —
+      // tokeni amal qilsa ham keyingi so'rovdanoq 401 (T-143)
       const b = await createUser('Bek', 'admin')
       const bAuth = await bearer(app, b, 'admin')
       await testDb.employee.update({ where: { id: b.employeeId }, data: { status: 'fired' } })
+      await http().patch(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).send({ role: 'manager' }).expect(401)
 
-      const demote = await http().patch(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).send({ role: 'manager' }).expect(422)
-      expect(demote.body.code).toBe('LAST_ADMIN')
-      const del = await http().delete(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).expect(422)
-      expect(del.body.code).toBe('LAST_ADMIN')
-      await http().patch(`/api/v1/users/${a.userId}`).set('Authorization', bAuth).send({ isActive: false }).expect(422)
+      // A — yagona faol administrator: o'z xodimini bo'shata olmaydi
+      const fire = await http().patch(`/api/v1/employees/${a.employeeId}`).set('Authorization', auth).send({ status: 'fired' }).expect(422)
+      expect(fire.body.code).toBe('LAST_ADMIN')
 
       // Ikkinchi FAOL admin bo'lsa — ruxsat
       await testDb.employee.update({ where: { id: b.employeeId }, data: { status: 'active' } })

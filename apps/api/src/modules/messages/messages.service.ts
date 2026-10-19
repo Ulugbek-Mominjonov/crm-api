@@ -162,20 +162,25 @@ export class MessagesService {
     const { skip, take } = pageArgs(query)
     const filter = onlyId ? Prisma.sql`AND m.id = ${onlyId}::uuid` : Prisma.empty
     const [rows, [count]] = await Promise.all([
+      // Avval SAHIFA (indeks bo'yicha), keyin faqat shu xabarlarning qabul qiluvchilari sanaladi —
+      // aks holda har sahifada do'konning barcha qabul qiluvchi qatorlari yig'ilardi
       this.prisma.scoped.$queryRaw<MessageRow[]>`
         SELECT m.id, m.target, m.recipient_label AS "recipientLabel", m.recipients, m.text, m.template,
                m.delivery_status AS "deliveryStatus", m.telegram_recipients AS telegram,
                m.unreachable_recipients AS unreachable, m.user_id AS "userId", m.created_at AS "createdAt",
-               COUNT(r.id) FILTER (WHERE r.status IN ('queued', 'sending')) AS queued,
-               COUNT(r.id) FILTER (WHERE r.status = 'sent') AS sent,
-               COUNT(r.id) FILTER (WHERE r.status = 'failed') AS failed,
-               COUNT(r.id) FILTER (WHERE r.status = 'logged') AS logged
-          FROM messages m
-          LEFT JOIN message_recipients r ON r.tenant_id = m.tenant_id AND r.message_id = m.id
-         WHERE m.tenant_id = ${tenantId}::uuid ${filter}
-         GROUP BY m.id
-         ORDER BY m.created_at DESC, m.id DESC
-         LIMIT ${take} OFFSET ${skip}`,
+               c.queued, c.sent, c.failed, c.logged
+          FROM (SELECT * FROM messages m
+                 WHERE m.tenant_id = ${tenantId}::uuid ${filter}
+                 ORDER BY m.created_at DESC, m.id DESC
+                 LIMIT ${take} OFFSET ${skip}) m
+          LEFT JOIN LATERAL (
+            SELECT COUNT(*) FILTER (WHERE r.status IN ('queued', 'sending')) AS queued,
+                   COUNT(*) FILTER (WHERE r.status = 'sent') AS sent,
+                   COUNT(*) FILTER (WHERE r.status = 'failed') AS failed,
+                   COUNT(*) FILTER (WHERE r.status = 'logged') AS logged
+              FROM message_recipients r
+             WHERE r.tenant_id = m.tenant_id AND r.message_id = m.id) c ON true
+         ORDER BY m.created_at DESC, m.id DESC`,
       this.prisma.scoped.$queryRaw<{ total: bigint }[]>`
         SELECT COUNT(*) AS total FROM messages m WHERE m.tenant_id = ${tenantId}::uuid ${filter}`,
     ])

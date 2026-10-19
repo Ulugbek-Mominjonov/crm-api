@@ -516,7 +516,7 @@ NOTES = {
         '`policy` (`maxDiscountPct`), `meta.max` — shu maydonga mumkin bo‘lgan chegirma; `sales.belowCost` ruxsati bilan minimal narx '
         'chegarasi o‘tiladi (chek jurnalga `sale.belowCost` bilan tushadi) — README → 10.1.',
     ('GET', '/sales'):
-        'Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — chek raqami yoki mijoz nomi; '
+        'Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — raqam ko‘rinishida bo‘lsa (raqami bor, bo‘shliqsiz: `CHEK-1001`, `1001`) chek raqami, aks holda mijoz nomi; '
         '`relatedSaleId` — shu chek bo‘yicha qaytarish hujjatlari (chek kartasidagi «Qaytarishlar»). '
         'Qatorlarsiz — tafsilot `GET /sales/:id` da.',
     ('GET', '/sales/:id'):
@@ -564,7 +564,7 @@ NOTES = {
         '(yoki frontend eng eskisidan boshlab ketma-ket bir nechta so‘rov yuboradi, har biriga ALOHIDA kalit). '
         'Qarzdan ko‘p — 422 `PAYMENT_EXCEEDS_DEBT`. `cash` — kassaga (ochiq smena shart), `bank` — kassaga ta’sirsiz.',
     # quotes
-    ('GET', '/quotes'): 'Takliflar ro‘yxati; `expired=true` — amal muddati o‘tgan ochiq takliflar.',
+    ('GET', '/quotes'): 'Takliflar ro‘yxati; `expired=true` — amal muddati o‘tgan ochiq takliflar. `q` — raqam ko‘rinishida bo‘lsa taklif raqami, aks holda mijoz nomi.',
     ('GET', '/quotes/summary'): 'Takliflar kartalari: jami, qabul qilingan, javob kutilayotgan summa.',
     ('POST', '/quotes'):
         'Taklif (smeta). Summalar sotuv qoidasida hisoblanadi; qoldiq band QILINMAYDI. `priceTier` berilmasa: `wholesaleEnabled` bo‘lsa — '
@@ -582,7 +582,7 @@ NOTES = {
     # purchase orders
     ('GET', '/purchase-orders'):
         'Xaridlar sahifasi. Har buyurtmada `outstanding` — faqat KELGAN tovar uchun qarzimiz. Sotuvchida summalar yo‘q '
-        '(ustunlarni yashiring).',
+        '(ustunlarni yashiring). `q` — raqam ko‘rinishida bo‘lsa buyurtma raqami, aks holda ta’minotchi nomi.',
     ('GET', '/purchase-orders/summary'):
         'Xaridlar kartalari: kreditorlik, kutilayotgan buyurtmalar, oy xaridi, qabul qilingan summa. Sotuvchida faqat `openOrders`.',
     ('POST', '/purchase-orders'):

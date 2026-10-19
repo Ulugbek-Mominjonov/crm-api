@@ -9,6 +9,7 @@ import { AuthController } from './auth.controller'
 import { RegistrationController } from './registration.controller'
 import { AuthService } from './auth.service'
 import { PasswordService } from './password.service'
+import { RefreshTokenJobs } from './refresh-token.jobs'
 import { RefreshTokenService } from './refresh-token.service'
 import { TokenService } from './token.service'
 import { JwtAuthGuard } from './guards/jwt-auth.guard'
@@ -23,6 +24,7 @@ import { PermissionsGuard } from './guards/permissions.guard'
     PasswordService,
     TokenService,
     RefreshTokenService,
+    RefreshTokenJobs,
     // Global guard'lar — himoyani unutish mumkin emas.
     // Tartib muhim: avval kim ekanini aniqlaymiz, keyin nimaga haqli ekanini.
     { provide: APP_GUARD, useClass: JwtAuthGuard },

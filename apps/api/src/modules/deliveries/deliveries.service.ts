@@ -141,10 +141,16 @@ export class DeliveriesService {
       assertNoFeeOnSale(dto.fee)
       const sale = await this.prisma.scoped.sale.findFirst({
         where: { id: dto.saleId, deletedAt: null },
-        select: { customerId: true, delivery: { select: { id: true } } },
+        select: { customerId: true, status: true, delivery: { select: { id: true } } },
       })
       if (!sale) {
         throw new DomainError('REFERENCE_NOT_FOUND', 'Chek topilmadi', [{ field: 'saleId', code: 'REFERENCE_NOT_FOUND' }])
+      }
+      // Bekor qilingan chekka yetkazish ochilmaydi (bekor qilish uning yetkazishini ham olib tashlaydi)
+      if (sale.status === 'cancelled') {
+        throw new DomainError('SALE_ALREADY_CANCELLED', 'Chek bekor qilingan — yetkazish ochilmaydi', [
+          { field: 'saleId', code: 'SALE_ALREADY_CANCELLED' },
+        ])
       }
       if (sale.delivery) {
         throw new DomainError('ALREADY_EXISTS', 'Bu chek uchun yetkazish bor', [{ field: 'saleId', code: 'ALREADY_EXISTS' }])

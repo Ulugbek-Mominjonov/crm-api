@@ -61,16 +61,20 @@ export function accrualPeriod(today: string): PayrollPeriod {
   return monthPeriod(previousMonth(today))
 }
 
-/** Davrda ishlagan kunlar: ishga kirgan kundan oy oxirigacha (to'liq oy — oydagi kunlar) */
-export function workedDays(hiredAt: string, period: PayrollPeriod): number {
-  if (hiredAt <= period.start) return period.days
-  if (hiredAt > period.end) return 0
-  return Math.round((Date.parse(period.end) - Date.parse(hiredAt)) / MS_PER_DAY) + 1
+/**
+ * Davrda hisoblanadigan kunlar: `from` (ishga kirgan kun yoki hisob
+ * boshlanishi `payrollFrom` — qaysi kech bo'lsa) dan oy oxirigacha;
+ * to'liq oy — oydagi kunlar
+ */
+export function workedDays(from: string, period: PayrollPeriod): number {
+  if (from <= period.start) return period.days
+  if (from > period.end) return 0
+  return Math.round((Date.parse(period.end) - Date.parse(from)) / MS_PER_DAY) + 1
 }
 
 /** Oylik maosh davr uchun: qisman oy — kunlarga mutanosib, butun so'mgacha */
-export function proratedSalary(salary: number, hiredAt: string, period: PayrollPeriod): number {
-  const days = workedDays(hiredAt, period)
+export function proratedSalary(salary: number, from: string, period: PayrollPeriod): number {
+  const days = workedDays(from, period)
   if (days >= period.days) return Math.round(salary)
   return Math.round((salary * days) / period.days)
 }

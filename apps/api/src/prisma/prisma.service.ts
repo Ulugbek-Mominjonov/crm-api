@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Prisma, PrismaClient } from '@prisma/client'
+import { CommittedDomainError, type DomainError } from '@/common/errors/domain.error'
 import type { Env } from '@/config/env.schema'
 import { tenantExtension } from './tenant.extension'
 import { currentTenantTx, MissingTenantTransactionError, runInTenantTx, type AfterCommitHook } from './tenant-tx'
@@ -150,6 +151,34 @@ export class PrismaService
     )
     this.runAfterCommit(tenantId, afterCommit)
     return result
+  }
+
+  /**
+   * `CommittedDomainError` qoidasi bilan: xato ichidagi yozuvlar SAQLANADI
+   * (COMMIT), keyin ichidagi xato beriladi. So'rov interceptori va qo'lda
+   * (`@ManualTransaction`) boshqariladigan tranzaksiya bir xil yo'l.
+   */
+  async inTenantTransactionCommitting<T>(
+    tenantId: string,
+    fn: (tx: TenantTx) => Promise<T>,
+    options?: TenantTxOptions,
+  ): Promise<T> {
+    let failure: DomainError | undefined
+    const result = await this.inTenantTransaction(
+      tenantId,
+      async (tx) => {
+        try {
+          return await fn(tx)
+        } catch (err) {
+          if (!(err instanceof CommittedDomainError)) throw err
+          failure = err.error
+          return undefined
+        }
+      },
+      options,
+    )
+    if (failure) throw failure
+    return result as T
   }
 
   /**

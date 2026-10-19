@@ -57,10 +57,10 @@ Umumiy «tayyor» ta'rifi —
 | E12 | Realtime va offline | 5 | 5/5 | B5 |
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
-| E15 | Deploy va ekspluatatsiya | 12 | 8/12 | B4 |
+| E15 | Deploy va ekspluatatsiya | 13 | 9/13 | B4 |
 | E16 | SaaS (obuna) | 6 | 6/6 | B6 |
 | E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
-| | **Jami** | **142** | **126/142** | |
+| | **Jami** | **143** | **127/143** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -942,6 +942,18 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
     - `config_only` — obraz yig'ilmasdan faqat konfiguratsiya qo'llanadi; `RELEASE` = `TAG` (Sentry)
     - Birinchi o'tish `dry_run` bilan: kalit nomlari va qiymat xeshlari solishtiriladi, qiymatlar logga chiqmaydi
   - Tekshirish: Actions → deploy (`dry_run`) — farq yo'q; keyin oddiy deploy yashil va `curl -fsS https://crm.workspaces.uz/health/ready`
+
+- [x] **T-143 · Texnik tekshiruv va tuzatishlar (moliya, yuklama, xavfsizlik)**
+  - Bog'liq: T-142
+  - Manba: egasi so'rovi (2026-10-17, task-1), uch yo'nalishli audit — [PROGRESS Q124](PROGRESS.md), [docs/api/README.md §14](docs/api/README.md#known)
+  - Qabul: smenasiz yozilgan naqd xarajat kassaga «qaytmaydi»; qaytarishda QQS va `roundTo` ulush bo'yicha (qismlar = to'langan);
+    P&L/analitika `trend` qaytarish ayrilgan; maosh prorata `payrollFrom` dan, qo'lda maosh ustiga avtomatik yo'q; fayl tasdiqlash
+    S3 tekshiruvi tranzaksiyasiz, `putDirect` S3 avval; indekslar (`sales (tenant, created_at)`, `(tenant, id)` ×7, token muddati,
+    email); audit eksporti sana chegaralari indeks bilan; xabarlar ro'yxati LATERAL; `q` raqam/nom yo'naltirish; sessiya tozalash cron;
+    kirish bloklash (5 ta → 15 daqiqa, `AUTH_ACCOUNT_LOCKED`), bo'shatilgan — `AUTH_ACCOUNT_DISABLED` + sessiya yopiladi; 429/503/401/403
+    kodlari; `minMarginPct` `cost.view` bilan; idempotentlik kaliti foydalanuvchi doirasida; bekor qilingan chekka yetkazish 409;
+    cookie `secure` staging'da ham; egasi sessiya rotatsiyasi atomik
+  - Tekshirish: `npm run test:e2e -- auth-login expenses-cash-effect sales-return reports payroll files` + butun to'plam
 
 - [ ] **T-131 · Staging muhiti**
   - Bog'liq: T-130

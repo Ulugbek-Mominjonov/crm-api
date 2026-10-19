@@ -17,7 +17,8 @@ export const PLATFORM_COOKIE: RefreshCookie = { name: 'platform_refresh', path: 
 export function setRefreshCookie(res: Response, token: string, maxAgeMs: number, cookie: RefreshCookie = STORE_COOKIE): void {
   res.cookie(cookie.name, token, {
     httpOnly: true, // JS o'qiy olmaydi — XSS bo'lsa ham token chiqmaydi
-    secure: process.env.NODE_ENV === 'production',
+    // Faqat HTTPS — lokal ishlab chiqish va testdan tashqari har qanday muhitda (staging ham)
+    secure: process.env.NODE_ENV !== 'development' && process.env.NODE_ENV !== 'test',
     sameSite: 'strict', // CSRF himoyasi
     path: cookie.path,
     maxAge: maxAgeMs,

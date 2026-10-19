@@ -1,5 +1,5 @@
 import {
-  floorPrice, lineTotal, priceForUnit, refundTotals, saleTotals, toBaseQty, unitOptions,
+  floorPrice, lineTotal, priceForUnit, saleTotals, toBaseQty, unitOptions,
   type PermissionSet, type RoundStep, type SaleTotals, type UnitSpec,
 } from '@crm/shared'
 import type { PriceTier, ProductUnit } from '@prisma/client'
@@ -377,6 +377,16 @@ export interface RefundBase {
   bonusUsed: number
   bonusEarned: number
   taxRate: number
+  /** Chekda saqlangan QQS — qaytarishda ulush bo'yicha (qismlar yig'indisi aynan) */
+  tax: number
+  /** Chek summasi va yetkazish: kassa yaxlitlashi (`roundTo`) shulardan tiklanadi */
+  total: number
+  deliveryFee: number
+}
+
+/** Chekdagi kassa yaxlitlashi (`roundTo`): saqlanmaydi, summalardan tiklanadi; `discount` bonus bilan */
+export function roundingOf(sale: Pick<RefundBase, 'subtotal' | 'discount' | 'tax' | 'total' | 'deliveryFee'>): number {
+  return sale.total - sale.deliveryFee - (sale.subtotal - sale.discount + sale.tax)
 }
 
 export interface RefundResult {
@@ -405,13 +415,16 @@ export function refundFor(sale: RefundBase, subtotal: number, returnedBefore: nu
     shareOf(whole, returnedBefore, subtotal, sale.subtotal, round)
   const discount = share(sale.discount - sale.bonusUsed)
   const bonusRestored = share(sale.bonusUsed)
-  const refund = refundTotals(subtotal, discount, sale.taxRate)
+  // I6: QQS va kassa yaxlitlashi ham asl chekdan ULUSH bo'yicha, qayta hisoblanmaydi —
+  // qismlar yig'indisi to'langan summaga aynan teng; mijoz to'lamagan yaxlitlash qaytmaydi
+  const tax = share(sale.tax)
+  const rounding = share(roundingOf(sale))
   return {
     subtotal,
     discount: discount + bonusRestored,
     taxRate: sale.taxRate,
-    tax: refund.tax,
-    total: Math.max(0, refund.total - bonusRestored),
+    tax,
+    total: Math.max(0, subtotal - discount + tax - bonusRestored + rounding),
     bonusRestored,
     bonusRevoked: share(sale.bonusEarned, Math.floor),
   }

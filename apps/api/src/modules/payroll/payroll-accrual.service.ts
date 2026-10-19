@@ -11,7 +11,8 @@ interface Candidate {
   id: string
   salary: number
   salesBonusPct: number
-  hiredAt: string
+  /** Maosh hisoblanadigan birinchi kun: ishga kirgan kun yoki `payroll_from` — qaysi kech bo'lsa */
+  from: string
   /** Davr savdosi: sotuvlar − qaytarishlar (asl chek sotuvchisiga) */
   base: number
 }
@@ -28,15 +29,17 @@ interface NewEntry {
 
 /**
  * Avtomatik hisoblash (T-142): xodimning «hisoblash kuni» kelganda O'TGAN OY
- * uchun maosh (oy ichida ishga kirgan — kunlarga mutanosib) va savdodan
- * bonus (o'tgan oy sotuvlari − qaytarishlar × foiz). Yozuv sanasi — o'tgan
- * oyning oxiri: oy foydasiga shu oy xarajati sifatida tushadi.
+ * uchun maosh (oy ichida ishga kirgan yoki hisob boshlangan — kunlarga
+ * mutanosib) va savdodan bonus (o'tgan oy sotuvlari − qaytarishlar × foiz).
+ * Yozuv sanasi — o'tgan oyning oxiri: oy foydasiga shu oy xarajati sifatida
+ * tushadi.
  *
  * Davrga BIR marta (I21 kabi): qisman noyob indeks `(xodim, sana, tur) WHERE auto`
  * — parallel ikkinchi ishga tushirish `ON CONFLICT DO NOTHING` bilan hech
  * narsa yaratmaydi; o'chirilgan avtomatik yozuv ham qayta yaratilmaydi
- * (egasi ataylab o'chirgan). Hisob boshlanishidan (`payroll_from`) oldingi
- * oylar — yo'q.
+ * (egasi ataylab o'chirgan); davr oxiriga qo'lda yozilgan maosh/bonus bo'lsa
+ * ham avtomatik qo'shilmaydi (ikki marta sanalmasin). Hisob boshlanishidan
+ * (`payroll_from`) oldingi kunlar — yo'q: o'tishdagi qisman oy ham shundan.
  */
 @Injectable()
 export class PayrollAccrualService {
@@ -66,16 +69,17 @@ export class PayrollAccrualService {
                           AND b.sales_bonus_pct > 0)
          GROUP BY 1)
       SELECT e.id, e.salary::float8 AS salary, e.sales_bonus_pct::float8 AS "salesBonusPct",
-             to_char(e.hired_at, 'YYYY-MM-DD') AS "hiredAt", COALESCE(b.base, 0)::float8 AS base
+             to_char(GREATEST(e.hired_at, e.payroll_from), 'YYYY-MM-DD') AS "from", COALESCE(b.base, 0)::float8 AS base
         FROM employees e
         LEFT JOIN sold b ON b.seller_id = e.id
        WHERE e.tenant_id = ${tenantId}::uuid AND e.deleted_at IS NULL AND e.status = 'active'
          AND (e.salary > 0 OR e.sales_bonus_pct > 0)
          AND e.salary_day <= ${dayOfMonth}
          AND e.payroll_from <= ${period.end}::date AND e.hired_at <= ${period.end}::date
+         -- Davr uchun yozuv bor: avtomatik (o'chirilgani ham) yoki qo'lda yozilgan maosh/bonus — ikki marta yo'q
          AND NOT EXISTS (SELECT 1 FROM payroll_entries p
-                          WHERE p.tenant_id = e.tenant_id AND p.employee_id = e.id AND p.auto
-                            AND p.date = ${period.end}::date)
+                          WHERE p.tenant_id = e.tenant_id AND p.employee_id = e.id AND p.date = ${period.end}::date
+                            AND p.type IN ('salary', 'bonus') AND (p.auto OR p.deleted_at IS NULL))
        ORDER BY e.id`
     const entries = candidates.flatMap((c) => accrualEntries(c, period))
     if (entries.length === 0) return 0
@@ -106,9 +110,9 @@ export class PayrollAccrualService {
 /** Xodim uchun davr yozuvlari: maosh (bo'lsa) va bonus (bo'lsa) */
 function accrualEntries(c: Candidate, period: PayrollPeriod): NewEntry[] {
   const entries: NewEntry[] = []
-  const salary = proratedSalary(c.salary, c.hiredAt, period)
+  const salary = proratedSalary(c.salary, c.from, period)
   if (salary > 0) {
-    const days = workedDays(c.hiredAt, period)
+    const days = workedDays(c.from, period)
     entries.push({
       id: uuidv7(),
       employee_id: c.id,

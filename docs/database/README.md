@@ -159,6 +159,8 @@ erDiagram
         timestamptz deleted_at
         timestamptz updated_at
         uuid role_id FK
+        smallint failed_logins
+        timestamptz locked_until
     }
     roles {
         uuid id PK
@@ -331,6 +333,8 @@ Tizimga kirish hisobi — doim bitta xodimga tegishli (ism va lavozim `employees
 | `deleted_at` | timestamptz | ha | Yumshoq o'chirilgan vaqt; bo'sh — faol |
 | `updated_at` | timestamptz | — | Versiya (If-Match, T-098): tahrirlanadigan maydon o'zgarganda yangilanadi |
 | `role_id` | uuid | — | → `roles` · Do'kon roli (T-134) — ruxsatlar rolda, foydalanuvchida emas |
+| `failed_logins` | smallint | — | Email bitta tenant ichida noyob (boshqa do'konda takrorlanishi mumkin) Ketma-ket noto'g'ri parollar soni va blok muddati (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi |
+| `locked_until` | timestamptz | ha |  |
 
 ### `roles`
 

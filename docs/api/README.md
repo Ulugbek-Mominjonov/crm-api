@@ -392,7 +392,8 @@ tahrir 409 oladi). Javoblarda Express’ning avtomatik `ETag` sarlavhasi bo‘li
 ### 4.6 Idempotentlik — `Idempotency-Key`
 
 Kassir «Sotish» ni bosdi, javob kelmadi (internet uzildi), qayta bosdi — ikkinchi chek yozilmasligi
-kerak. Shuning uchun pul va ombor amallarida sarlavha **MAJBURIY** (yo‘q bo‘lsa — 400):
+kerak. Shuning uchun pul va ombor amallarida sarlavha **MAJBURIY** (yo‘q bo‘lsa — 400). Kalit
+FOYDALANUVCHI doirasida: ikki kassir tasodifan bir xil kalit yuborsa, biri ikkinchisining javobini olmaydi:
 
 `POST /sales`, `/sales/:id/return`, `/sales/:id/cancel`, `/quotes/:id/convert`,
 `/cash/shifts/open`, `/cash/shifts/close`, `/cash/movements`, `/debts/payments`, `/expenses`,
@@ -460,6 +461,7 @@ foydalanuvchi ma’lumoti login/refresh javobidagi `user` da:
 }
 ```
 
+<a id="login"></a>
 ### 5.2 Kirish
 
 `POST /auth/login` `{ email, password }`:
@@ -468,10 +470,12 @@ foydalanuvchi ma’lumoti login/refresh javobidagi `user` da:
 - **401 `AUTH_INVALID_CREDENTIALS`** — email yoki parol xato (qaysi biri — aytilmaydi).
 - **409 `AUTH_TENANT_REQUIRED`** — bu email + parol bir nechta do‘konda bor. `errors[]` da
   `meta: { tenantId, tenantName }` ro‘yxati → do‘kon tanlash oynasi → xuddi shu so‘rov + `tenantId`.
-- **423 `AUTH_ACCOUNT_LOCKED`** — xodim ishdan bo‘shatilgan. To‘xtatilgan (`suspended`), bloklangan
+- **423 `AUTH_ACCOUNT_DISABLED`** — xodim ishdan bo‘shatilgan. To‘xtatilgan (`suspended`), bloklangan
   (`blocked`) yoki o‘chirilayotgan (`deleting`) do‘konga kirish MUMKIN — `user.tenant.status` bo‘yicha
   faqat-o‘qish bannerini ko‘rsating ([8.1](#tenant)).
-- **429** — daqiqasiga 10 urinishdan oshdi.
+- **423 `AUTH_ACCOUNT_LOCKED`** — ketma-ket 5 ta noto‘g‘ri parol: hisob 15 daqiqa bloklanadi, to‘g‘ri parol
+  ham o‘tmaydi (`errors[0].meta.until` — qachongacha). Muvaffaqiyatli kirish hisobni tozalaydi.
+- **429 `RATE_LIMITED`** — daqiqasiga 10 urinishdan oshdi (bitta IP dan).
 
 Yangi do‘kon — `POST /tenants/register` (javob login bilan bir xil, foydalanuvchi darhol kirgan,
 roli `admin`). Keyin `settings.onboarded === false` bo‘lsa — dastlabki sozlash sehrgari. Platforma egasi
@@ -508,7 +512,7 @@ Refresh xatolari — barchasida xotirani tozalab login sahifasiga («Sessiya tug
 - 401 `AUTH_TOKEN_REUSE` — cookie BEKOR QILINGAN: parallel refresh, shuningdek boshqa qurilmada
   «barcha qurilmalardan chiqish», parol o‘zgarishi, admin parolni tiklashi yoki hisobni o‘chirishidan
   keyin — bu oddiy holat, foydalanuvchiga «o‘g‘irlik» ogohlantirishi ko‘rsatmang;
-- 423 `AUTH_ACCOUNT_LOCKED` — xodim ishdan bo‘shatilgan.
+- 423 `AUTH_ACCOUNT_DISABLED` — xodim ishdan bo‘shatilgan (bo‘shatilgan zahoti sessiyalari ham yopiladi).
 
 ### 5.4 Chiqish va sessiyalar
 
@@ -664,7 +668,7 @@ yo‘q bo‘lsa `label` ni ko‘rsating).
 | `settings.view` | Sozlamalar: Fayl saqlash hajmi | `GET /files/usage` | ✔ |  |  |
 | `settings.edit` | Sozlamalar: O‘zgartirish (brend, chek, QQS …) | `PATCH /settings` | ✔ |  |  |
 | **Maxfiy ma’lumotlar** | | | | | |
-| `cost.view` | Tannarx: Tannarx, ombor qiymati, xarid summalari, ta’minotchi qarzi | maydonlar: `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `payables` + xarid summalari ([6.6](#hidden)) | ✔ |  | ✔ |
+| `cost.view` | Tannarx: Tannarx, ombor qiymati, xarid summalari, ta’minotchi qarzi | maydonlar: `cost`, `unitCost`, `stockValue`, `stockValueByCategory`, `deadValue`, `payables`, `minMarginPct` (sozlama) + xarid summalari ([6.6](#hidden)) | ✔ |  | ✔ |
 | `wholesale.view` | Ulgurji narx: Ulgurji narxni ko‘rish va shu narxda sotish | maydon `wholesalePrice`; `priceTier: "wholesale"` bilan sotish ([6.6](#hidden)) | ✔ |  | ✔ |
 | `profit.view` | Foyda: Yalpi va sof foyda, marja (tannarxsiz bo‘lmaydi) | maydonlar: `grossProfit`, `netProfit`, `profit`, `cogs`, `margin` | ✔ |  |  |
 | `salary.view` | Maosh: Xodimlar maoshi | maydon `salary` (xodimlar) | ✔ |  |  |
@@ -748,7 +752,7 @@ Rol amallari jurnalga tushadi (`GET /audit`): `role.create`, `role.update` (`dif
 | Rol ruxsatlari (`PATCH /roles/:id`) yoki rol o‘chirildi | Shu rol egalarining KEYINGI so‘rovidanoq (token o‘sha) | `access.changed` hodisasi → `GET /auth/me` → store’dagi `user` (permissions) yangilanadi → menyu qayta chiziladi; joriy sahifa endi ruxsatsiz bo‘lsa — bosh sahifaga ([6.7](#permission-ui)) |
 | Foydalanuvchiga boshqa rol (`PATCH /users/:id { roleId }`) | Uning keyingi so‘rovidanoq | xuddi shu (`access.changed`) |
 | Hisob faolsizlantirildi yoki o‘chirildi | Uning keyingi so‘rovi — 401 `AUTH_INVALID_CREDENTIALS`; sessiyalari yopilgan → refresh ham 401 | Odatiy 401 oqimi: refresh → 401 → login sahifasi |
-| Xodim ishdan bo‘shatildi (`status: fired`) | Login/refresh — 423 `AUTH_ACCOUNT_LOCKED` | Access token muddati (≤ 15 daq) tugagach login sahifasi |
+| Xodim ishdan bo‘shatildi (`status: fired`) | Login/refresh — 423 `AUTH_ACCOUNT_DISABLED`; ochiq sessiyalari shu zahoti yopiladi (refresh bekor, huquq keshi tozalanadi) | Keyingi so‘rovdanoq 401 → login sahifasi |
 
 - `access.changed` yuki bo‘sh (`{}`) va do‘konning barcha ulanishlariga keladi — kimniki o‘zgarganini
   tekshirmang, shunchaki `GET /auth/me` ni qayta so‘rang (arzon so‘rov, kamdan-kam hodisa).
@@ -966,8 +970,9 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | 409 | Holat to‘qnashuvi — `detail` ni ko‘rsating (`VERSION_CONFLICT` — [4.5](#ifmatch)) |
 | 413 | Hajm — `PAYLOAD_TOO_LARGE` yoki `STORAGE_QUOTA_EXCEEDED` |
 | 422 | Biznes qoidasi — `detail` + `errors[].meta` (masalan savatda yetmagan tovar qatorini belgilash) |
-| 423 | `SHIFT_REQUIRED` → smena ochish oynasi; `TENANT_READ_ONLY` → banner; `AUTH_ACCOUNT_LOCKED` → login |
-| 429 | Juda ko‘p so‘rov / SMS chegarasi — keyinroq |
+| 423 | `SHIFT_REQUIRED` → smena ochish oynasi; `TENANT_READ_ONLY` → banner; `AUTH_ACCOUNT_LOCKED` (5 ta noto‘g‘ri parol, `meta.until`) / `AUTH_ACCOUNT_DISABLED` (bo‘shatilgan) → login |
+| 429 | `RATE_LIMITED` — juda ko‘p so‘rov, keyinroq; `MESSAGE_LIMIT_EXCEEDED` — SMS/murojaat chegarasi |
+| 503 `SERVICE_UNAVAILABLE` | Tashqi xizmat (Telegram, OFD) javob bermadi — `detail` bilan, keyinroq qayta uriniladi |
 | 500 `INTERNAL` | «Kutilmagan xato, kod: {traceId}» |
 | 503 | Server tayyor emas — qayta urinish |
 | Tarmoq xatosi | Offline — banner; chek bo‘lsa navbatga ([12.4](#flow-offline)) |
@@ -1232,7 +1237,8 @@ paytda bir nechta kassir — so‘rovlar yomg‘iri bo‘lmasin). Mutatsiya va h
      `≥ round(minPrice × miqdor)`, `subtotal − umumiy chegirma ≥ Σ round(minPrice × miqdor)`; `meta.minPrice` — birlik minimal
      narx. Tannarxi 0 tovar cheklanmaydi (`GET /products?noCost=true`, `summary.withoutCost`). `sales.belowCost` ruxsati
      bo‘lsa chegara o‘tiladi — chek jurnalga `sale.belowCost` bilan tushadi (sukutda hech bir rolda yo‘q, administrator beradi).
-     Bonus (ball) minimal summaga kirmaydi.
+     Bonus (ball) minimal summaga kirmaydi. `minMarginPct` sozlamasi `cost.view` siz rolga javobda yo‘q —
+     sotuvchi `meta.minPrice` dan tannarxni tiklay olmaydi (marja 0 bo‘lsa minimal narx = tannarx, shuning uchun ~5 % qo‘ying).
    - **Chegirma foizi** (`reason: "policy"`): `maxDiscountPct` ro‘yxat narxiga nisbatan — qatorda `ro‘yxat narx × miqdor − qator
      jami ≤ round(ro‘yxat summa × pct / 100)` (qo‘lda narx ham chegirma deb sanaladi; ro‘yxatdan qimmat — chegirma emas), umumiy
      chegirma uchun qolgan joy `round(ro‘yxat subtotal × pct / 100) − qatorlarda berilgani`. Sukut 100% — cheklamaydi.
@@ -1291,6 +1297,7 @@ birga `pending` yetkazish yaratiladi (javobda `delivery: { id, status }`); haydo
 ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageSize=5`
 (shtrix-kod aniq moslik bilan topiladi).
 
+<a id="returns"></a>
 ### 10.2 Qaytarish va bekor qilish
 
 **Qaytarish** — `POST /sales/:id/return { items: [{ saleItemId, qty }], reason }`:
@@ -1302,8 +1309,9 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
   hujjatlari — `GET /sales?relatedSaleId=<chek id>`.
 - Bekor qilingan chekdan — 409 `SALE_ALREADY_CANCELLED`; qaytarish hujjatidan — 422 `SALE_NOT_RETURNABLE`.
 - Tovar asl omborga qaytadi (ombor qoldig‘i bilan cheklanmaydi). Ochiq smena shart.
-- Pul: QQS asl chek foizi bo‘yicha, chegirma va bonus ulushi bilan hisoblanadi. **Nasiya chekda
-  avval QARZ yopiladi** (qaytarish hujjatida `debtPaid`), qolgani kassadan naqd (`paid.cash`).
+- Pul: chegirma, bonus, QQS va kassa yaxlitlashi (`roundTo`) — asl chekdan ULUSH bo‘yicha (qayta
+  hisoblanmaydi): qismlar yig‘indisi mijoz to‘lagan summaga aynan teng; yetkazish narxi qaytarilmaydi.
+  **Nasiya chekda avval QARZ yopiladi** (qaytarish hujjatida `debtPaid`), qolgani kassadan naqd (`paid.cash`).
   Ishlatilgan bonus ulushi ballga qaytadi, berilgan bonus ulushi olib qo‘yiladi.
 - Javob — yangi qaytarish hujjati (`type: "return"`, `number: "QAYT-…"`, `relatedSaleId` — asl chek).
   **Summani brauzerda hisoblamang** — javobdagi `total`, `paid.cash`, `debtPaid` ni ko‘rsating.
@@ -1319,6 +1327,7 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
 - Javob — yangilangan chek (`status: "cancelled"`). Hodisa: `sale.cancelled`.
 - Chekni O‘CHIRISH yo‘q.
 
+<a id="shifts"></a>
 ### 10.3 Smena va kassa
 
 - **Bitta do‘konda bir vaqtda bitta ochiq smena** (bitta kassa yashigi) — kassirlar bo‘yicha emas.
@@ -1346,7 +1355,9 @@ ichida; serverda savat saqlanmaydi. Skaner kodi → `GET /products?q=<kod>&pageS
 | `POST /purchase-orders/:id/pay` | `method: cash` |
 | `POST /payroll/payments`, `DELETE /payroll/entries/:id`, `.../restore` | `method: cash` to‘lov (yaratish, o‘chirish, tiklash) |
 
-Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yoziladi.
+Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yoziladi (`shiftId: null`) — va
+keyin tahrir, o‘chirish yoki tiklashda ham kassaga tegmaydi (kassada bo‘lmagan pul «qaytib» qolmasin);
+import qilingan naqd xarajatlar ham shunday.
 
 ### 10.4 Nasiya va qarzlar
 
@@ -1488,7 +1499,8 @@ Takrorlanuvchi naqd xarajat (cron) smena yopiq bo‘lsa kassaga ta’sirsiz yozi
 ### 10.12 Xodimlar va foydalanuvchilar
 
 - **Xodim** (`/employees`) — shaxs: ism, lavozim, telefon, maosh (`salary` — `salary.view` bilan,
-  sukut — admin, manager), holat `active | on_leave | fired`, ishga kirgan sana. `fired` — tizimga kira olmaydi.
+  sukut — admin, manager), holat `active | on_leave | fired`, ishga kirgan sana. `fired` — tizimga kira olmaydi,
+  bo‘shatilgan zahoti ochiq sessiyalari yopiladi (keyingi so‘rovdanoq 401).
   Maosh sozlamalari (`salary.view` bilan, [10.22](#payroll)): `salaryDay` (1–28, sukut 1 — o‘tgan oy maoshi
   hisoblanadigan kun), `salesBonusPct` (0–100, 2 kasr — savdodan bonus), `payrollFrom` (hisob boshlanadigan sana,
   sukut — `hiredAt`; undan oldingi oylar avtomatik hisoblanmaydi).
@@ -1592,8 +1604,9 @@ Qoidalar:
 
 - Barcha raqamlar SERVERDA; brauzerda `reduce` bilan yig‘ilmaydi. Tushum qoidasi (I4): bekor
   qilinmagan sotuvlar (nasiya ham), qaytarishlar ayiriladi — dashboard jamlari va P&L `current`/`previous`
-  da bir xil. P&L `trend`, top ro‘yxatlar va `/analytics` — YALPI sotuv (qaytarishsiz); `trend` faqat
-  sotuv bo‘lgan kunlarni o‘z ichiga oladi (bo‘sh kunlarni grafikda 0 bilan to‘ldiring).
+  da bir xil. `trend` (dashboard, P&L, `/analytics`) ham shu qoida — qaytarishlar ayrilgan, shuning uchun
+  nuqtalar yig‘indisi `current` ga teng; faqat sotuv yoki qaytarish bo‘lgan kunlar (bo‘sh kunlarni grafikda
+  0 bilan to‘ldiring). Top ro‘yxatlar (`topProducts`, `sellers`, ABC) — YALPI sotuv (qaytarishsiz).
 - `GET /dashboard?days=7|30|90` — bugun/kecha, debitor (`receivables`, `debtors`), kreditor
   (`payables` — `cost.view` siz yo‘q), kam qolganlar, trend, top mahsulot/qarzdor, oxirgi cheklar.
 - `GET /reports/pnl?from&to&limit` — davr ≤ ~3 yil («butun davr» = so‘nggi 3 yil); oldingi teng davr
@@ -1797,14 +1810,16 @@ ko‘chib yuradi. Yozuv turlari:
 
 **Avtomatik hisoblash** (tungi ish, har kuni 00:10 Toshkent; qo‘lda — `POST /payroll/run-due`):
 - Xodimning `salaryDay` (sukut 1) kelganda **o‘tgan oy** uchun yoziladi: `salary` = `employees.salary`
-  (oy ichida ishga kirgan — kunlarga mutanosib, `note: "15/30 kun"`, `baseAmount` — to‘liq maosh) va
+  (oy ichida ishga kirgan yoki hisob boshlangan (`payrollFrom`) — kunlarga mutanosib, `note: "15/30 kun"`,
+  `baseAmount` — to‘liq maosh) va
   `bonus` = round(o‘tgan oy sotuvlari − qaytarishlar (I4 tushum, QQS bilan; qaytarish asl chek sotuvchisidan
   ayriladi) × `salesBonusPct` / 100) (`baseAmount` — savdo, `rate` — foiz). Faqat `active` xodim, `salary > 0`
   yoki `salesBonusPct > 0`, `payrollFrom` va `hiredAt` davr oxiridan kech bo‘lmasa.
 - Yozuv sanasi — o‘tgan oyning **oxirgi kuni** (`date: 2026-09-30`, `period: "2026-09"`): sentabr maoshi
   sentabr foydasidan ayriladi, hisoblash kuni oktabrda bo‘lsa ham. `auto: true`.
 - Davrga **bir marta** (xodim + sana + tur): qayta ishga tushirish, parallel ikki instansiya — takrorlamaydi.
-  O‘chirilgan avtomatik yozuv ham qayta hisoblanmaydi — kerak bo‘lsa qo‘lda `salary`/`bonus` yoziladi.
+  O‘chirilgan avtomatik yozuv ham qayta hisoblanmaydi — kerak bo‘lsa qo‘lda `salary`/`bonus` yoziladi; davr
+  oxiri sanasiga qo‘lda yozilgan `salary`/`bonus` bo‘lsa, avtomatik qo‘shilmaydi (ikki marta sanalmaydi).
 - Mavjud xodimlarga o‘tishda `payrollFrom` = o‘tish kuni: avvalgi oylar (xarajat sifatida yozilgan)
   ikkinchi marta hisoblanmaydi; egasi sanani orqaga surib, o‘tgan oyni ham hisoblatishi mumkin.
 
@@ -2186,12 +2201,39 @@ tanlangan ombor, til, mavzu, offline navbat.
 
 ## 14. Ma’lum muammolar va cheklovlar
 
+<a id="known"></a>
 ### 14.1 Backend’da ochiq qolgan masalalar (qaror kutilmoqda)
 
-Hozircha yo‘q. (Avvalgi «narxni qo‘lda o‘zgartirish cheklanmagan» masalasi T-141 bilan yopildi: qo‘lda narx ham
-`maxDiscountPct` va minimal narxga bo‘ysunadi — [10.1](#pos).)
+Texnik tekshiruvda (2026-10-17) aniqlangan, hozircha dizayn cheklovi sifatida qoldirilganlar:
+
+- **Smena hisobotida boshqa smenadagi hujjatning teskari amali** — chek A smenada sotilgan, B smenada bekor
+  qilingan: pul B smenada qaytariladi (`cashOut`), lekin B hisobotining qatorlari (sotuv, qaytarish, xarajat)
+  uni ko‘rsatmaydi — `expectedBalance` to‘g‘ri, qo‘lda solishtirishda farq ko‘rinadi. Shu kabi: boshqa
+  smenada o‘chirilgan/tiklangan naqd xarajat va maosh to‘lovi. Yechim (reja): hisobotga «teskari amallar»
+  qatori (bekor qilish/o‘chirish smenasi saqlanadi).
+- **Alohida yetkazish narxi** (`standaloneFee`, chekka bog‘lanmagan yetkazish) hech qayerga pul sifatida
+  tushmaydi — kassaga ham, tushumga ham; `GET /deliveries/summary` dagi `feeRevenue` da ko‘rinadi. Haydovchi
+  olgan naqdni hozircha `POST /cash/movements` bilan kiriting. Yechim (reja): `delivered` da kassa harakati.
+
+(Avvalgi «narxni qo‘lda o‘zgartirish cheklanmagan» masalasi T-141 bilan yopildi — [10.1](#pos).)
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-17** — texnik tekshiruv tuzatishlari (T-143): moliyaviy hisob, yuklama, xavfsizlik; frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Bo‘shatilgan xodim — 423 `AUTH_ACCOUNT_LOCKED`; sessiyasi token tugaguncha ishlardi | 423 `AUTH_ACCOUNT_DISABLED`; bo‘shatilgan zahoti sessiya yopiladi. `AUTH_ACCOUNT_LOCKED` endi — ketma-ket 5 ta noto‘g‘ri parol, 15 daqiqa (`errors[0].meta.until`) | Login xabarlari: `DISABLED` — «ishdan bo‘shatilgan», `LOCKED` — «… daqiqadan keyin» ([5.2](#login)) |
+| Nest xatolari (429, 503, 401 guard) `code: INTERNAL` bilan kelardi | 429 `RATE_LIMITED`, 503 `SERVICE_UNAVAILABLE` (Telegram/OFD javob bermadi, `detail`), 401 `AUTH_INVALID_CREDENTIALS`, 403 `PERMISSION_DENIED`; `title` o‘zbekcha | `code` bo‘yicha xabar ([7.1](#errors)) |
+| P&L va analitika `trend` — yalpi sotuv (qaytarishsiz), dashboard — qaytarish ayrilgan | Hammasi qaytarish ayrilgan (I4), nuqtalar yig‘indisi = `current.revenue`; faqat qaytarish bo‘lgan kun ham nuqta | Grafik izohi «tushum (qaytarishsiz)» → «tushum» ([10.14](#reports)) |
+| Qaytarishda QQS qayta hisoblanardi, `roundTo` yaxlitlash qaytarilmasdi (±1 so‘m / yaxlitlash farqi) | QQS va yaxlitlash asl chekdan ulush bo‘yicha — qaytarilgan summa to‘langanga aynan teng ([10.2](#returns)) | Javobdagi `total` ni ko‘rsating (avvalgidek) |
+| `q` — raqam VA mijoz nomi bir vaqtda (katta jadvalda sekin) | Raqam ko‘rinishi (`CHEK-1001`, `1001`) — hujjat raqami; aks holda — mijoz/ta’minotchi nomi (sotuvlar, takliflar, xaridlar) | Qidiruv maydoni izohi: «chek raqami yoki mijoz» |
+| `GET /settings.minMarginPct` hamma rolga | `cost.view` siz rolga javobda yo‘q (tannarx sizmasin) | Sozlamalar formasida maydon bo‘lmasa — ko‘rsatmang |
+| `Idempotency-Key` do‘kon doirasida | foydalanuvchi doirasida | — |
+| Maosh: o‘tishdagi qisman oy to‘liq hisoblanardi; qo‘lda yozilgan maosh ustiga avtomatik ham qo‘shilardi | `payrollFrom` dan kunlarga; davr oxiriga qo‘lda `salary`/`bonus` bo‘lsa avtomatik yo‘q ([10.22](#payroll)) | — |
+| Smenasiz yozilgan naqd xarajat (tungi shablon) o‘chirilsa pul kassaga «qaytardi» | Kassaga tushmagan xarajat tahrir/o‘chirish/tiklashda ham kassaga tegmaydi ([10.3](#shifts)) | — |
+| Bekor qilingan chekka yetkazish ochilardi | 409 `SALE_ALREADY_CANCELLED` (`field: saleId`) | Yetkazish formasida xabar |
+| Smena hisoboti — | + [14.1](#known) dagi ikki cheklov hujjatlandi | — |
 
 **2026-10-17** — maosh hisobi (T-142, [10.22](#payroll)); frontendga ta’sir qiladi:
 
