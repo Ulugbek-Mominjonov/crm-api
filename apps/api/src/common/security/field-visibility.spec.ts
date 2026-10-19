@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { effectivePermissions, SYSTEM_ROLES, type Permission, type PermissionSet, type Role } from '@crm/shared'
-import { canSeeField, canSeePurchaseAmounts, hiddenFieldsFor, stripHidden, visibilityPolicy } from './field-visibility'
+import { canSeeField, canSeePurchaseAmounts, hiddenFieldsFor, STRIP_DEPTH, stripHidden, visibilityPolicy } from './field-visibility'
 
 /** Tizim rolining sukut ruxsatlari */
 const of = (role: Role): PermissionSet => new Set(effectivePermissions(role, SYSTEM_ROLES[role].permissions))
@@ -84,5 +86,53 @@ describe('Maydon ko‘rinuvchanligi', () => {
     expect(canSeeField(custom, 'cost')).toBe(false)
     expect(canSeeField(custom, 'margin')).toBe(false)
     expect(canSeePurchaseAmounts(custom)).toBe(false)
+  })
+})
+
+/**
+ * `stripHidden` chuqurligi: javob sxemalari undan chuqur bo'lsa, yashirin
+ * maydon (`cost`, `profit`…) tozalanmay qolardi. OpenAPI (`openapi.json`)
+ * sxemalari bo'ylab ichma-ich obyekt darajasi hisoblanadi — kelajakdagi
+ * chuqur DTO shu testda ushlanadi.
+ */
+describe('OpenAPI sxemalari tozalash chuqurligidan oshmaydi', () => {
+  interface Schema {
+    $ref?: string
+    type?: string
+    items?: Schema
+    properties?: Record<string, Schema>
+    additionalProperties?: Schema | boolean
+    allOf?: Schema[]
+    oneOf?: Schema[]
+    anyOf?: Schema[]
+  }
+
+  const spec = JSON.parse(readFileSync(join(__dirname, '../../../openapi.json'), 'utf8')) as {
+    components: { schemas: Record<string, Schema> }
+  }
+  const schemas = spec.components.schemas
+
+  /** Obyekt darajalari soni; aylanma havola — cheksiz chuqurlik */
+  const depthOf = (node: Schema, stack: ReadonlySet<string>): number => {
+    if (node.$ref) {
+      const name = node.$ref.split('/').at(-1)!
+      if (stack.has(name)) return Number.POSITIVE_INFINITY
+      return depthOf(schemas[name]!, new Set([...stack, name]))
+    }
+    if (node.type === 'array' && node.items) return depthOf(node.items, stack)
+    const nested = [...(node.allOf ?? []), ...(node.oneOf ?? []), ...(node.anyOf ?? [])].map((s) => depthOf(s, stack))
+    const own = [
+      ...Object.values(node.properties ?? {}),
+      ...(typeof node.additionalProperties === 'object' ? [node.additionalProperties] : []),
+    ].map((s) => 1 + depthOf(s, stack))
+    const isObject = node.properties !== undefined || typeof node.additionalProperties === 'object'
+    return Math.max(isObject ? 1 : 0, ...nested, ...own)
+  }
+
+  it(`har bir sxema ≤ ${STRIP_DEPTH} daraja, aylanma havola yo‘q`, () => {
+    const tooDeep = Object.entries(schemas)
+      .map(([name, schema]) => [name, depthOf(schema, new Set([name]))] as const)
+      .filter(([, depth]) => depth > STRIP_DEPTH)
+    expect(tooDeep).toEqual([])
   })
 })

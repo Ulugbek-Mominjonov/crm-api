@@ -1152,7 +1152,8 @@ hisobsiz sahifalar (yopiq ro‘yxatdan o‘tish) uchun `GET /tenants/registratio
 - Token noto‘g‘ri/yo‘q — ulanish rad etiladi: `connect_error` (`err.message === "unauthorized"`).
 - **Token muddati tugaganda server ulanishni uzadi** (`disconnect` sababi `"io server disconnect"`) —
   socket.io bu holatda o‘zi QAYTA ULANMAYDI: refresh qilib, `socket.connect()` chaqiring.
-  `auth` ni funksiya qilib bering — har ulanishda joriy token olinadi.
+  `auth` ni funksiya qilib bering — har ulanishda joriy token olinadi. Hisob faolsizlantirilganda,
+  o‘chirilganda, paroli almashganda yoki xodim bo‘shatilganda ham shu zahoti uziladi — refresh 401 beradi → login sahifasi.
 - Qayta ulanganda uzilish paytidagi hodisalar kelmaydi → faol so‘rovlarni (ekrandagi ma’lumotni)
   qayta so‘rang.
 
@@ -2218,6 +2219,11 @@ Texnik tekshiruvda (2026-10-17) aniqlangan, hozircha dizayn cheklovi sifatida qo
 (Avvalgi «narxni qo‘lda o‘zgartirish cheklanmagan» masalasi T-141 bilan yopildi — [10.1](#pos).)
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-19** — texnik tekshiruv sayqali (T-144): realtime ulanish hisob faolsizlantirilganda, o‘chirilganda, paroli
+almashganda yoki xodim bo‘shatilganda darhol uziladi (`"io server disconnect"` → refresh 401 → login, [9](#realtime));
+egasi paneli kirishida ham 423 `AUTH_ACCOUNT_LOCKED` ([owner-panel.md → 5.1](owner-panel.md)); tungi ishlar faqat ishi bor
+do‘konlarni aylanadi (frontendga ta’sirsiz).
 
 **2026-10-17** — texnik tekshiruv tuzatishlari (T-143): moliyaviy hisob, yuklama, xavfsizlik; frontendga ta’sir qiladi:
 

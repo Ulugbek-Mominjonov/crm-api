@@ -86,7 +86,10 @@ export function canSeePurchaseAmounts(permissions: PermissionSet): boolean {
  * Chuqurlik cheklangan: aylanma havolada osilib qolmaslik uchun va
  * chuqur ichma-ich javoblar baribir bo'lmasligi kerak.
  */
-export function stripHidden<T>(value: T, hidden: Set<string>, depth = 6): T {
+/** Javobni tozalash chuqurligi — OpenAPI sxemalari undan chuqur bo‘lmasligi unit test bilan tekshiriladi */
+export const STRIP_DEPTH = 6
+
+export function stripHidden<T>(value: T, hidden: Set<string>, depth = STRIP_DEPTH): T {
   if (hidden.size === 0 || depth <= 0 || value === null || typeof value !== 'object') {
     return value
   }

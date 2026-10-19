@@ -66,7 +66,7 @@ Oqim do‘kon ilovasidagi bilan bir xil ([README → 5](README.md#auth), [12.1](
 | Yangilash | `POST /platform/auth/refresh` (cookie’ni brauzer o‘zi yuboradi: `credentials: "include"`) → 201, javob login bilan bir xil. 401 da **bir marta**, parallel 401’lar bitta refresh’ni kutadi |
 | Ilova ochilganda | Token yo‘q → `refresh` → muvaffaqiyatli bo‘lsa `GET /platform/auth/me` (sarlavhadagi egasi nomi), aks holda kirish sahifasi |
 | Chiqish | `POST /platform/auth/logout` → `{ ok: true }`, cookie o‘chadi; xotiradagi tokenni ham o‘chiring |
-| Xatolar | 401 `AUTH_INVALID_CREDENTIALS` — email/parol xato yoki hisob faolsizlantirilgan (qaysi biri — aytilmaydi); 401 `AUTH_TOTP_REQUIRED` / `AUTH_TOTP_INVALID` — yuqorida; 401 `AUTH_INVALID_REFRESH` — sessiya yo‘q/muddati o‘tgan → kirish sahifasi; 401 `AUTH_TOKEN_REUSE` — bekor qilingan cookie qayta ishlatildi, **barcha** sessiyalar yopildi → kirish sahifasi; 429 — daqiqasiga 5 urinish (IP) |
+| Xatolar | 401 `AUTH_INVALID_CREDENTIALS` — email/parol xato yoki hisob faolsizlantirilgan (qaysi biri — aytilmaydi); 401 `AUTH_TOTP_REQUIRED` / `AUTH_TOTP_INVALID` — yuqorida; 401 `AUTH_INVALID_REFRESH` — sessiya yo‘q/muddati o‘tgan → kirish sahifasi; 401 `AUTH_TOKEN_REUSE` — bekor qilingan cookie qayta ishlatildi, **barcha** sessiyalar yopildi → kirish sahifasi; 423 `AUTH_ACCOUNT_LOCKED` — ketma-ket 5 ta noto‘g‘ri parol/kod, 15 daqiqa (`meta.until`); 429 `RATE_LIMITED` — daqiqasiga 5 urinish (IP) |
 
 ```json
 // POST /platform/auth/login → 201
@@ -158,7 +158,9 @@ Yo‘llar — tavsiya; nomlar o‘zbekcha. Hamma sahifa kirishni talab qiladi (`
 ### 5.1 `/login` — Kirish
 
 Email + parol → `POST /platform/auth/login`. Xato matni: 401 `AUTH_INVALID_CREDENTIALS` → «Email yoki parol xato»,
-429 → «Ko‘p urinish — bir daqiqadan keyin». 401 `AUTH_TOTP_REQUIRED` → shu sahifada **kod maydoni** ochiladi
+429 `RATE_LIMITED` → «Ko‘p urinish — bir daqiqadan keyin»; 423 `AUTH_ACCOUNT_LOCKED` → «Ketma-ket 5 ta noto‘g‘ri
+parol yoki kod — 15 daqiqadan keyin» (`errors[0].meta.until` — qachongacha; to‘g‘ri parol ham o‘tmaydi, muvaffaqiyatli
+kirish hisobni tozalaydi). 401 `AUTH_TOTP_REQUIRED` → shu sahifada **kod maydoni** ochiladi
 («Autentifikator ilovasidagi 6 raqam»), email/parol saqlanadi, qayta yuborishda `totpCode` qo‘shiladi; 401
 `AUTH_TOTP_INVALID` → «Kod noto‘g‘ri». Muvaffaqiyat → `/`.
 
@@ -447,6 +449,8 @@ Shakl do‘kon ilovasi bilan bir xil ([README → 7](README.md#errors)):
 | Kod | Status | Qachon | UI |
 |---|---|---|---|
 | `AUTH_INVALID_CREDENTIALS` | 401 | Login xato; token yo‘q/yaroqsiz; **do‘kon tokeni** egasi yo‘lida; hisob faolsizlantirilgan | Login sahifasida — xabar; boshqa joyda — refresh, bo‘lmasa kirish sahifasi |
+| `AUTH_ACCOUNT_LOCKED` | 423 | Ketma-ket 5 ta noto‘g‘ri parol yoki TOTP kodi — 15 daqiqa blok (`errors[0].meta.until`) | «… daqiqadan keyin urinib ko‘ring»; to‘g‘ri parol ham o‘tmaydi |
+| `RATE_LIMITED` | 429 | Daqiqasiga 5 urinish (IP) | «Bir daqiqadan keyin» |
 | `AUTH_TOTP_REQUIRED` | 401 | Login: parol to‘g‘ri, hisobda TOTP yoqilgan, `totpCode` yo‘q | Kod maydonini ochish, qayta yuborish |
 | `AUTH_TOTP_INVALID` | 401 | Kod noto‘g‘ri, eskirgan yoki qayta ishlatilgan (login, `totp/enable`, `totp/disable`) | «Kod noto‘g‘ri — ilovadagi joriy kodni kiriting» |
 | `AUTH_INVALID_REFRESH` | 401 | Refresh cookie yo‘q/eskirgan | Kirish sahifasi |

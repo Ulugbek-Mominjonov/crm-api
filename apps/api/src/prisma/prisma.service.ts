@@ -198,11 +198,17 @@ export class PrismaService
    * boshqa tenant ma'lumoti ko'rinmaydi). Ketma-ket ATAYLAB — tunlik
    * ishlar bazani cho'qqi yuk bilan to'ldirmasin. Bitta do'kondagi xato
    * qolganlarini to'xtatmaydi: xatolar yig'ilib, oxirida qaytariladi.
+   *
+   * `tenantIds` — faqat ISHI BOR tenantlar (SECURITY DEFINER `tenants_with_*`
+   * ro'yxati): minglab do'konda bo'sh tranzaksiyalar ochilmasin.
    */
   async forEachTenant(
     fn: (tx: TenantTx, tenantId: string) => Promise<void>,
+    tenantIds?: readonly string[],
   ): Promise<{ tenantId: string; error: unknown }[]> {
-    const tenants = await this.tenant.findMany({ select: { id: true }, orderBy: { id: 'asc' } })
+    const tenants = tenantIds
+      ? [...tenantIds].sort().map((id) => ({ id }))
+      : await this.tenant.findMany({ select: { id: true }, orderBy: { id: 'asc' } })
     const failures: { tenantId: string; error: unknown }[] = []
     for (const { id } of tenants) {
       try {

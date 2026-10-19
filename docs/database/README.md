@@ -1611,6 +1611,8 @@ erDiagram
         timestamptz telegram_linked_at
         text telegram_link_hash
         timestamptz telegram_link_expires_at
+        smallint failed_logins
+        timestamptz locked_until
     }
     platform_refresh_tokens {
         uuid id PK
@@ -1659,13 +1661,15 @@ Platforma egasi hisoblari: email, parol xeshi (argon2id), faollik, rol (`owner` 
 | `last_login_at` | timestamptz | ha | Oxirgi kirish vaqti |
 | `created_at` | timestamptz | — | Yaratilgan vaqt |
 | `role` | text | — | `owner` — hammasi; `operator` — do'konlar bilan ishlaydi, o'chira olmaydi, hisob va sozlamani boshqarmaydi (T-139) |
-| `totp_secret` | text | ha | TOTP siri (base32); `totpEnabledAt` null — sozlash tasdiqlanmagan. Loglarga tushmaydi |
+| `totp_secret` | text | ha |  |
 | `totp_enabled_at` | timestamptz | ha |  |
 | `totp_last_step` | bigint | ha | Oxirgi qabul qilingan 30 soniyalik qadam — bitta kod ikki marta o'tmaydi |
 | `telegram_chat_id` | bigint | ha | Egasining Telegram'i (T-137): mijozlar kabi shaxsiy havola bilan ulanadi; xabarlar shu chatga |
 | `telegram_linked_at` | timestamptz | ha |  |
 | `telegram_link_hash` | text | ha |  |
 | `telegram_link_expires_at` | timestamptz | ha |  |
+| `failed_logins` | smallint | — | TOTP siri (base32); `totpEnabledAt` null — sozlash tasdiqlanmagan. Loglarga tushmaydi Ketma-ket noto'g'ri parol yoki kod bloki (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi |
+| `locked_until` | timestamptz | ha |  |
 
 ### `platform_refresh_tokens`
 

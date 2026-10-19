@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import type { INestApplication } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
 import type { Socket } from 'socket.io-client'
+import request from 'supertest'
 import { EventsGateway, UNAUTHORIZED } from '@/modules/realtime/events.gateway'
 import { createTestApp } from './helpers/app'
 import { bearer } from './helpers/auth'
@@ -103,5 +104,18 @@ describe('WebSocket autentifikatsiyasi (/events)', () => {
     const socket = await open({ token: await sign(a, { expiresIn: 1 }) })
     const reason = await new Promise<string>((resolve) => socket.once('disconnect', resolve))
     expect(reason).toBe('io server disconnect')
+  })
+
+  it('xodim bo‘shatilganda (sessiyalari yopilganda) server ulanishni darhol uzadi — token tugashini kutmaydi', async () => {
+    const sellerToken = (await bearer(app, a, 'sotuvchi')).slice('Bearer '.length)
+    const seller = await testDb.user.findFirstOrThrow({ where: { tenantId: a.tenantId, email: { startsWith: 'sotuvchi+' } } })
+    const socket = await open({ token: sellerToken })
+    const disconnected = new Promise<string>((resolve) => socket.once('disconnect', resolve))
+    await request(app.getHttpServer())
+      .patch(`/api/v1/employees/${seller.employeeId}`)
+      .set('Authorization', await bearer(app, a))
+      .send({ status: 'fired' })
+      .expect(200)
+    expect(await disconnected).toBe('io server disconnect')
   })
 })

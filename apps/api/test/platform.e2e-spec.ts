@@ -108,6 +108,20 @@ describe('Egasi paneli', () => {
       for (let i = 0; i < 5; i++) await api().post('/api/v1/platform/auth/login').send({ email: OWNER_EMAIL, password: 'x' }).expect(401)
       await api().post('/api/v1/platform/auth/login').send({ email: OWNER_EMAIL, password: 'x' }).expect(429)
     })
+
+    it('ketma-ket 5 ta noto‘g‘ri parol — hisob 15 daqiqa bloklanadi (423), to‘g‘ri parol ham o‘tmaydi; muddat o‘tgach kiradi va hisob tozalanadi', async () => {
+      resetThrottle(app)
+      for (let i = 0; i < 5; i++) await api().post('/api/v1/platform/auth/login').send({ email: OWNER_EMAIL, password: 'x' }).expect(401)
+      resetThrottle(app)
+      const locked = await login().expect(423)
+      expect(locked.body.code).toBe('AUTH_ACCOUNT_LOCKED')
+      expect(locked.body.errors[0].meta.until).toBeDefined()
+      expect((await testDb.platformAdmin.findUniqueOrThrow({ where: { email: OWNER_EMAIL } })).failedLogins).toBe(5)
+
+      await testDb.platformAdmin.updateMany({ where: { email: OWNER_EMAIL }, data: { lockedUntil: new Date(Date.now() - 1_000) } })
+      await login().expect(201)
+      expect(await testDb.platformAdmin.findUniqueOrThrow({ where: { email: OWNER_EMAIL } })).toMatchObject({ failedLogins: 0, lockedUntil: null })
+    })
   })
 
   describe('do‘konlar', () => {

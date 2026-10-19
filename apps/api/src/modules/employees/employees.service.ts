@@ -5,6 +5,7 @@ import { dateFromDb, dateToDb, mapDefined, moneyFromDb, moneyToDb } from '@/comm
 import { crudDelegate, SoftDeleteCrudService, type CrudDelegate } from '@/common/crud/crud.service'
 import { DomainError } from '@/common/errors/domain.error'
 import { RefreshTokenService } from '@/modules/auth/refresh-token.service'
+import { DomainEvents } from '@/modules/realtime/domain-events.service'
 import { AccessService } from '@/modules/roles/access.service'
 import { assertAdminRemains } from '@/modules/users/admin-guard'
 import { PrismaService } from '@/prisma/prisma.service'
@@ -57,6 +58,7 @@ export class EmployeesService extends SoftDeleteCrudService<
     private readonly prisma: PrismaService,
     private readonly refresh: RefreshTokenService,
     private readonly access: AccessService,
+    private readonly events: DomainEvents,
   ) {
     super()
   }
@@ -140,6 +142,7 @@ export class EmployeesService extends SoftDeleteCrudService<
         await assertAdminRemains(tx, tenantId, user.id)
         await this.refresh.revokeAllForUser(user.id, tx)
         this.access.userChanged(user.id)
+        this.events.endSessions(user.id)
       }
 
       const row = await tx.employee

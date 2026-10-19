@@ -40,6 +40,10 @@ export interface PlatformSession {
  * — do'kon yo'llarida o'tmaydi. Ikki bosqichli kirish (T-139): TOTP yoqilgan
  * hisobda parol to'g'ri bo'lsa ham kod talab qilinadi; kod bir martalik.
  */
+/** Bloklash qoidasi (03 §3.2) — do'kon hisobi bilan bir xil */
+const MAX_FAILED_LOGINS = 5
+const LOCK_MINUTES = 15
+
 @Injectable()
 export class PlatformAuthService {
   private readonly logger = new Logger(PlatformAuthService.name)
@@ -55,18 +59,28 @@ export class PlatformAuthService {
   async login(email: string, password: string, totpCode: string | undefined, meta: TokenMeta = {}): Promise<PlatformSession> {
     const admin = await this.prisma.platformAdmin.findUnique({
       where: { email },
-      select: { ...ADMIN_SELECT, passwordHash: true, totpSecret: true, totpLastStep: true },
+      select: { ...ADMIN_SELECT, passwordHash: true, totpSecret: true, totpLastStep: true, failedLogins: true, lockedUntil: true },
     })
     // Topilmasa ham parol tekshiriladi — javob vaqti hisob bor-yo'qligini aytmasin
     const ok = await this.passwords.verify(admin?.passwordHash ?? DUMMY_HASH, password)
-    if (!admin || !ok || !admin.isActive) throw new DomainError('AUTH_INVALID_CREDENTIALS')
+    if (!admin || !admin.isActive) throw new DomainError('AUTH_INVALID_CREDENTIALS')
+    // Bloklangan hisob (ketma-ket noto'g'ri parol/kod) — parol to'g'ri bo'lsa ham (03 §3.2)
+    if (admin.lockedUntil && admin.lockedUntil.getTime() > Date.now()) {
+      throw new DomainError(
+        'AUTH_ACCOUNT_LOCKED',
+        `Ketma-ket ${MAX_FAILED_LOGINS} marta noto‘g‘ri — ${LOCK_MINUTES} daqiqadan keyin urinib ko‘ring`,
+        [{ code: 'AUTH_ACCOUNT_LOCKED', meta: { until: admin.lockedUntil.toISOString() } }],
+      )
+    }
+    if (!ok) throw await this.loginFailed(admin, 'AUTH_INVALID_CREDENTIALS')
 
     // Parol to'g'ri, lekin TOTP yoqilgan: kodsiz — frontend kod maydonini ko'rsatadi
     let usedStep: number | undefined
     if (admin.totpEnabledAt && admin.totpSecret) {
       if (!totpCode) throw new DomainError('AUTH_TOTP_REQUIRED')
       const step = verifyTotp(admin.totpSecret, totpCode, admin.totpLastStep === null ? null : Number(admin.totpLastStep))
-      if (step === null) throw new DomainError('AUTH_TOTP_INVALID')
+      // Noto'g'ri kod ham urinish — 6 raqamni saralab bo'lmasin
+      if (step === null) throw await this.loginFailed(admin, 'AUTH_TOTP_INVALID')
       usedStep = step
     }
 
@@ -75,6 +89,8 @@ export class PlatformAuthService {
       where: { id: admin.id },
       data: {
         lastLoginAt: new Date(),
+        failedLogins: 0,
+        lockedUntil: null,
         ...(rehash && { passwordHash: rehash }),
         ...(usedStep !== undefined && { totpLastStep: BigInt(usedStep) }),
       },
@@ -83,6 +99,26 @@ export class PlatformAuthService {
     await this.audit.log({ action: 'platform.login', adminId: admin.id, ip: meta.ip })
     this.logger.log({ adminId: admin.id }, 'Egasi kirdi')
     return this.issue(fresh, meta)
+  }
+
+  /**
+   * Noto'g'ri parol yoki kod: hisoblagich +1, 5-chisida 15 daqiqa blok; muddati
+   * o'tgan blokdan keyin hisob yangidan boshlanadi. Mijozga — o'sha 401.
+   */
+  private async loginFailed(
+    admin: { id: string; failedLogins: number; lockedUntil: Date | null },
+    code: 'AUTH_INVALID_CREDENTIALS' | 'AUTH_TOTP_INVALID',
+  ): Promise<DomainError> {
+    const expired = admin.lockedUntil !== null && admin.lockedUntil.getTime() <= Date.now()
+    const failed = expired ? 1 : admin.failedLogins + 1
+    const locked = failed >= MAX_FAILED_LOGINS
+    await this.prisma.platformAdmin.update({
+      where: { id: admin.id },
+      data: { failedLogins: failed, lockedUntil: locked ? new Date(Date.now() + LOCK_MINUTES * 60_000) : null },
+      select: { id: true },
+    })
+    if (locked) this.logger.warn({ adminId: admin.id }, 'Egasi hisobi vaqtincha bloklandi — ketma-ket noto‘g‘ri urinishlar')
+    return new DomainError(code)
   }
 
   async refresh(raw: string, meta: TokenMeta = {}): Promise<PlatformSession> {
