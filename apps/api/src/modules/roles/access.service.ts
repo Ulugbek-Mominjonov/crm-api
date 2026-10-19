@@ -55,7 +55,8 @@ export class AccessService {
     // So'rov tranzaksiyasidan OLDIN (guard) — o'z qisqa tranzaksiyasida, RLS bilan
     const user = await this.prisma.inTenantTransaction(tenantId, (tx) =>
       tx.user.findFirst({
-        where: { id: userId, deletedAt: null, isActive: true },
+        // Bo'shatilgan xodim ham kira olmaydi (login bilan bir xil qoida) — tokeni tugashini kutmaydi
+        where: { id: userId, deletedAt: null, isActive: true, employee: { status: { not: 'fired' } } },
         select: { role: { select: { id: true, key: true, permissions: true } } },
       }),
     )

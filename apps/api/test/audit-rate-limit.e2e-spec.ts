@@ -126,8 +126,9 @@ describe('Rate limit proksi ortida (TRUST_PROXY)', () => {
   it('proksi ortida har mijoz IP’si alohida hisoblanadi', async () => {
     const statuses = await exhaustLogin(behindProxy, '203.0.113.10')
     expect(statuses.at(-1)).toBe(429)
-    // Boshqa mijoz (proksi yozgan boshqa IP) — to'silmaydi
-    expect((await loginFrom(behindProxy, '203.0.113.11')).status).toBe(401)
+    // Boshqa mijoz (proksi yozgan boshqa IP) — 429 bilan to'silmaydi; hisob esa 5 ta xatodan keyin
+    // bloklangan (423 `AUTH_ACCOUNT_LOCKED`) — bu IP ga emas, hisobga bog'liq
+    expect((await loginFrom(behindProxy, '203.0.113.11')).status).toBe(423)
   }, 30_000)
 
   it('proksisiz X-Forwarded-For e’tiborsiz — uni almashtirib chegarani aylanib bo‘lmaydi', async () => {

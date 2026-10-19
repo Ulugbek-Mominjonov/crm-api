@@ -37,7 +37,13 @@ interface LoginCandidate {
   id: string
   tenantId: string
   passwordHash: string
+  /** Ketma-ket noto'g'ri parollar bloki (03 §3.2) — bazadagi funksiyalar yozadi */
+  lockedUntil: Date | null
 }
+
+/** Bloklash qoidasi — `auth_login_failed()` funksiyasida; bu yerda faqat xabar uchun */
+const MAX_FAILED_LOGINS = 5
+const LOCK_MINUTES = 15
 
 @Injectable()
 export class AuthService {
@@ -80,12 +86,22 @@ export class AuthService {
     password: string,
     meta: TokenMeta & { tenantId?: string } = {},
   ): Promise<{ response: LoginResponseDto; refreshToken: string }> {
-    const candidates = await this.findLoginCandidates(email.trim().toLowerCase(), meta.tenantId)
+    const normalizedEmail = email.trim().toLowerCase()
+    const candidates = await this.findLoginCandidates(normalizedEmail, meta.tenantId)
 
     if (candidates.length === 0) {
       // Vaqtni tenglashtirish uchun baribir tekshiramiz
       await this.passwords.verify(DUMMY_HASH, password)
       throw new DomainError('AUTH_INVALID_CREDENTIALS')
+    }
+    // Bloklangan hisob (ketma-ket noto'g'ri parollar) — parol tekshirilmaydi ham (03 §3.2)
+    const locked = candidates.find((c) => c.lockedUntil && c.lockedUntil.getTime() > Date.now())
+    if (locked) {
+      throw new DomainError(
+        'AUTH_ACCOUNT_LOCKED',
+        `Ketma-ket ${MAX_FAILED_LOGINS} marta noto‘g‘ri parol — ${LOCK_MINUTES} daqiqadan keyin urinib ko‘ring`,
+        [{ code: 'AUTH_ACCOUNT_LOCKED', meta: { until: locked.lockedUntil!.toISOString() } }],
+      )
     }
 
     const matched: LoginCandidate[] = []
@@ -97,7 +113,10 @@ export class AuthService {
       if (await this.passwords.verify(candidate.passwordHash, password)) matched.push(candidate)
     }
 
-    if (matched.length === 0) throw new DomainError('AUTH_INVALID_CREDENTIALS')
+    if (matched.length === 0) {
+      await this.prisma.$executeRaw`SELECT auth_login_failed(${normalizedEmail})`
+      throw new DomainError('AUTH_INVALID_CREDENTIALS')
+    }
 
     if (matched.length > 1) {
       // Bir xil email+parol bir nechta do'konda — qaysi biri ekanini so'raymiz
@@ -116,6 +135,8 @@ export class AuthService {
     }
 
     const candidate = matched[0]!
+    // Muvaffaqiyatli kirish — noto'g'ri urinishlar hisobi tozalanadi
+    await this.prisma.$executeRaw`SELECT auth_login_ok(${candidate.id}::uuid)`
     // Xesh eski parametrlar bilan bo'lsa — jimgina yangilaymiz. Xeshlash
     // sekin, shuning uchun tranzaksiyadan OLDIN
     const rehash = this.passwords.needsRehash(candidate.passwordHash)
@@ -214,7 +235,7 @@ export class AuthService {
       await tx.$executeRaw`SELECT set_config('app.auth_email', ${email}, true)`
       return tx.user.findMany({
         where: { email, deletedAt: null, isActive: true, ...(tenantId && { tenantId }) },
-        select: { id: true, tenantId: true, passwordHash: true },
+        select: { id: true, tenantId: true, passwordHash: true, lockedUntil: true },
         take: MAX_TENANT_CANDIDATES,
       })
     })
@@ -237,7 +258,7 @@ export class AuthService {
    */
   private assertUsable(user: UserWithRelations): void {
     if (user.employee.status === 'fired') {
-      throw new DomainError('AUTH_ACCOUNT_LOCKED', 'Xodim ishdan bo‘shatilgan')
+      throw new DomainError('AUTH_ACCOUNT_DISABLED', 'Xodim ishdan bo‘shatilgan')
     }
   }
 

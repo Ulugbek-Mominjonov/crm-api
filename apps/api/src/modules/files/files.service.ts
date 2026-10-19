@@ -103,9 +103,15 @@ export class FilesService {
    * boshlanish baytlari MIME ga mos, xesh mos, kvota yetadi — shundan keyin
    * `ready` va hajm hisoblagichi oshadi. Mos kelmasa — obyekt o'chiriladi,
    * fayl karantinga, audit'ga yoziladi (yozuvlar saqlanadi, mijozga 422).
+   *
+   * So'rov tranzaksiyasisiz (`@ManualTransaction`): S3 tekshiruvi (10 MB
+   * gacha o'qish va xesh) baza ulanishini band qilmasin va qulf ushlab
+   * turmasin. Uch qadam: fayl va huquq → S3 (tranzaksiyasiz) → qulf, kvota,
+   * `ready` (qisqa yozuv tranzaksiyasi).
    */
   async confirm(id: string, user: AuthContext): Promise<FileDto> {
-    const file = await this.lock(id)
+    const { tenantId } = user
+    const file = await this.prisma.inTenantTransaction(tenantId, () => this.find(id))
     assertCan(user, FILE_RULES[file.kind], 'create')
     if (file.status === 'ready') return toFileDto(file)
     if (file.status === 'quarantined') throw rejected(file.id, 'avval rad etilgan')
@@ -115,7 +121,18 @@ export class FilesService {
       throw new DomainError('FILE_NOT_UPLOADED', 'Fayl hali yuklanmagan — avval PUT havolasiga yuboring')
     }
     const problem = await this.inspect(file, size)
-    if (problem) await this.quarantine(file, problem)
+    if (problem) {
+      await this.s3.delete(bucketOf(file), [file.key])
+      return this.prisma.inTenantTransactionCommitting(tenantId, () => this.quarantine(file, problem))
+    }
+    return this.prisma.inTenantTransactionCommitting(tenantId, () => this.markReady(id))
+  }
+
+  /** Qulf ostida: parallel tasdiqlash kvotani ikki marta oshirmasin — holat qulfdan keyin qayta o'qiladi */
+  private async markReady(id: string): Promise<FileDto> {
+    const file = await this.lock(id)
+    if (file.status === 'ready') return toFileDto(file)
+    if (file.status === 'quarantined') throw rejected(file.id, 'avval rad etilgan')
 
     const { tenantId } = requireTenantTx()
     const { limits } = await this.quota()
@@ -207,6 +224,8 @@ export class FilesService {
   /**
    * Server o'zi yaratgan fayl (eksport, zaxira) — to'g'ridan-to'g'ri S3'ga
    * va darhol `ready`. Kvota va takroriylik — yuklash bilan bir xil qoida.
+   * S3'ga AVVAL yuklanadi, kvota (`tenant_state` qulfi — kassa bilan bitta
+   * qator) undan keyin: katta zaxira yuklanayotganda kassa to'xtab qolmasin.
    */
   async putDirect(kind: FileKind, mime: string, body: Buffer, originalName: string): Promise<FileRecord> {
     const rule = FILE_RULES[kind]
@@ -216,14 +235,18 @@ export class FilesService {
 
     const { tenantId } = requireTenantTx()
     const { limits } = await this.quota()
-    const grown = await this.prisma.scoped.$executeRaw`
-      UPDATE tenant_state SET storage_used_bytes = storage_used_bytes + ${body.length}
-       WHERE tenant_id = ${tenantId}::uuid AND storage_used_bytes + ${body.length} <= ${limits.storage}`
-    if (grown === 0) throw quotaError(body.length, limits.storage)
+    if (body.length > limits.storage) throw quotaError(body.length, limits.storage)
 
     const id = uuidv7()
     const key = `t/${tenantId}/${rule.prefix}/${id}/orig.${EXTENSIONS[mime]}`
     await this.s3.put(rule.bucket, key, body, mime)
+    const grown = await this.prisma.scoped.$executeRaw`
+      UPDATE tenant_state SET storage_used_bytes = storage_used_bytes + ${body.length}
+       WHERE tenant_id = ${tenantId}::uuid AND storage_used_bytes + ${body.length} <= ${limits.storage}`
+    if (grown === 0) {
+      await this.s3.delete(rule.bucket, [key])
+      throw quotaError(body.length, limits.storage)
+    }
     return this.prisma.scoped.file.create({
       data: {
         id, tenantId, kind, key, bucket: rule.bucket, mime, sizeBytes: BigInt(body.length), sha256,
@@ -277,9 +300,8 @@ export class FilesService {
     return null
   }
 
-  /** Karantin: obyekt darhol o'chadi, holat va audit SAQLANADI, mijozga 422 */
+  /** Karantin (obyekt chaqiruvchi tomonidan o'chirilgan): holat va audit SAQLANADI, mijozga 422 */
   private async quarantine(file: FileRecord, reason: string): Promise<never> {
-    await this.s3.delete(bucketOf(file), [file.key])
     await this.prisma.scoped.file.update({ where: { id: file.id }, data: { status: 'quarantined' } })
     await this.audit.log({
       action: 'file.quarantine',

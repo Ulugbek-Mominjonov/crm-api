@@ -69,6 +69,9 @@ interface LockedSale {
   subtotal: bigint
   discount: bigint
   taxRate: number
+  tax: bigint
+  deliveryFee: bigint
+  total: bigint
   paidCash: bigint
   debtPaid: bigint
   outstanding: bigint
@@ -297,6 +300,9 @@ export class SalesService {
         bonusUsed: moneyFromDb(original.bonusUsed),
         bonusEarned: moneyFromDb(original.bonusEarned),
         taxRate: original.taxRate,
+        tax: moneyFromDb(original.tax),
+        total: moneyFromDb(original.total),
+        deliveryFee: moneyFromDb(original.deliveryFee),
       },
       lines.reduce((sum, line) => sum + line.total, 0),
       returnedBefore,
@@ -485,9 +491,9 @@ export class SalesService {
     const { tenantId } = requireTenantTx()
     const [sale] = await this.prisma.scoped.$queryRaw<LockedSale[]>`
       SELECT id, number, type, status, customer_id AS "customerId", warehouse_id AS "warehouseId",
-             price_tier AS "priceTier", subtotal, discount, tax_rate AS "taxRate", paid_cash AS "paidCash",
-             debt_paid AS "debtPaid", outstanding, bonus_used AS "bonusUsed", bonus_earned AS "bonusEarned",
-             related_sale_id AS "relatedSaleId"
+             price_tier AS "priceTier", subtotal, discount, tax_rate AS "taxRate", tax, delivery_fee AS "deliveryFee",
+             total, paid_cash AS "paidCash", debt_paid AS "debtPaid", outstanding, bonus_used AS "bonusUsed",
+             bonus_earned AS "bonusEarned", related_sale_id AS "relatedSaleId"
         FROM sales
        WHERE tenant_id = ${tenantId}::uuid AND id = ${id}::uuid AND deleted_at IS NULL
          FOR UPDATE`

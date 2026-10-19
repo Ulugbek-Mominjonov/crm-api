@@ -54,6 +54,15 @@ function expenseWhere(query: ExpenseQueryDto): Prisma.ExpenseWhereInput {
 const cashEffect = (method: PayMethod, amount: bigint): bigint => (method === 'cash' ? -amount : 0n)
 
 /**
+ * Yozilgan xarajatning kassaga QO'LLANGAN ta'siri: naqd xarajat smenasiz
+ * yozilgan bo'lsa (tungi shablon smena yopiqligida, import) kassa
+ * o'zgarmagan — `shift_id` yo'q. Tahrir/o'chirish/tiklash shuni qaytaradi,
+ * aks holda kassada bo'lmagan pul «qaytib» qolardi (I9, I10).
+ */
+const appliedCashEffect = (row: Pick<ExpenseRecord, 'method' | 'amount' | 'shiftId'>): bigint =>
+  row.shiftId ? cashEffect(row.method, row.amount) : 0n
+
+/**
  * Xarajatlar (T-062). Naqd xarajat kassadan chiqadi — ochiq smena shart
  * (I8). Tahrirda eski ta'sir qaytarilib yangisi qo'llanadi (farqi joriy
  * smenaga), o'chirish va tiklash ham kassani to'g'ri holatda qoldiradi.
@@ -156,7 +165,9 @@ export class ExpensesService {
     if (before.deletedAt) throw new NotFoundError(RESOURCE, id)
     const method = dto.method ?? before.method
     const amount = dto.amount === undefined ? before.amount : BigInt(dto.amount)
-    const delta = cashEffect(method, amount) - cashEffect(before.method, before.amount)
+    // Kassaga tushmagan naqd xarajat (smenasiz yozilgan) tahrirda ham tushmaydi; bank → naqd — odatdagidek chiqadi
+    const unapplied = before.method === 'cash' && !before.shiftId
+    const delta = unapplied ? 0n : cashEffect(method, amount) - cashEffect(before.method, before.amount)
     const shiftId = this.shiftFor(register, delta)
 
     await this.write(id, delta, shiftId, Prisma.sql`
@@ -181,7 +192,7 @@ export class ExpensesService {
     const register = await this.register.lock()
     const before = await this.lockExpense(id)
     if (before.deletedAt) throw new NotFoundError(RESOURCE, id)
-    const delta = -cashEffect(before.method, before.amount)
+    const delta = -appliedCashEffect(before)
     await this.write(id, delta, this.shiftFor(register, delta), Prisma.sql`deleted_at = now()`)
     await this.audit.log({
       action: 'expense.delete',
@@ -196,7 +207,7 @@ export class ExpensesService {
     const register = await this.register.lock()
     const before = await this.lockExpense(id)
     if (!before.deletedAt) return toExpenseDto(before)
-    const delta = cashEffect(before.method, before.amount)
+    const delta = appliedCashEffect(before)
     const shiftId = this.shiftFor(register, delta)
     await this.write(id, delta, shiftId, Prisma.sql`deleted_at = NULL, shift_id = COALESCE(${shiftId}::uuid, shift_id)`)
     await this.audit.log({ action: 'expense.restore', entityType: 'expense', entityId: id })

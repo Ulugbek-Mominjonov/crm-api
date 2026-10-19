@@ -17,6 +17,20 @@ import type { AuthContext } from '@/modules/auth/decorators/current-user.decorat
 
 const ERROR_TYPE_BASE = 'https://api.crm.uz/errors'
 
+/**
+ * Nest'ning o'z istisnolari (ValidationPipe, Throttler, guard'lar, tashqi
+ * xizmat yo'qligi) — shartnomadagi kodga: frontend `code` bo'yicha qaror
+ * qiladi, 429 «Ichki xato» bo'lib ko'rinmasin. Ro'yxatda yo'q status — `INTERNAL`.
+ */
+const HTTP_STATUS_CODES: Readonly<Record<number, ErrorCodeName>> = {
+  400: 'VALIDATION_FAILED',
+  401: 'AUTH_INVALID_CREDENTIALS',
+  403: 'PERMISSION_DENIED',
+  404: 'NOT_FOUND',
+  429: 'RATE_LIMITED',
+  503: 'SERVICE_UNAVAILABLE',
+}
+
 /** `STOCK_INSUFFICIENT` → `stock-insufficient` */
 function typeUri(code: string): string {
   return `${ERROR_TYPE_BASE}/${code.toLowerCase().replaceAll('_', '-')}`
@@ -68,12 +82,15 @@ export class DomainExceptionFilter implements ExceptionFilter {
       body.current = stripHidden(exception.current, hiddenFieldsFor(req.auth.permissions))
     }
 
-    if (body.status >= 500) {
+    // Kutilgan 5xx (tashqi xizmat yo'q — 503) ogohlantirish; kutilmagani — xato va monitoringga
+    if (body.code === 'INTERNAL') {
       this.logger.error(
         { traceId, path: req.originalUrl, err: exception },
         'Kutilmagan xato',
       )
       reportError(exception, traceId)
+    } else if (body.status >= 500) {
+      this.logger.warn({ traceId, path: req.originalUrl, code: body.code }, body.title)
     }
 
     res.status(body.status).json(body)
@@ -132,8 +149,7 @@ export class DomainExceptionFilter implements ExceptionFilter {
   ): ApiErrorDto {
     const status = exception.getStatus()
     const response = exception.getResponse()
-    const code: ErrorCodeName =
-      status === 400 ? 'VALIDATION_FAILED' : status === 404 ? 'NOT_FOUND' : 'INTERNAL'
+    const code = HTTP_STATUS_CODES[status] ?? 'INTERNAL'
 
     // ValidationPipe xabarlarni massiv sifatida beradi
     const raw = typeof response === 'object' ? (response as NestValidationBody) : {}
@@ -144,7 +160,8 @@ export class DomainExceptionFilter implements ExceptionFilter {
 
     return {
       type: typeUri(code),
-      title: status === 400 ? ERROR_CATALOG.VALIDATION_FAILED.title : exception.message,
+      // Shartnoma kodi bo'lsa — katalogdagi o'zbekcha sarlavha; `INTERNAL` — Nest xabari (tashxis uchun)
+      title: code === 'INTERNAL' ? exception.message : ERROR_CATALOG[code].title,
       status,
       code,
       detail: messages.length ? messages.join('; ') : undefined,

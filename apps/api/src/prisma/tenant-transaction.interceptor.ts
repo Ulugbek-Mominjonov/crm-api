@@ -2,7 +2,6 @@ import { Injectable, SetMetadata, type CallHandler, type ExecutionContext, type 
 import { Reflector } from '@nestjs/core'
 import type { Request } from 'express'
 import { defer, lastValueFrom, type Observable } from 'rxjs'
-import { CommittedDomainError, type DomainError } from '@/common/errors/domain.error'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { PrismaService } from './prisma.service'
 
@@ -60,23 +59,12 @@ export class TenantTransactionInterceptor implements NestInterceptor {
     const tenantId = req.auth?.tenantId
     if (!tenantId || this.reflector.get<boolean>(TX_MANUAL_KEY, ctx.getHandler())) return next.handle()
 
-    return defer(async () => {
-      let failure: DomainError | undefined
-      const result = await this.prisma.inTenantTransaction(
+    return defer(() =>
+      this.prisma.inTenantTransactionCommitting(
         tenantId,
-        async () => {
-          try {
-            return await lastValueFrom(next.handle(), { defaultValue: undefined })
-          } catch (err) {
-            if (!(err instanceof CommittedDomainError)) throw err
-            failure = err.error
-            return undefined
-          }
-        },
+        () => lastValueFrom(next.handle(), { defaultValue: undefined }),
         { timeout: this.reflector.get<number | undefined>(TX_TIMEOUT_KEY, ctx.getHandler()) ?? REQUEST_TX_TIMEOUT_MS },
-      )
-      if (failure) throw failure
-      return result
-    })
+      ),
+    )
   }
 }

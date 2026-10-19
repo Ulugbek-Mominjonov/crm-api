@@ -4,6 +4,8 @@ import { currentTenantId } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, mapDefined, moneyFromDb, moneyToDb } from '@/common/crud/convert'
 import { crudDelegate, SoftDeleteCrudService, type CrudDelegate } from '@/common/crud/crud.service'
 import { DomainError } from '@/common/errors/domain.error'
+import { RefreshTokenService } from '@/modules/auth/refresh-token.service'
+import { AccessService } from '@/modules/roles/access.service'
 import { assertAdminRemains } from '@/modules/users/admin-guard'
 import { PrismaService } from '@/prisma/prisma.service'
 import {
@@ -51,7 +53,11 @@ export class EmployeesService extends SoftDeleteCrudService<
   protected readonly sortMap = EMPLOYEE_SORT
   protected readonly defaultSort = 'name'
 
-  constructor(private readonly prisma: PrismaService) {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly refresh: RefreshTokenService,
+    private readonly access: AccessService,
+  ) {
     super()
   }
 
@@ -118,6 +124,8 @@ export class EmployeesService extends SoftDeleteCrudService<
    * Bo'shatilgan xodim tizimga kira olmaydi (`auth.service`). Shuning uchun
    * oxirgi administratorning xodimini bo'shatish ham LAST_ADMIN qoidasiga
    * bo'ysunadi — aks holda menejer direktorni tizimdan chiqarib qo'yardi.
+   * Ochiq sessiyalari ham shu zahoti yopiladi (hisobni faolsizlantirish bilan
+   * bir xil): refresh tokenlar bekor, huquq keshi tozalanadi.
    */
   override async update(id: string, dto: UpdateEmployeeDto, version?: Date): Promise<EmployeeDto> {
     if (dto.status !== 'fired') return super.update(id, dto, version)
@@ -128,7 +136,11 @@ export class EmployeesService extends SoftDeleteCrudService<
         where: { employeeId: id, deletedAt: null },
         select: { id: true },
       })
-      if (user) await assertAdminRemains(tx, tenantId, user.id)
+      if (user) {
+        await assertAdminRemains(tx, tenantId, user.id)
+        await this.refresh.revokeAllForUser(user.id, tx)
+        this.access.userChanged(user.id)
+      }
 
       const row = await tx.employee
         .update({ where: { id, deletedAt: null, ...this.versionWhere(version) }, data: this.updateData(dto), select: EMPLOYEE_SELECT })

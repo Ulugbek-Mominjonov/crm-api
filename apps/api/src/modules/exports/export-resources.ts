@@ -1,6 +1,6 @@
 import { Prisma } from '@prisma/client'
 import type { Permission } from '@crm/shared'
-import { BUSINESS_TIME_ZONE } from '@/common/time'
+import { addDays, BUSINESS_TIME_ZONE, businessDayStart } from '@/common/time'
 
 export interface ExportColumn {
   /** JSON kaliti va SQL taxallusi */
@@ -36,8 +36,15 @@ function dateRange(column: Prisma.Sql, f: ExportFilter): Prisma.Sql {
                     ${f.dateTo ? Prisma.sql`AND ${column} <= ${f.dateTo}::date` : Prisma.empty}`
 }
 
-/** Jurnal yozuvining do'kon kuni (`created_at` — timestamptz) */
-const auditDay = Prisma.sql`(a.created_at AT TIME ZONE ${BUSINESS_TIME_ZONE})::date`
+/**
+ * Jurnal sana oralig'i — `created_at` (timestamptz) chegaralari do'kon kunidan
+ * hisoblanadi (ifoda emas): `audit_log (tenant_id, created_at)` indeksi ishlaydi,
+ * jurnal to'liq skan qilinmaydi (`audit-log.service` bilan bir xil qoida)
+ */
+function auditRange(f: ExportFilter): Prisma.Sql {
+  return Prisma.sql`${f.dateFrom ? Prisma.sql`AND a.created_at >= ${businessDayStart(f.dateFrom)}` : Prisma.empty}
+                    ${f.dateTo ? Prisma.sql`AND a.created_at < ${businessDayStart(addDays(f.dateTo, 1))}` : Prisma.empty}`
+}
 
 /** Birinchi sahifa kursori — har qanday uuid undan katta */
 export const FIRST_CURSOR = '00000000-0000-0000-0000-000000000000'
@@ -193,14 +200,14 @@ export const EXPORT_RESOURCES = {
     ],
     count: (f) => Prisma.sql`
       SELECT COUNT(*)::int AS n FROM audit_log a
-       WHERE a.tenant_id = ${f.tenantId}::uuid ${dateRange(auditDay, f)}`,
+       WHERE a.tenant_id = ${f.tenantId}::uuid ${auditRange(f)}`,
     page: (f, after, limit) => Prisma.sql`
       SELECT a.id, to_char(a.created_at AT TIME ZONE ${BUSINESS_TIME_ZONE}, 'YYYY-MM-DD HH24:MI') AS "createdAt",
              COALESCE(e.name, 'Tizim') AS user, a.action, a.detail
         FROM audit_log a
         LEFT JOIN users u ON u.tenant_id = a.tenant_id AND u.id = a.user_id
         LEFT JOIN employees e ON e.tenant_id = u.tenant_id AND e.id = u.employee_id
-       WHERE a.tenant_id = ${f.tenantId}::uuid ${dateRange(auditDay, f)} AND a.id > ${after}::uuid
+       WHERE a.tenant_id = ${f.tenantId}::uuid ${auditRange(f)} AND a.id > ${after}::uuid
        ORDER BY a.id
        LIMIT ${limit}`,
   },

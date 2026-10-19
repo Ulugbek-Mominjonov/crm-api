@@ -6,6 +6,7 @@ import { Reflector } from '@nestjs/core'
 import type { Request, Response } from 'express'
 import { from, mergeMap, of, type Observable } from 'rxjs'
 import { DomainError } from '@/common/errors/domain.error'
+import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { IDEMPOTENCY_HEADER, IDEMPOTENT_KEY } from './idempotent.decorator'
 import { IdempotencyService } from './idempotency.service'
 
@@ -32,7 +33,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
     if (!this.reflector.get<boolean>(IDEMPOTENT_KEY, ctx.getHandler())) return next.handle()
 
     const http = ctx.switchToHttp()
-    const req = http.getRequest<Request>()
+    const req = http.getRequest<Request & { auth?: AuthContext }>()
     const res = http.getResponse<Response>()
     const key = req.get(IDEMPOTENCY_HEADER)
     if (!key || !KEY_PATTERN.test(key)) {
@@ -47,8 +48,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
     const status =
       this.reflector.get<number | undefined>(HTTP_CODE_METADATA, ctx.getHandler()) ??
       (req.method === 'POST' ? HttpStatus.CREATED : HttpStatus.OK)
+    // Kalit FOYDALANUVCHI doirasida: ikki kassir bir xil kalit yuborsa biri ikkinchisining javobini olmasin
+    const scopedKey = `${req.auth?.userId ?? ''}:${key}`
 
-    return from(this.idempotency.claim(key, endpoint, req.body)).pipe(
+    return from(this.idempotency.claim(scopedKey, endpoint, req.body)).pipe(
       mergeMap((claim) => {
         if (claim.replay) {
           res.setHeader(REPLAY_HEADER, 'true')
@@ -56,7 +59,7 @@ export class IdempotencyInterceptor implements NestInterceptor {
         }
         return next.handle().pipe(
           mergeMap(async (body: unknown) => {
-            await this.idempotency.complete(key, status, body)
+            await this.idempotency.complete(scopedKey, status, body)
             return body
           }),
         )

@@ -130,9 +130,9 @@ export class RefreshTokenService {
   }
 
   /** Muddati o'tgan tokenlarni tozalash (rejalashtirilgan ish) */
-  async purgeExpired(): Promise<number> {
+  async purgeExpired(now: Date = new Date()): Promise<number> {
     const { count } = await this.prisma.refreshToken.deleteMany({
-      where: { expiresAt: { lt: new Date() } },
+      where: { expiresAt: { lt: now } },
     })
     return count
   }

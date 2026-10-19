@@ -22,6 +22,8 @@ const FIELD_GROUPS: ReadonlyArray<readonly [Permission, readonly string[]]> = [
       'stockValueByCategory',
       'deadValue', // sotilmayotgan tovar qiymati — tannarxda
       'payables', // ta'minotchilarga qarz — xarid summasi (canSeePurchaseAmounts)
+      // Minimal marja foizi (sozlama): 422 `DISCOUNT_LIMIT` dagi `minPrice` bilan birga tannarxni ochib berardi (T-141)
+      'minMarginPct',
     ],
   ],
   ['wholesale.view', ['wholesalePrice']],

@@ -116,6 +116,7 @@ model RefreshToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt])
+  @@index([expiresAt]) // tozalash ishi
   @@map("refresh_tokens")
 }
 
@@ -191,10 +192,15 @@ model User {
   auditLog AuditEntry[]
 
   /// Email bitta tenant ichida noyob (boshqa do'konda takrorlanishi mumkin)
+  /// Ketma-ket noto'g'ri parollar soni va blok muddati (03 §3.2): 5 ta → 15 daqiqa; muvaffaqiyatli kirishda tozalanadi
+  failedLogins Int       @default(0) @map("failed_logins") @db.SmallInt
+  lockedUntil  DateTime? @map("locked_until") @db.Timestamptz
+
   @@unique([tenantId, email])
   @@unique([tenantId, id])
   @@index([tenantId, deletedAt])
   @@index([tenantId, roleId])
+  @@index([email]) // kirish: tenantsiz email bo'yicha qidiruv
   @@map("users")
 }
 
@@ -497,6 +503,7 @@ model StockMovement {
   @@index([tenantId, productId, createdAt])
   @@index([tenantId, warehouseId, createdAt])
   @@index([tenantId, refId])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("stock_movements")
 }
 
@@ -575,6 +582,7 @@ model Sale {
   @@index([tenantId, sellerId, date])
   @@index([tenantId, relatedSaleId])
   @@index([tenantId, shiftId])
+  @@index([tenantId, createdAt, id]) // bosh sahifa: oxirgi cheklar
   @@map("sales")
 }
 
@@ -645,6 +653,7 @@ model DebtPayment {
   @@index([tenantId, saleId])
   @@index([tenantId, date])
   @@index([tenantId, shiftId])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("debt_payments")
 }
 
@@ -698,6 +707,7 @@ model CashMovement {
   shift CashShift @relation(fields: [shiftId], references: [id], onDelete: Cascade)
 
   @@index([tenantId, shiftId])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("cash_movements")
 }
 
@@ -728,6 +738,7 @@ model Expense {
   @@index([tenantId, date])
   @@index([tenantId, category, date])
   @@index([tenantId, shiftId])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("expenses")
 }
 
@@ -892,6 +903,7 @@ model SupplierPayment {
   @@index([tenantId, poId])
   @@index([tenantId, date])
   @@index([tenantId, shiftId])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("supplier_payments")
 }
 
@@ -985,6 +997,7 @@ model Delivery {
 
   @@index([tenantId, status, scheduledDate])
   @@index([tenantId, driverId, status])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("deliveries")
 }
 
@@ -1080,6 +1093,7 @@ model AuditEntry {
   @@index([tenantId, createdAt])
   @@index([tenantId, action, createdAt])
   @@index([tenantId, userId, createdAt])
+  @@index([tenantId, id]) // eksport/zaxira kalitli sahifalash — tenant ichida
   @@map("audit_log")
 }
 
@@ -1291,6 +1305,7 @@ model PlatformRefreshToken {
   admin PlatformAdmin @relation(fields: [adminId], references: [id], onDelete: Cascade)
 
   @@index([adminId])
+  @@index([expiresAt]) // tozalash ishi
   @@map("platform_refresh_tokens")
 }
 

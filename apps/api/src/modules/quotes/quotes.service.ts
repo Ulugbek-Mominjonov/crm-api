@@ -3,6 +3,7 @@ import { Prisma, type CustomerGroup, type PriceTier, type QuoteStatus } from '@p
 import type { PermissionSet } from '@crm/shared'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
+import { looksLikeDocumentNumber } from '@/common/crud/search'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
 import { milliToDb, toMilli } from '@/common/quantity'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
@@ -110,12 +111,10 @@ export class QuotesService {
       ...(query.expired && {
         AND: [{ status: { in: [...OPEN_STATUSES] } }, { validUntil: { lt: dateToDb(today) } }],
       }),
-      ...(query.q && {
-        OR: [
-          { number: { contains: query.q, mode: 'insensitive' } },
-          { customer: { name: { contains: query.q, mode: 'insensitive' } } },
-        ],
-      }),
+      // Raqam ko'rinishi — taklif raqami, aks holda — mijoz nomi (ikkalasi ham indeks bilan)
+      ...(query.q && (looksLikeDocumentNumber(query.q)
+        ? { number: { contains: query.q, mode: 'insensitive' } }
+        : { customer: { name: { contains: query.q, mode: 'insensitive' } } })),
     }
     const [rows, total] = await Promise.all([
       this.prisma.scoped.quote.findMany({

@@ -110,10 +110,10 @@ describe('POST /auth/login', () => {
     await login({ email: EMAIL, password: PASSWORD }).expect(401)
   })
 
-  it('bo‘shatilgan xodim → 423 AUTH_ACCOUNT_LOCKED', async () => {
+  it('bo‘shatilgan xodim → 423 AUTH_ACCOUNT_DISABLED', async () => {
     await testDb.employee.updateMany({ data: { status: 'fired' } })
     const res = await login({ email: EMAIL, password: PASSWORD }).expect(423)
-    expect(res.body.code).toBe('AUTH_ACCOUNT_LOCKED')
+    expect(res.body.code).toBe('AUTH_ACCOUNT_DISABLED')
   })
 
   it.each(['suspended', 'deleting'])(
@@ -155,5 +155,21 @@ describe('POST /auth/login', () => {
     await login({ email: EMAIL, password: PASSWORD }).expect(201)
     const user = await testDb.user.findFirstOrThrow({ where: { email: EMAIL } })
     expect(user.lastLoginAt).not.toBeNull()
+  })
+
+  it('ketma-ket 5 ta noto‘g‘ri parol — hisob 15 daqiqa bloklanadi (423), to‘g‘ri parol ham o‘tmaydi; muddat o‘tgach kiradi va hisob tozalanadi', async () => {
+    for (let i = 0; i < 4; i += 1) {
+      await login({ email: EMAIL, password: 'noto‘g‘ri' }).expect(401)
+    }
+    expect((await testDb.user.findFirstOrThrow({ where: { email: EMAIL } })).failedLogins).toBe(4)
+    await login({ email: EMAIL, password: 'noto‘g‘ri' }).expect(401)
+    const locked = await login({ email: EMAIL, password: PASSWORD }).expect(423)
+    expect(locked.body.code).toBe('AUTH_ACCOUNT_LOCKED')
+    expect(locked.body.errors[0].meta.until).toBeDefined()
+
+    // Muddat o'tdi — kiradi, hisoblagich va blok tozalanadi
+    await testDb.user.updateMany({ where: { email: EMAIL }, data: { lockedUntil: new Date(Date.now() - 1_000) } })
+    await login({ email: EMAIL, password: PASSWORD }).expect(201)
+    expect(await testDb.user.findFirstOrThrow({ where: { email: EMAIL } })).toMatchObject({ failedLogins: 0, lockedUntil: null })
   })
 })

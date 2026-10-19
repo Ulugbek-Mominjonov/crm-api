@@ -11,6 +11,7 @@ export const ErrorCode = {
   // Auth
   AUTH_INVALID_CREDENTIALS: 'AUTH_INVALID_CREDENTIALS',
   AUTH_ACCOUNT_LOCKED: 'AUTH_ACCOUNT_LOCKED',
+  AUTH_ACCOUNT_DISABLED: 'AUTH_ACCOUNT_DISABLED',
   AUTH_INVALID_REFRESH: 'AUTH_INVALID_REFRESH',
   AUTH_TOKEN_REUSE: 'AUTH_TOKEN_REUSE',
   AUTH_TENANT_REQUIRED: 'AUTH_TENANT_REQUIRED',
@@ -77,6 +78,8 @@ export const ErrorCode = {
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   PAYLOAD_TOO_LARGE: 'PAYLOAD_TOO_LARGE',
   NOT_FOUND: 'NOT_FOUND',
+  RATE_LIMITED: 'RATE_LIMITED',
+  SERVICE_UNAVAILABLE: 'SERVICE_UNAVAILABLE',
   INTERNAL: 'INTERNAL',
 } as const
 
@@ -91,7 +94,8 @@ interface CatalogEntry {
 
 export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   AUTH_INVALID_CREDENTIALS: { status: 401, title: 'Email yoki parol xato' },
-  AUTH_ACCOUNT_LOCKED: { status: 423, title: 'Hisob vaqtincha bloklandi' },
+  AUTH_ACCOUNT_LOCKED: { status: 423, title: 'Hisob vaqtincha bloklandi — ketma-ket noto‘g‘ri parol' },
+  AUTH_ACCOUNT_DISABLED: { status: 423, title: 'Hisob faol emas — xodim ishdan bo‘shatilgan' },
   AUTH_INVALID_REFRESH: { status: 401, title: 'Sessiya yaroqsiz' },
   AUTH_TOKEN_REUSE: { status: 401, title: 'Bekor qilingan token ishlatildi' },
   AUTH_TENANT_REQUIRED: { status: 409, title: 'Do‘konni tanlang' },
@@ -157,6 +161,8 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
   VALIDATION_FAILED: { status: 400, title: 'So‘rov ma’lumotlari noto‘g‘ri' },
   PAYLOAD_TOO_LARGE: { status: 413, title: 'So‘rov hajmi juda katta' },
   NOT_FOUND: { status: 404, title: 'Topilmadi' },
+  RATE_LIMITED: { status: 429, title: 'Juda ko‘p so‘rov — biroz kutib qayta urining' },
+  SERVICE_UNAVAILABLE: { status: 503, title: 'Xizmat vaqtincha mavjud emas' },
   INTERNAL: { status: 500, title: 'Ichki xato' },
 }
 

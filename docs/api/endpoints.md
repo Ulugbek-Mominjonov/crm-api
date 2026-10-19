@@ -3005,7 +3005,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 409 `IDEMPOTENCY_MISMATCH` (kalit boshqa tana b
 
 > Kursorli sahifalash (`nextCursor`). Har chekda qolgan qarz — bazada hisoblangan (I13).
 
-**Qachon / qanday:** Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — chek raqami yoki mijoz nomi; `relatedSaleId` — shu chek bo‘yicha qaytarish hujjatlari (chek kartasidagi «Qaytarishlar»). Qatorlarsiz — tafsilot `GET /sales/:id` da.
+**Qachon / qanday:** Cheklar jurnali (kursorli, yangisi birinchi). `payment=debt` — qarzi qolgan cheklar; `q` — raqam ko‘rinishida bo‘lsa (raqami bor, bo‘shliqsiz: `CHEK-1001`, `1001`) chek raqami, aks holda mijoz nomi; `relatedSaleId` — shu chek bo‘yicha qaytarish hujjatlari (chek kartasidagi «Qaytarishlar»). Qatorlarsiz — tafsilot `GET /sales/:id` da.
 
 | | |
 |---|---|
@@ -3584,7 +3584,7 @@ Mijozga narx taklifi: qoldiq band qilinmaydi, kassaga ta’sir yo‘q. Qabul qil
 
 > `expired` — amal muddati o‘tgan ochiq taklif
 
-**Qachon / qanday:** Takliflar ro‘yxati; `expired=true` — amal muddati o‘tgan ochiq takliflar.
+**Qachon / qanday:** Takliflar ro‘yxati; `expired=true` — amal muddati o‘tgan ochiq takliflar. `q` — raqam ko‘rinishida bo‘lsa taklif raqami, aks holda mijoz nomi.
 
 | | |
 |---|---|
@@ -3881,7 +3881,7 @@ Buyurtma → qabul (to‘liq/qisman, kirim harakatlari va o‘rtacha tannarx) �
 
 > Har buyurtmada qarz — faqat kelgan tovar uchun (I18)
 
-**Qachon / qanday:** Xaridlar sahifasi. Har buyurtmada `outstanding` — faqat KELGAN tovar uchun qarzimiz. Sotuvchida summalar yo‘q (ustunlarni yashiring).
+**Qachon / qanday:** Xaridlar sahifasi. Har buyurtmada `outstanding` — faqat KELGAN tovar uchun qarzimiz. Sotuvchida summalar yo‘q (ustunlarni yashiring). `q` — raqam ko‘rinishida bo‘lsa buyurtma raqami, aks holda ta’minotchi nomi.
 
 | | |
 |---|---|
@@ -4973,7 +4973,7 @@ Har xodimga varaq: hisoblangan maosh va bonus (tungi ish, o‘tgan oy uchun), mu
 
 | | |
 |---|---|
-| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `payroll.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PayrollSheetDto`](schemas.md#payrollsheetdto) |
 
@@ -5001,7 +5001,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `payroll.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PayrollEntryPageDto`](schemas.md#payrollentrypagedto) |
 
@@ -5135,7 +5135,7 @@ Umumiy: 403 `PERMISSION_DENIED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `payroll.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -5169,7 +5169,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | `payroll.view` — sukut bo‘yicha: admin, manager (do‘kon rollarida — administrator belgilaydi) |
+| Huquq | `payroll.view` — sukut bo‘yicha: admin (do‘kon rollarida — administrator belgilaydi) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PayrollEntryDto`](schemas.md#payrollentrydto) |
 | Audit jurnali | ha |

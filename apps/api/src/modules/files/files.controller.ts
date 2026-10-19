@@ -10,6 +10,7 @@ import { ApiErrorDto } from '@/common/http/api-error.dto'
 import { AuditedInService } from '@/modules/audit/audit.decorator'
 import { CurrentUser, type AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { RequirePermission } from '@/modules/auth/decorators/require-permission.decorator'
+import { ManualTransaction } from '@/prisma/tenant-transaction.interceptor'
 import { FileDto, FileUrlsDto, FileUrlsQueryDto, PresignDto, PresignResultDto, RawQueryDto, UsageDto } from './dto/file.dto'
 import { FilesService } from './files.service'
 import { PRESIGN_TTL_SEC } from './s3.service'
@@ -47,6 +48,7 @@ export class FilesController {
 
   @Post(':id/confirm')
   @HttpCode(200)
+  @ManualTransaction()
   @AuditedInService()
   @ApiOperation({
     summary: 'Yuklashni tasdiqlash',

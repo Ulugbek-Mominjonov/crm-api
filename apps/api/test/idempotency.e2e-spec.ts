@@ -130,7 +130,7 @@ describe('Idempotentlik', () => {
     const freshKey = randomUUID()
     await intake(freshKey, { productId: product, qty: 1 }).expect(201)
     await testDb.idempotencyKey.updateMany({
-      where: { key: oldKey },
+      where: { key: { endsWith: oldKey } }, // kalit foydalanuvchi doirasida: `<userId>:<kalit>`
       data: { createdAt: new Date(Date.now() - 25 * 3600 * 1000) },
     })
 
@@ -139,11 +139,11 @@ describe('Idempotentlik', () => {
     expect(await stock()).toBe(14)
 
     await testDb.idempotencyKey.updateMany({
-      where: { key: oldKey },
+      where: { key: { endsWith: oldKey } }, // kalit foydalanuvchi doirasida: `<userId>:<kalit>`
       data: { createdAt: new Date(Date.now() - 25 * 3600 * 1000) },
     })
     const removed = await app.get(IdempotencyJobs).purgeExpired()
     expect(removed).toBe(1)
-    expect((await testDb.idempotencyKey.findMany()).map((k) => k.key)).toEqual([freshKey])
+    expect((await testDb.idempotencyKey.findMany()).map((k) => k.key)).toEqual([`${a.userId}:${freshKey}`])
   })
 })

@@ -4,6 +4,7 @@ import { dueDateFor, lineTotal } from '@crm/shared'
 import { currentContext, currentPermissions } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
+import { looksLikeDocumentNumber } from '@/common/crud/search'
 import { rethrowAsDomain } from '@/common/crud/prisma-errors'
 import { withCtes } from '@/common/db/sql'
 import { DomainError, NotFoundError } from '@/common/errors/domain.error'
@@ -98,12 +99,10 @@ export class PurchaseOrdersService {
           ...(query.dateTo && { lte: dateToDb(query.dateTo) }),
         },
       }),
-      ...(query.q && {
-        OR: [
-          { number: { contains: query.q, mode: 'insensitive' } },
-          { supplier: { name: { contains: query.q, mode: 'insensitive' } } },
-        ],
-      }),
+      // Raqam ko'rinishi — buyurtma raqami, aks holda — ta'minotchi nomi (ikkalasi ham indeks bilan)
+      ...(query.q && (looksLikeDocumentNumber(query.q)
+        ? { number: { contains: query.q, mode: 'insensitive' } }
+        : { supplier: { name: { contains: query.q, mode: 'insensitive' } } })),
     }
     const [rows, total] = await Promise.all([
       this.prisma.scoped.purchaseOrder.findMany({

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import type { Prisma } from '@prisma/client'
 import { DomainError } from '@/common/errors/domain.error'
 import type { Env } from '@/config/env.schema'
 import { hashToken, newRawToken, type TokenMeta } from '@/modules/auth/refresh-token.service'
@@ -28,10 +29,10 @@ export class PlatformSessionService {
     return this.ttlSec * 1000
   }
 
-  /** Yangi token — XOM qiymati faqat shu yerda ko'rinadi */
-  async issue(adminId: string, meta: TokenMeta = {}, parentId?: string): Promise<string> {
+  /** Yangi token — XOM qiymati faqat shu yerda ko'rinadi; `db` — rotatsiya tranzaksiyasi */
+  async issue(adminId: string, meta: TokenMeta = {}, parentId?: string, db: Prisma.TransactionClient = this.prisma): Promise<string> {
     const raw = newRawToken()
-    await this.prisma.platformRefreshToken.create({
+    await db.platformRefreshToken.create({
       data: {
         adminId,
         tokenHash: hashToken(raw),
@@ -58,8 +59,12 @@ export class PlatformSessionService {
       throw new DomainError('AUTH_INVALID_REFRESH', 'Sessiya muddati tugagan')
     }
 
-    await this.prisma.platformRefreshToken.update({ where: { id: token.id }, data: { revokedAt: new Date() } })
-    return { adminId: token.adminId, token: await this.issue(token.adminId, meta, token.id) }
+    // Bekor qilish va yangisini berish — BITTA tranzaksiya (do'kon sessiyasi bilan bir xil):
+    // orasida uzilsa egasi sessiyasiz qolmasin
+    return this.prisma.$transaction(async (tx) => {
+      await tx.platformRefreshToken.update({ where: { id: token.id }, data: { revokedAt: new Date() } })
+      return { adminId: token.adminId, token: await this.issue(token.adminId, meta, token.id, tx) }
+    })
   }
 
   async revoke(raw: string): Promise<void> {

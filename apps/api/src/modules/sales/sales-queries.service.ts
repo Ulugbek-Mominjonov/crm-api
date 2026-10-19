@@ -3,6 +3,7 @@ import type { Prisma, SaleType } from '@prisma/client'
 import { currentTenantId } from '@/common/context/request-context'
 import { dateFromDb, dateToDb, moneyFromDb, qtyFromDb } from '@/common/crud/convert'
 import { decodeCursor, keysetWhere, toCursorPage, type CursorPage } from '@/common/crud/paging'
+import { looksLikeDocumentNumber } from '@/common/crud/search'
 import { NotFoundError } from '@/common/errors/domain.error'
 import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService } from '@/prisma/prisma.service'
@@ -80,12 +81,12 @@ export class SalesQueriesService {
     if (query.relatedSaleId) and.push({ relatedSaleId: query.relatedSaleId })
     if (query.payment) and.push(PAYMENT_WHERE[query.payment])
     if (query.q) {
-      and.push({
-        OR: [
-          { number: { contains: query.q, mode: 'insensitive' } },
-          { customer: { name: { contains: query.q, mode: 'insensitive' } } },
-        ],
-      })
+      // Raqam ko'rinishi — chek raqami (trigram), aks holda — mijoz nomi (mijozlar trigram + `customer_id`)
+      and.push(
+        looksLikeDocumentNumber(query.q)
+          ? { number: { contains: query.q, mode: 'insensitive' } }
+          : { customer: { name: { contains: query.q, mode: 'insensitive' } } },
+      )
     }
     if (query.cursor) {
       const cursor = decodeCursor(query.cursor)
