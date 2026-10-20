@@ -61,8 +61,9 @@ export class AuthService {
   /**
    * Yangi do'kon (T-124, 07 §7.9): do'kon, sozlama, sukut ombor, egasi
    * (administrator) — bitta tranzaksiyada; javob — kirish bilan bir xil
-   * (sessiya darhol). Parol siyosati xeshlashda tekshiriladi. Platforma
-   * egasiga Telegram xabar (T-137) — kutilmaydi, yetmasa ham ro'yxat o'tgan.
+   * (sessiya darhol). Do'kon sinov muddati bilan ochiladi (T-148). Parol
+   * siyosati xeshlashda tekshiriladi. Platforma egasiga Telegram xabar
+   * (T-137) — kutilmaydi, yetmasa ham ro'yxat o'tgan.
    */
   async register(
     dto: RegisterDto,
@@ -71,6 +72,7 @@ export class AuthService {
     const passwordHash = await this.passwords.hash(dto.password)
     const { tenantId, userId } = await this.provisioning.provision({
       tenantName: dto.storeName,
+      trial: true,
       owner: { name: dto.ownerName, phone: dto.phone, email: dto.email, passwordHash },
     })
     const user = await this.prisma.inTenantTransaction(tenantId, (tx) =>

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import type { Prisma, SystemRole } from '@prisma/client'
-import { PAID_PLANS, planLimits } from '@crm/shared'
+import { PAID_PLANS, planLimits, TRIAL_DAYS, TRIAL_PLAN } from '@crm/shared'
 import { withTenant } from '@/common/context/request-context'
 import { pageArgs, toPaged, type Paged } from '@/common/crud/paging'
 import { orderByOf } from '@/common/crud/sort'
@@ -22,7 +22,7 @@ import { PlatformAuditService } from './platform-audit.service'
 import { PlatformBillingService } from './platform-billing.service'
 
 const TENANT_SELECT = {
-  id: true, name: true, plan: true, status: true, planExpiresAt: true, deletionScheduledAt: true,
+  id: true, name: true, plan: true, status: true, planExpiresAt: true, trialEndsAt: true, deletionScheduledAt: true,
   blockedAt: true, blockedReason: true, notes: true, createdAt: true,
 } satisfies Prisma.TenantSelect
 
@@ -101,11 +101,15 @@ export class PlatformTenantsService {
     return toDto(row, usage.get(id))
   }
 
-  /** Ro'yxatdan o'tish bilan bir xil yaratish; pullik boshlang'ich tarif — bonus hisob-faktura */
+  /**
+   * Ro'yxatdan o'tish bilan bir xil yaratish: tarif berilmasa — sinov muddati (T-148), `free` — bepul,
+   * pullik boshlang'ich tarif — bonus hisob-faktura
+   */
   async create(dto: CreateTenantDto, adminId: string): Promise<PlatformTenantDto> {
     const passwordHash = await this.passwords.hash(dto.password)
     const { tenantId } = await this.provisioning.provision({
       tenantName: dto.storeName,
+      trial: dto.plan === undefined,
       owner: { name: dto.ownerName, phone: dto.phone, email: dto.email, passwordHash },
     })
     if (dto.notes) await this.prisma.tenant.update({ where: { id: tenantId }, data: { notes: dto.notes } })
@@ -117,7 +121,10 @@ export class PlatformTenantsService {
       }
       await this.platformAudit.log({
         action: 'tenant.create', targetTenantId: tenantId, entityType: 'tenant', entityId: tenantId,
-        diff: { name: dto.storeName, email: dto.email, plan: paid ? dto.plan! : 'free', months: paid ? dto.months! : null },
+        diff: {
+          name: dto.storeName, email: dto.email, plan: dto.plan ?? TRIAL_PLAN, months: paid ? dto.months! : null,
+          trialDays: dto.plan === undefined ? TRIAL_DAYS : null,
+        },
       }, tx)
     })
     return this.get(tenantId)
@@ -248,6 +255,7 @@ function listWhere(query: PlatformTenantsQueryDto): Prisma.TenantWhereInput {
   if (query.expiresWithinDays !== undefined) {
     and.push({ plan: { not: 'free' }, planExpiresAt: { lte: new Date(Date.now() + query.expiresWithinDays * DAY_MS) } })
   }
+  if (query.trial !== undefined) and.push({ trialEndsAt: query.trial ? { not: null } : null })
   return { AND: and }
 }
 

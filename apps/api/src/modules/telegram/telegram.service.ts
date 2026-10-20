@@ -9,6 +9,7 @@ import { PlatformAuditService } from '@/modules/platform/platform-audit.service'
 import { SettingsService } from '@/modules/settings/settings.service'
 import { PrismaService, type TenantTx } from '@/prisma/prisma.service'
 import type { TelegramLinkDto, TelegramStatusDto } from './dto/telegram.dto'
+import { OwnerActionsService } from './owner-actions.service'
 import { OWNER_TEXT } from './owner-texts'
 import { TELEGRAM_CLIENT, TelegramApiError, type TelegramClient, type TelegramFile, type TelegramUpdate } from './telegram.client'
 import { BOT_TEXT } from './telegram-texts'
@@ -75,6 +76,7 @@ export class TelegramService {
     private readonly audit: AuditService,
     private readonly platformAudit: PlatformAuditService,
     private readonly config: ConfigService<Env, true>,
+    private readonly ownerActions: OwnerActionsService,
     @Optional() @Inject(TELEGRAM_CLIENT) private readonly client: TelegramClient | null,
   ) {}
 
@@ -178,6 +180,11 @@ export class TelegramService {
     if (member) {
       // Bloklasa (`kicked`) — belgilanadi; qayta ochsa (`member`) — xabarlar davom etadi
       if (member.chat.type === 'private') await this.setBlocked(member.chat.id, member.new_chat_member.status === 'kicked')
+      return
+    }
+    // Egasi xabaridagi tugma (T-149) — faqat egasi hisoblari uchun
+    if (update.callback_query) {
+      await this.ownerActions.handle(update.callback_query)
       return
     }
     const message = update.message

@@ -1,13 +1,20 @@
 import { Injectable } from '@nestjs/common'
-import { PRODUCT_CATEGORIES } from '@crm/shared'
+import { PRODUCT_CATEGORIES, TRIAL_DAYS, TRIAL_PLAN } from '@crm/shared'
 import { PrismaService } from '@/prisma/prisma.service'
 import { DOC_PREFIXES } from '@/modules/doc-numbers/doc-number.service'
 import { systemRoleRows } from '@/modules/roles/system-roles'
 
 export const DEFAULT_WAREHOUSE_NAME = 'Asosiy ombor'
 
+const DAY_MS = 86_400_000
+
 export interface ProvisionInput {
   tenantName: string
+  /**
+   * Sinov muddati (T-148): `TRIAL_PLAN` tarifi `TRIAL_DAYS` kun — ro'yxatdan o'tish va tarifsiz
+   * ochilgan do'kon. Berilmasa — `free` (egasi o'zi tarif beradi)
+   */
+  trial?: boolean
   owner: {
     name: string
     position?: string
@@ -37,7 +44,10 @@ export class TenantProvisioningService {
    */
   async provision(input: ProvisionInput): Promise<ProvisionResult> {
     return this.prisma.$transaction(async (tx) => {
-      const tenant = await tx.tenant.create({ data: { name: input.tenantName } })
+      const trialEndsAt = input.trial ? new Date(Date.now() + TRIAL_DAYS * DAY_MS) : null
+      const tenant = await tx.tenant.create({
+        data: { name: input.tenantName, ...(trialEndsAt && { plan: TRIAL_PLAN, planExpiresAt: trialEndsAt, trialEndsAt }) },
+      })
       // Qolgan yozuvlar YANGI tenantniki — RLS (WITH CHECK) ularni faqat shu
       // tenant o'rnatilgan tranzaksiyada qabul qiladi (`tenants` — global jadval)
       await tx.$executeRaw`SELECT set_config('app.tenant_id', ${tenant.id}, true)`

@@ -106,15 +106,15 @@ describe('SMS navbati va chegarasi', () => {
     expect((await testDb.message.findFirstOrThrow()).deliveryStatus).toBe('failed')
   })
 
-  it('kunlik chegara (T-078): bugungi jami + yangi > chegara — 429', async () => {
+  it('provayderning kunlik chegarasi (T-078, env): bugungi jami + yangi > chegara — 429 `period: day`', async () => {
     await seedClient(a.tenantId)
     await testDb.message.create({
       data: { tenantId: a.tenantId, target: 'all', recipientLabel: 'x', recipients: 1000, text: 'x' },
     })
     const res = await send({ target: 'all', text: 'x' }).expect(429)
-    expect(res.body).toMatchObject({ code: 'MESSAGE_LIMIT_EXCEEDED', errors: [{ meta: { limit: 1000, used: 1000, requested: 1 } }] })
-    // Kechagi xabarlar hisobga kirmaydi
-    await testDb.message.updateMany({ data: { createdAt: new Date(Date.now() - 36 * 3600 * 1000) } })
+    expect(res.body).toMatchObject({ code: 'MESSAGE_LIMIT_EXCEEDED', errors: [{ meta: { period: 'day', limit: 1000, used: 1000, requested: 1 } }] })
+    // O'tgan oydagi xabarlar na kunga, na oyga kiradi
+    await testDb.message.updateMany({ data: { createdAt: new Date(Date.now() - 40 * 86_400_000) } })
     await send({ target: 'all', text: 'x' }).expect(201)
   })
 

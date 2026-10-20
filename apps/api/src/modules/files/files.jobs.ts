@@ -70,8 +70,9 @@ export class FileGcJobs {
 
   /**
    * Hech bir tirik mahsulot ishlatmaydigan `ready` rasm, sozlamaga ulanmagan
-   * logotip (yuklangan, lekin saqlanmagan), muddati o'tgan eksport va zaxira —
-   * `deletedAt` (obyekt hali o'chmaydi: 30 kun ichida mahsulot tiklansa rasm qaytadi).
+   * logotip (yuklangan, lekin saqlanmagan), hisob-fakturaga biriktirilmagan
+   * to'lov cheki, muddati o'tgan eksport va zaxira — `deletedAt` (obyekt hali
+   * o'chmaydi: 30 kun ichida mahsulot tiklansa rasm qaytadi).
    */
   @Cron('0 4 * * *', { name: 'files:gc-orphans', timeZone: BUSINESS_TIME_ZONE })
   async gcOrphans(now: Date = new Date()): Promise<number> {
@@ -81,11 +82,12 @@ export class FileGcJobs {
     return this.eachTenant('files:gc-orphans', async (tx, tenantId) => {
       const orphans = await tx.$executeRaw`
         UPDATE files f SET deleted_at = ${now}
-         WHERE f.tenant_id = ${tenantId}::uuid AND f.status = 'ready' AND f.kind IN ('product_image', 'store_logo')
+         WHERE f.tenant_id = ${tenantId}::uuid AND f.status = 'ready' AND f.kind IN ('product_image', 'store_logo', 'payment_receipt')
            AND f.deleted_at IS NULL AND f.created_at < ${cutoff}
            AND NOT EXISTS (SELECT 1 FROM products p
                             WHERE p.tenant_id = f.tenant_id AND p.image_file_id = f.id AND p.deleted_at IS NULL)
-           AND NOT EXISTS (SELECT 1 FROM settings s WHERE s.tenant_id = f.tenant_id AND s.logo_file_id = f.id)`
+           AND NOT EXISTS (SELECT 1 FROM settings s WHERE s.tenant_id = f.tenant_id AND s.logo_file_id = f.id)
+           AND NOT EXISTS (SELECT 1 FROM billing_invoices i WHERE i.tenant_id = f.tenant_id AND i.receipt_file_id = f.id)`
       const expired = await tx.$executeRaw`
         UPDATE files SET deleted_at = ${now}
          WHERE tenant_id = ${tenantId}::uuid AND deleted_at IS NULL
@@ -97,8 +99,9 @@ export class FileGcJobs {
   /**
    * 30 kundan oshgan o'chirilgan fayllar — S3'dan va bazadan; band hajm
    * (faqat `ready` edi) kamayadi. Zaxira kutmaydi: uni tiklash yo'q, kvotani
-   * esa band qiladi. Tirik mahsulot yoki sozlama (logotip) havolasi bo'lsa —
-   * HECH QACHON o'chmaydi (qayta tekshiruv). So'ng hisoblagich solishtiriladi (10 §10.2).
+   * esa band qiladi. Tirik mahsulot, sozlama (logotip) yoki hisob-faktura
+   * (to'lov cheki — moliyaviy dalil) havolasi bo'lsa — HECH QACHON o'chmaydi
+   * (qayta tekshiruv). So'ng hisoblagich solishtiriladi (10 §10.2).
    */
   @Cron('30 4 * * *', { name: 'files:purge', timeZone: BUSINESS_TIME_ZONE })
   async purge(now: Date = new Date()): Promise<number> {
@@ -111,6 +114,7 @@ export class FileGcJobs {
            AND NOT EXISTS (SELECT 1 FROM products p
                             WHERE p.tenant_id = f.tenant_id AND p.image_file_id = f.id AND p.deleted_at IS NULL)
            AND NOT EXISTS (SELECT 1 FROM settings s WHERE s.tenant_id = f.tenant_id AND s.logo_file_id = f.id)
+           AND NOT EXISTS (SELECT 1 FROM billing_invoices i WHERE i.tenant_id = f.tenant_id AND i.receipt_file_id = f.id)
          ORDER BY f.deleted_at
          LIMIT ${GC_BATCH}
            FOR UPDATE OF f SKIP LOCKED`

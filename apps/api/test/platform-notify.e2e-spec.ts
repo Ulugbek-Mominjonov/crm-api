@@ -1,6 +1,6 @@
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
-import { PLAN_MONTHLY_PRICE } from '@crm/shared'
+import { planPrice } from '@crm/shared'
 import { PasswordService } from '@/modules/auth/password.service'
 import { TELEGRAM_CLIENT, type TelegramUpdate } from '@/modules/telegram/telegram.client'
 import { createTestApp, resetThrottle } from './helpers/app'
@@ -131,17 +131,17 @@ describe('Egasiga Telegram xabarlar', () => {
     expect(registered).toContain('ali@dokon.uz')
 
     // 2. Payme to'lovi (webhook)
-    const { invoice } = (await api().post('/api/v1/billing/invoices').set('Authorization', storeAuth).send({ plan: 'basic', months: 2 }).expect(201)).body
-    const amount = PLAN_MONTHLY_PRICE.basic * 2 * 100
+    const { invoice } = (await api().post('/api/v1/billing/invoices').set('Authorization', storeAuth).send({ plan: 'basic', months: 3 }).expect(201)).body
+    const amount = planPrice('basic', 3) * 100
     await payme('CreateTransaction', { id: 'pm-1', time: Date.now(), amount, account: { order_id: invoice.id } })
     await payme('PerformTransaction', { id: 'pm-1' })
     await waitFor(OWNER_CHAT, 2)
     const paid = telegram.to(OWNER_CHAT)[1]!
     expect(paid).toContain('To‘lov')
     expect(paid).toContain('A do‘kon')
-    expect(paid).toContain('198 000 so‘m')
-    expect(paid).toContain('basic')
-    expect(paid).toContain('2 oy (payme)')
+    expect(paid).toContain('282 000 so‘m')
+    expect(paid).toContain('<b>Start</b>')
+    expect(paid).toContain('3 oy (payme)')
     // Takror webhook — tarif ham, xabar ham ikkinchi marta emas
     await payme('PerformTransaction', { id: 'pm-1' })
 

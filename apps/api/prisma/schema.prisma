@@ -28,12 +28,14 @@ datasource db {
 model Tenant {
   id                  String    @id @default(uuid(7)) @db.Uuid
   name                String
-  plan                String    @default("free") // free | basic | pro
+  plan                String    @default("free") // free | basic | business | pro
   /// active | suspended (o'qish mumkin, yozish yo'q) | blocked (egasi to'xtatgan, faqat o'qish) | deleting (30 kun muhlat)
   status              String    @default("active")
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz
   /// Pullik tarif amal qilish muddati — to'lov tasdiqlangach uzayadi (T-126)
   planExpiresAt       DateTime? @map("plan_expires_at") @db.Timestamptz
+  /// Sinov muddati oxiri (T-148): ro'yxatdan o'tganda qo'yiladi, birinchi to'lov (yoki egasi tarifi) tozalaydi
+  trialEndsAt         DateTime? @map("trial_ends_at") @db.Timestamptz
   /// O'chirish so'ralgan bo'lsa — shu vaqtdan keyin to'liq tozalanadi (T-127)
   deletionScheduledAt DateTime? @map("deletion_scheduled_at") @db.Timestamptz
   /// Platforma egasi bloklagan (T-135): holatdan mustaqil saqlanadi — o'chirishdan qaytganda ham blok qoladi
@@ -1164,8 +1166,9 @@ model File {
   /// Yumshoq o'chirish — haqiqiy o'chirish GC ishida (09 §9.10)
   deletedAt    DateTime?  @map("deleted_at") @db.Timestamptz
 
-  products Product[]
-  settings Settings[]
+  products        Product[]
+  settings        Settings[]
+  billingInvoices BillingInvoice[]
 
   @@unique([tenantId, sha256, kind])
   @@unique([tenantId, id])
@@ -1211,19 +1214,33 @@ model BillingInvoice {
   months       Int
   amount       BigInt
   state        InvoiceState @default(created)
-  /// payme | click — provayder; cash | transfer | bonus — egasi qo'lda yozgan to'lov (T-135)
+  /// payme | click — provayder; card — egasining kartasiga o'tkazma (T-149); cash | transfer | bonus — egasi qo'lda yozgan to'lov (T-135)
   provider     String?
   providerTxId String?      @map("provider_tx_id")
   providerTime BigInt?      @map("provider_time")
   createdById  String?      @map("created_by_id") @db.Uuid
-  /// Egasi panelidan yozilgan bo'lsa — kim (T-135)
+  /// Egasi panelidan yozilgan, karta to'lovini tasdiqlagan yoki rad etgan bo'lsa — kim (T-135, T-149)
   platformAdminId String?   @map("platform_admin_id") @db.Uuid
   /// Egasi izohi: kvitansiya raqami, kelishuv …
   note         String?
+  /// Karta to'lovi da'vosi (T-149): to'lovchi kartasining oxirgi 4 raqami
+  payerCard     String?     @map("payer_card")
+  /// Karta to'lovi: do'kon administratori izohi («akamning kartasidan»)
+  payerNote     String?     @map("payer_note")
+  /// Karta to'lovi: o'tkazma vaqti (administrator aytgani) — egasi bank tarixidan shu bo'yicha topadi
+  transferredAt DateTime?   @map("transferred_at") @db.Timestamptz
+  /// Karta to'lovi: «to'ladim» bosilgan vaqt
+  claimedAt     DateTime?   @map("claimed_at") @db.Timestamptz
+  /// Karta to'lovi cheki — `payment_receipt` fayli (GC bog'langan chekni o'chirmaydi)
+  receiptFileId String?     @map("receipt_file_id") @db.Uuid
+  /// Egasi karta to'lovini rad etgan sabab — do'kon ko'radi
+  rejectReason  String?     @map("reject_reason")
   createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz
   paidAt       DateTime?    @map("paid_at") @db.Timestamptz
   cancelledAt  DateTime?    @map("cancelled_at") @db.Timestamptz
   cancelReason Int?         @map("cancel_reason")
+
+  receiptFile File? @relation(fields: [receiptFileId], references: [id], onDelete: SetNull)
 
   @@unique([tenantId, id])
   @@index([tenantId, createdAt])
@@ -1288,6 +1305,10 @@ model PlatformSettings {
   supportPhone     String?  @map("support_phone")
   supportTelegram  String?  @map("support_telegram")
   supportHours     String?  @map("support_hours")
+  /// Egasining to'lov kartasi raqami (T-149, 16 raqam): do'kon to'lov oynasida ko'radi; yo'q — karta usuli o'chiq
+  paymentCardNumber String? @map("payment_card_number")
+  /// Karta egasi (kartadagi ism) — to'lovchi ilovasi o'tkazmada ko'rsatadigan ism bilan solishtiradi
+  paymentCardHolder String? @map("payment_card_holder")
   updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz
   updatedById      String?  @map("updated_by") @db.Uuid
 
@@ -1419,6 +1440,7 @@ enum FileKind {
   tenant_backup
   avatar
   store_logo
+  payment_receipt
 }
 
 enum FileStatus {

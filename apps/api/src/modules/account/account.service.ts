@@ -4,7 +4,7 @@ import { DomainError, PermissionDeniedError } from '@/common/errors/domain.error
 import { AuditService } from '@/modules/audit/audit.service'
 import type { AuthContext } from '@/modules/auth/decorators/current-user.decorator'
 import { PasswordService } from '@/modules/auth/password.service'
-import { smsUsedToday } from '@/modules/messages/messages.service'
+import { smsUsage } from '@/modules/messages/messages.service'
 import { PlatformSettingsService } from '@/modules/platform/platform-settings.service'
 import { OwnerNotifierService } from '@/modules/telegram/owner-notifier.service'
 import { DELETION_GRACE_DAYS, TenantStatusService } from '@/modules/tenants/tenant-status.service'
@@ -32,23 +32,25 @@ export class AccountService {
     assertAdmin(user)
     const { tenantId } = requireTenantTx()
     const tx = this.prisma.scoped
-    const [tenant, users, warehouses, state, smsToday, support] = await Promise.all([
+    const [tenant, users, warehouses, state, sms, platform] = await Promise.all([
       tx.tenant.findUniqueOrThrow({
         where: { id: tenantId },
-        select: { id: true, name: true, plan: true, status: true, planExpiresAt: true, deletionScheduledAt: true, blockedReason: true },
+        select: {
+          id: true, name: true, plan: true, status: true, planExpiresAt: true, trialEndsAt: true, deletionScheduledAt: true, blockedReason: true,
+        },
       }),
       tx.user.count({ where: { deletedAt: null, isActive: true } }),
       tx.warehouse.count({ where: { archived: false } }),
       tx.tenantState.findUniqueOrThrow({ where: { tenantId }, select: { storageUsedBytes: true } }),
-      smsUsedToday(tx, tenantId),
-      // Egasining aloqa ma'lumoti (T-140) — bannerda va murojaat oynasida
-      this.platformSettings.support(),
+      smsUsage(tx, tenantId),
+      // Egasining aloqa ma'lumoti (T-140) — bannerda va murojaat oynasida; to'lov kartasi (T-149) — tarif sahifasida
+      this.platformSettings.forStore(),
     ])
     return {
       ...tenant,
       limits: planLimits(tenant.plan),
-      usage: { users, warehouses, storageBytes: Number(state.storageUsedBytes), smsToday },
-      support,
+      usage: { users, warehouses, storageBytes: Number(state.storageUsedBytes), smsThisMonth: sms.month },
+      ...platform,
     }
   }
 

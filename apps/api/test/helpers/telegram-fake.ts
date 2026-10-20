@@ -8,12 +8,17 @@ import {
  */
 export class FakeTelegram implements TelegramClient {
   readonly sent: { chatId: number; text: string; opts?: SendOptions }[] = []
-  readonly documents: { chatId: number; file: TelegramFile; caption: string }[] = []
+  readonly documents: { chatId: number; file: TelegramFile; caption: string; opts?: SendOptions }[] = []
+  /** Tugma bosilganiga javoblar va tugmasi olib tashlangan xabarlar (T-149) */
+  readonly answers: { id: string; text?: string }[] = []
+  readonly removed: { chatId: number; messageId: number }[] = []
   private readonly failures = new Map<number, TelegramApiError>()
 
   reset(): void {
     this.sent.length = 0
     this.documents.length = 0
+    this.answers.length = 0
+    this.removed.length = 0
     this.failures.clear()
   }
 
@@ -37,9 +42,9 @@ export class FakeTelegram implements TelegramClient {
     return { message_id: this.sent.length }
   }
 
-  async sendDocument(chatId: number, file: TelegramFile, caption: string): Promise<{ message_id: number }> {
+  async sendDocument(chatId: number, file: TelegramFile, caption: string, opts?: SendOptions): Promise<{ message_id: number }> {
     this.throwIfFailing(chatId)
-    this.documents.push({ chatId, file, caption })
+    this.documents.push({ chatId, file, caption, opts })
     return { message_id: this.documents.length }
   }
 
@@ -47,6 +52,14 @@ export class FakeTelegram implements TelegramClient {
 
   async getUpdates(): Promise<TelegramUpdate[]> {
     return []
+  }
+
+  async answerCallbackQuery(id: string, text?: string): Promise<void> {
+    this.answers.push({ id, text })
+  }
+
+  async removeButtons(chatId: number, messageId: number): Promise<void> {
+    this.removed.push({ chatId, messageId })
   }
 
   private throwIfFailing(chatId: number): void {

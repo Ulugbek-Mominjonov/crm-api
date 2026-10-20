@@ -4,9 +4,11 @@ export class TenantCountsDto {
   @ApiProperty({ description: 'Barcha do‘konlar' }) total!: number
   @ApiProperty({ example: { active: 10, suspended: 2, blocked: 1, deleting: 0 }, description: 'Holat bo‘yicha' })
   byStatus!: Record<string, number>
-  @ApiProperty({ example: { free: 8, basic: 3, pro: 2 }, description: 'Tarif bo‘yicha' })
+  @ApiProperty({ example: { free: 2, basic: 8, business: 3, pro: 1 }, description: 'Tarif bo‘yicha (sinovdagilar — sinov tarifida)' })
   byPlan!: Record<string, number>
   @ApiProperty({ description: 'Shu oyda ochilganlar (Toshkent oyi)' }) newThisMonth!: number
+  @ApiProperty({ description: 'Sinov muddatidagilar (hali to‘lamagan, sinovi tugamagan) — ularga qo‘ng‘iroq qilib, ishga tushirishda yordam bering' })
+  trialing!: number
   @ApiProperty({ description: 'Pullik tarifi 7 kun ichida tugaydiganlar' }) expiringIn7Days!: number
   @ApiProperty({ description: 'Muddati o‘tgan, hali to‘xtatilmagan (3 kunlik imtiyozda)' }) overdue!: number
 }
@@ -28,4 +30,6 @@ export class PlatformStatsDto {
   @ApiProperty({ type: TenantCountsDto }) tenants!: TenantCountsDto
   @ApiProperty({ type: RevenueDto }) revenue!: RevenueDto
   @ApiProperty({ description: 'Egasi javobini kutayotgan do‘kon murojaatlari (menyuda belgi; T-140)' }) openRequests!: number
+  @ApiProperty({ description: 'Tekshirishingizni kutayotgan karta to‘lovlari (menyuda belgi; T-149) — `GET /platform/invoices?state=pending&provider=card`' })
+  pendingPayments!: number
 }

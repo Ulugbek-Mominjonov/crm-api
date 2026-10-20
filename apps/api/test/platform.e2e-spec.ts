@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common'
 import type { ConfigService } from '@nestjs/config'
 import type { Env } from '@/config/env.schema'
 import request from 'supertest'
+import { TRIAL_DAYS, TRIAL_PLAN } from '@crm/shared'
 import { PasswordService } from '@/modules/auth/password.service'
 import { PlatformAuditService } from '@/modules/platform/platform-audit.service'
 import { PlatformBootstrapService } from '@/modules/platform/platform-bootstrap.service'
@@ -181,6 +182,23 @@ describe('Egasi paneli', () => {
       const audit = await api().get(`/api/v1/platform/audit?tenantId=${created.body.id}`).set('Authorization', owner).expect(200)
       expect(audit.body.items.map((e: { action: string }) => e.action).sort()).toEqual(['tenant.create', 'tenant.plan'])
       expect(audit.body.items[0]).toMatchObject({ admin: { email: OWNER_EMAIL }, targetTenantName: 'Yangi do‘kon' })
+    })
+
+    it('do‘kon ochish: tarif berilmasa — sinov (ro‘yxatdan o‘tish kabi), `free` — muddatsiz; ro‘yxatda `trial` filtri va statistikada sinovdagilar', async () => {
+      const open = (email: string, extra: Record<string, unknown>) => api().post('/api/v1/platform/tenants').set('Authorization', owner)
+        .send({ storeName: `Do‘kon ${email}`, ownerName: 'Vali', phone: '+998901112233', email, password: STORE_PASSWORD, ...extra }).expect(201)
+      const trial = (await open('sinov@dokon.uz', {})).body
+      expect(trial).toMatchObject({ plan: TRIAL_PLAN, status: 'active' })
+      expect(trial.trialEndsAt).toBe(trial.planExpiresAt)
+      expect(Date.parse(trial.trialEndsAt) - Date.now()).toBeGreaterThan((TRIAL_DAYS - 1) * DAY)
+      const free = (await open('bepul@dokon.uz', { plan: 'free' })).body
+      expect(free).toMatchObject({ plan: 'free', planExpiresAt: null, trialEndsAt: null })
+
+      const trials = await api().get('/api/v1/platform/tenants?trial=true').set('Authorization', owner).expect(200)
+      expect(trials.body.items.map((t: { id: string }) => t.id)).toEqual([trial.id])
+      expect((await api().get('/api/v1/platform/stats').set('Authorization', owner).expect(200)).body.tenants.trialing).toBe(1)
+      const audit = await api().get(`/api/v1/platform/audit?tenantId=${trial.id}`).set('Authorization', owner).expect(200)
+      expect(audit.body.items[0]).toMatchObject({ action: 'tenant.create', diff: { plan: TRIAL_PLAN, trialDays: TRIAL_DAYS } })
     })
 
     it('nom va izoh tahriri', async () => {

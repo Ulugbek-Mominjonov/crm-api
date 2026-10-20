@@ -63,6 +63,7 @@ export const ErrorCode = {
   // Fayllar
   STORAGE_QUOTA_EXCEEDED: 'STORAGE_QUOTA_EXCEEDED',
   PLAN_LIMIT_EXCEEDED: 'PLAN_LIMIT_EXCEEDED',
+  PAYMENT_METHOD_UNAVAILABLE: 'PAYMENT_METHOD_UNAVAILABLE',
   TENANT_READ_ONLY: 'TENANT_READ_ONLY',
   FILE_REJECTED: 'FILE_REJECTED',
   FILE_NOT_UPLOADED: 'FILE_NOT_UPLOADED',
@@ -147,11 +148,12 @@ export const ERROR_CATALOG: Readonly<Record<ErrorCodeName, CatalogEntry>> = {
 
   STORAGE_QUOTA_EXCEEDED: { status: 413, title: 'Fayl saqlash hajmi tugadi' },
   PLAN_LIMIT_EXCEEDED: { status: 402, title: 'Tarif chegarasi tugadi — tarifni oshiring' },
+  PAYMENT_METHOD_UNAVAILABLE: { status: 422, title: 'Bu to‘lov usuli hozir ishlamaydi' },
   TENANT_READ_ONLY: { status: 423, title: 'Do‘kon faqat o‘qish rejimida' },
   FILE_REJECTED: { status: 422, title: 'Fayl tarkibi e’lon qilingan turga mos emas' },
   FILE_NOT_UPLOADED: { status: 409, title: 'Fayl hali yuklanmagan' },
   INVALID_STATUS_TRANSITION: { status: 422, title: 'Holatni bunday o‘zgartirib bo‘lmaydi' },
-  MESSAGE_LIMIT_EXCEEDED: { status: 429, title: 'Kunlik xabar chegarasi tugadi' },
+  MESSAGE_LIMIT_EXCEEDED: { status: 429, title: 'Xabar chegarasi tugadi' },
   RECIPIENT_UNREACHABLE: { status: 422, title: 'Mijozga yetkazib bo‘lmaydi' },
 
   ALREADY_EXISTS: { status: 409, title: 'Bunday yozuv allaqachon bor' },

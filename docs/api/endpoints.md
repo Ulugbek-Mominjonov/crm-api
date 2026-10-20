@@ -2,7 +2,7 @@
 
 > **Generatsiya qilingan** — manba: `apps/api/openapi.json` (DTO, tavsif, xato kodlari) va controllerlar (huquq, idempotentlik, `If-Match`, audit). Tushuntirish va umumiy qoidalar — [README.md](README.md). Maydonlar tafsiloti — [schemas.md](schemas.md). Jonli versiya: Swagger UI `http://localhost:3000/api/docs`.
 
-Jami **206** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
+Jami **211** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qisqartirilgan: `GET /products` = `GET /api/v1/products`); faqat `/health/*` prefiksiz.
 
 **Belgilar:** 🔓 — ochiq (token shart emas) · 🔁 — `Idempotency-Key` majburiy · 🔒 — `If-Match` (optimistik qulf) · 💳 — tarif chegarasi (402) · 📡 — realtime hodisa yuboradi
 
@@ -10,7 +10,7 @@ Jami **206** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 
 - [Autentifikatsiya va ro‘yxatdan o‘tish](#auth) — 8 ta
 - [Do‘kon hisobi: tarif, holat, o‘chirish, egasiga murojaat](#account) — 6 ta
-- [Obuna to‘lovi (Payme, Click)](#billing) — 5 ta
+- [Tariflar va obuna to‘lovi (karta, Payme, Click)](#billing) — 7 ta
 - [Do‘kon sozlamalari](#settings) — 2 ta
 - [Omborlar](#warehouses) — 7 ta
 - [Mahsulot kategoriyalari](#categories) — 6 ta
@@ -36,7 +36,7 @@ Jami **206** ta endpoint. Barcha yo‘llar `/api/v1` prefiksi bilan (bu yerda qi
 - [Eksport (CSV/JSON)](#exports) — 3 ta
 - [Do‘kon zaxirasi](#backup) — 1 ta
 - [Migratsiya (brauzerdagi eski ma’lumotni serverga ko‘chirish)](#migration) — 2 ta
-- [Platforma egasi paneli](#platform) — 35 ta
+- [Platforma egasi paneli](#platform) — 38 ta
 - [Sog‘liq tekshiruvi](#health) — 2 ta
 
 <a id="auth"></a>
@@ -270,7 +270,7 @@ Sozlamalar → «Tarif va hisob» sahifasi va faqat-o‘qish banneridagi «Egasi
 
 ### `GET /tenants/current` — Tarif, holat, chegaralar va ishlatilgan hajm
 
-**Qachon / qanday:** «Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `deletionScheduledAt`, `limits` va `usage` — «3 / 10 foydalanuvchi», «1,2 GB / 2 GB» kabi; `support` — egasining aloqasi (banner va murojaat oynasi). Banner uchun holat hamma rolga login/refresh javobida ham bor (`user.tenant.status`) — README → Do‘kon holati.
+**Qachon / qanday:** «Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `trialEndsAt` (bor — «Sinov: N kun qoldi»), `deletionScheduledAt`, `limits` va `usage` — «3 / 10 foydalanuvchi», «1,2 GB / 5 GB», «SMS 40 / 300» kabi; `support` — egasining aloqasi (banner va murojaat oynasi); `paymentCard` — karta orqali to‘lov uchun egasining kartasi. Banner uchun holat hamma rolga login/refresh javobida ham bor (`user.tenant.status`) — README → Do‘kon holati.
 
 | | |
 |---|---|
@@ -432,25 +432,44 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 <a id="billing"></a>
 
-## Obuna to‘lovi (Payme, Click)
+## Tariflar va obuna to‘lovi (karta, Payme, Click)
 
-Tarifni to‘lash: hisob-faktura yaratiladi, foydalanuvchi Payme/Click sahifasida to‘laydi, provayder serverimizga webhook yuboradi va tarif uzayadi. Frontend faqat `POST/GET /billing/invoices` ni chaqiradi.
+Tariflar katalogi (ochiq) va tarifni to‘lash: hisob-faktura yaratiladi; karta — administrator egasining kartasiga o‘tkazib «to‘ladim» deydi, egasi tasdiqlaydi; Payme/Click — provayder sahifasida to‘lanadi, webhook tarifni uzaytiradi. Frontend `GET /billing/plans`, `POST/GET /billing/invoices` va `POST /billing/invoices/:id/card-payment` ni chaqiradi — [README → 8.2–8.3](README.md#tenant).
 
 | Amal | Yo‘l | Nima uchun | Huquq |
 |---|---|---|---|
-| `POST` | [`/billing/invoices`](#post-billing-invoices) | Hisob-faktura (tarif × oy) | faqat `admin` |
+| `GET` | [`/billing/plans`](#get-billing-plans) 🔓 | Tariflar va narxlar | ochiq |
+| `POST` | [`/billing/invoices`](#post-billing-invoices) | Hisob-faktura (tarif × muddat) | faqat `admin` |
 | `GET` | [`/billing/invoices`](#get-billing-invoices) | Hisob-fakturalar tarixi | faqat `admin` |
-| `POST` | [`/billing/payme`](#post-billing-payme) 🔓 | Payme Merchant API (JSON-RPC) | ochiq |
+| `POST` | [`/billing/invoices/:id/card-payment`](#post-billing-invoices-id-card-payment) | «To‘ladim» — karta orqali to‘lov | faqat `admin` |
+| `POST` | [`/billing/payme`](#post-billing-payme) 🔓 📡 | Payme Merchant API (JSON-RPC) | ochiq |
 | `POST` | [`/billing/click/prepare`](#post-billing-click-prepare) 🔓 | Click SHOP API — prepare | ochiq |
-| `POST` | [`/billing/click/complete`](#post-billing-click-complete) 🔓 | Click SHOP API — complete | ochiq |
+| `POST` | [`/billing/click/complete`](#post-billing-click-complete) 🔓 📡 | Click SHOP API — complete | ochiq |
+
+<a id="get-billing-plans"></a>
+
+### `GET /billing/plans` — Tariflar va narxlar
+
+> Ochiq: do‘kon ilovasi, ro‘yxatdan o‘tish sahifasi va egasi paneli narxlarni SHU yerdan oladi (o‘zida yozmaydi). Har tarif — chegaralar va har muddat (1/3/6/12 oy) summasi chegirma bilan; sinov muddati; ishlaydigan to‘lov usullari.
+
+**Qachon / qanday:** Tarif kartalari (do‘kon ilovasi, ro‘yxatdan o‘tish sahifasi, egasi paneli): har tarif — nom, kimga mos, chegaralar, har muddat (1/3/6/12 oy) summasi va chegirmasi; `trial` — sinov tarifi va kunlari; `methods` — ishlaydigan to‘lov usullari (tugmalarni shunga qarab ko‘rsating); `sms: false` — SMS qatorini yashiring. Narxni frontendda yozmang.
+
+| | |
+|---|---|
+| Huquq | ochiq — token shart emas |
+| Javob | `200` → [`PlanCatalogDto`](schemas.md#plancatalogdto) |
+
+[↑ Bo‘lim boshiga](#billing)
+
+---
 
 <a id="post-billing-invoices"></a>
 
-### `POST /billing/invoices` — Hisob-faktura (tarif × oy)
+### `POST /billing/invoices` — Hisob-faktura (tarif × muddat)
 
-> Faqat administrator. Javobda Payme va Click to‘lov sahifalari. Tarif to‘lov TASDIQLANGACH o‘zgaradi.
+> Faqat administrator. Summa — `GET /billing/plans` dagi narx (uzoq muddatga chegirma). Javobda Payme va Click sahifalari hamda egasining kartasi (`card`). Tarif to‘lov TASDIQLANGACH o‘zgaradi.
 
-**Qachon / qanday:** «To‘lash»: `plan` (`basic` | `pro`) va `months` (1–12). Summa serverda: oylik narx × oy (`basic` 99 000, `pro` 249 000 so‘m). Javobdagi `payme`/`click` havolasini yangi oynada oching; `null` — serverda shu provayder sozlanmagan (tugmani yashiring). Tarif to‘lov TASDIQLANGACH o‘zgaradi: foydalanuvchi qaytgach `GET /billing/invoices` (`state: paid`) va `GET /tenants/current` ni qayta so‘rang. To‘xtatilgan (`suspended`) do‘konda ham ishlaydi.
+**Qachon / qanday:** «To‘lash»: `plan` (`basic` | `business` | `pro`) va `months` (1, 3, 6 yoki 12). Summa serverda — katalogdagi narx (uzoq muddatga chegirma). Javobda: `card` — egasining kartasi (bor bo‘lsa — «Kartaga o‘tkazish» oynasi: summa, raqam, egasi va «To‘ladim» formasi), `payme`/`click` — havola (yangi oynada; `null` — sozlanmagan, tugmani yashiring). Tarif to‘lov TASDIQLANGACH o‘zgaradi — `billing.invoice` hodisasi. To‘xtatilgan (`suspended`) do‘konda ham ishlaydi.
 
 | | |
 |---|---|
@@ -464,8 +483,8 @@ Tarifni to‘lash: hisob-faktura yaratiladi, foydalanuvchi Payme/Click sahifasid
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `plan` | `basic` \| `pro` | ✔ |  |
-| `months` | `number` | ✔ | min `1`, max `12`, misol `1` |
+| `plan` | `basic` \| `business` \| `pro` | ✔ |  |
+| `months` | `1` \| `3` \| `6` \| `12` | ✔ | Oy: 1, 3, 6 yoki 12 — uzoqroq muddatga chegirma (`GET /billing/plans`) — misol `1` |
 
 **Xatolar**
 
@@ -481,13 +500,57 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Faqat administrator; oxirgi 50 ta.
 
-**Qachon / qanday:** To‘lovlar tarixi (oxirgi 50). `state`: `created` → `pending` (provayder boshladi) → `paid` yoki `cancelled`.
+**Qachon / qanday:** To‘lovlar tarixi (oxirgi 50). `state`: `created` → `pending` (provayder boshladi yoki karta to‘lovi tekshiruvda) → `paid` yoki `cancelled` (karta to‘lovi rad etilsa — `rejectReason`).
 
 | | |
 |---|---|
 | Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`InvoiceDto`](schemas.md#invoicedto)[] |
+
+[↑ Bo‘lim boshiga](#billing)
+
+---
+
+<a id="post-billing-invoices-id-card-payment"></a>
+
+### `POST /billing/invoices/:id/card-payment` — «To‘ladim» — karta orqali to‘lov
+
+> Faqat administrator. Egasining kartasiga `amount` o‘tkazilgach: kartaning oxirgi 4 raqami, vaqt, ixtiyoriy chek va izoh. Hisob-faktura `pending` (`provider: card`) — egasi bankda ko‘rib tasdiqlaydi (tarif uzayadi) yoki rad etadi (`cancelled`, `rejectReason`); natija — `billing.invoice` hodisasi.
+
+**Qachon / qanday:** «To‘ladim» formasi: kartaning oxirgi 4 raqami (majburiy), o‘tkazma vaqti (sukut — hozir), chek (skrinshot/PDF — `POST /files/presign` `kind: payment_receipt`, tasdiqlangan fayl), izoh. Javob — `pending` («Tekshirilmoqda»); egasi tasdiqlasa/rad etsa — `billing.invoice` hodisasi. 409 — boshqa karta to‘lovi tekshiruvda; 422 — hisob-faktura `created` emas yoki karta usuli o‘chiq (`PAYMENT_METHOD_UNAVAILABLE`).
+
+| | |
+|---|---|
+| Huquq | faqat `admin` roli (servisda tekshiriladi; boshqa rol — 403 `PERMISSION_DENIED`) |
+| Sarlavhalar | `Authorization: Bearer <accessToken>` |
+| Javob | `200` → [`InvoiceDto`](schemas.md#invoicedto) |
+| Audit jurnali | ha |
+| Faqat-o‘qish do‘kon | ruxsat (to‘xtatilgan / o‘chirilayotgan do‘konda ham ishlaydi) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`CardClaimDto`](schemas.md#cardclaimdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `payerCard` | `string` | ✔ | Qaysi kartadan o‘tkazildi — oxirgi 4 raqam — misol `6311` |
+| `transferredAt` | `string` (date-time) |  | O‘tkazma vaqti; berilmasa — hozir. Kelajakda emas, 30 kundan eski emas |
+| `receiptFileId` | `string` (uuid) |  | Chek (skrinshot yoki PDF) — `POST /files/presign` `kind: payment_receipt` bilan yuklangan, tasdiqlangan fayl |
+| `note` | `string` |  | maks. uzunlik `300`, misol `Akamning kartasidan o‘tkazdim` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `409` | `ALREADY_EXISTS` — boshqa karta to‘lovi tekshiruvda (`meta.invoiceId`) |
+| `422` | `INVALID_STATUS_TRANSITION` — hisob-faktura `created` emas; `PAYMENT_METHOD_UNAVAILABLE` — egasi kartani kiritmagan; `REFERENCE_NOT_FOUND` — chek |
+
+Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 [↑ Bo‘lim boshiga](#billing)
 
@@ -506,6 +569,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | Huquq | ochiq — token shart emas |
 | Sarlavhalar | `authorization` (majburiy) |
 | Javob | `200` |
+| Realtime | `billing.invoice` (to‘lov bajarilganda, do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
 | Audit jurnali | ha |
 
 **So‘rov tanasi** — [`PaymeRequestDto`](schemas.md#paymerequestdto)
@@ -571,6 +635,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 |---|---|
 | Huquq | ochiq — token shart emas |
 | Javob | `200` |
+| Realtime | `billing.invoice` (to‘lov bajarilganda, do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
 | Audit jurnali | ha |
 
 **So‘rov tanasi** — [`ClickRequestDto`](schemas.md#clickrequestdto) (`application/x-www-form-urlencoded`)
@@ -5288,7 +5353,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 403 `PERMISSION_DENIED`.
 
 > Qabul qiluvchilar serverda hisoblanadi, shablon o‘zgaruvchilari almashtiriladi. Yuborish fonda (navbat) — so‘rov kutmaydi. Kunlik chegara bor.
 
-**Qachon / qanday:** Xabar yuborish: `target` (`customer` + `customerId`, `group` + `group`, `debtors`, `all`) va matn (≤ 600). O‘zgaruvchilar: `{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga serverda almashtiriladi. Yuborish fonda. Botga ulangan mijozga — Telegram (do‘kon kartasi: sarlavha, qalin qiymatlar, aloqa), aks holda SMS (sozlangan bo‘lsa). Yetib bormaydigan bitta mijoz — 422 `RECIPIENT_UNREACHABLE` («Mijoz botga ulanmagan», `meta.reason`); guruhda — qolganlarga yuboriladi, yetmaganlar `unreachable` da (hech kimga — 422). Kunlik chegara (faqat SMS) — tarif `smsPerDay` va server `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi; oshsa 429 `MESSAGE_LIMIT_EXCEEDED` (`meta.limit/used/requested`).
+**Qachon / qanday:** Xabar yuborish: `target` (`customer` + `customerId`, `group` + `group`, `debtors`, `all`) va matn (≤ 600). O‘zgaruvchilar: `{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga serverda almashtiriladi. Yuborish fonda. Botga ulangan mijozga — Telegram (do‘kon kartasi: sarlavha, qalin qiymatlar, aloqa), aks holda SMS (sozlangan bo‘lsa). Yetib bormaydigan bitta mijoz — 422 `RECIPIENT_UNREACHABLE` («Mijoz botga ulanmagan», `meta.reason`); guruhda — qolganlarga yuboriladi, yetmaganlar `unreachable` da (hech kimga — 422). SMS chegarasi — tarifning oylik hajmi (`smsPerMonth`) va server `SMS_DAILY_LIMIT` (sukut 1000, kuniga); oshsa 429 `MESSAGE_LIMIT_EXCEEDED` (`meta.period` — `month`/`day`, `limit/used/requested`). Telegram xabarlari cheklanmaydi.
 
 | | |
 |---|---|
@@ -5519,7 +5584,7 @@ Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g�
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); `payment_receipt` (to‘lov cheki) → `settings.edit`. Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`PresignResultDto`](schemas.md#presignresultdto) |
 | Audit jurnali | ha |
@@ -5528,7 +5593,7 @@ Fayl serverdan O‘TMAYDI: server ruxsat beradi (presigned PUT), brauzer to‘g�
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` | ✔ |  |
+| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` \| `payment_receipt` | ✔ |  |
 | `mime` | `string` | ✔ | Oq ro‘yxatdan (09 §9.6) — misol `image/webp` |
 | `size` | `number` | ✔ | Bayt — imzoga kiradi — misol `153600` |
 | `sha256` | `string` | ✔ | Tarkib SHA-256 (hex) — takror yuklashni aniqlash — misol `ab12…` |
@@ -5557,7 +5622,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); `payment_receipt` (to‘lov cheki) → `settings.edit`. Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`FileDto`](schemas.md#filedto) |
 | Audit jurnali | ha |
@@ -5615,7 +5680,7 @@ Umumiy: 403 `PERMISSION_DENIED`.
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); `payment_receipt` (to‘lov cheki) → `settings.edit`. Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`FileUrlsDto`](schemas.md#fileurlsdto) |
 
@@ -5642,7 +5707,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); `payment_receipt` (to‘lov cheki) → `settings.edit`. Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `200` → [`FileDto`](schemas.md#filedto) |
 
@@ -5674,7 +5739,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); `payment_receipt` (to‘lov cheki) → `settings.edit`. Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `204` — tana yo‘q |
 | Audit jurnali | ha |
@@ -5707,7 +5772,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 423 `TENANT_READ_ONLY` (do‘kon to‘xtatilgan
 
 | | |
 |---|---|
-| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
+| Huquq | fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; `avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; `tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); `payment_receipt` (to‘lov cheki) → `settings.edit`. Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish |
 | Sarlavhalar | `Authorization: Bearer <accessToken>` |
 | Javob | `302` — `Location` — imzolangan havola |
 
@@ -6000,6 +6065,9 @@ DO‘KON ILOVASI UCHUN EMAS — alohida egasi paneli (`owner.workspaces.uz`): do
 | `POST` | [`/platform/admins/:id/totp/reset`](#post-platform-admins-id-totp-reset) | Ikki bosqichli kirishni olib tashlash | egasi tokeni |
 | `GET` | [`/platform/stats`](#get-platform-stats) | Boshqaruv paneli | egasi tokeni |
 | `GET` | [`/platform/invoices`](#get-platform-invoices) | Barcha do‘konlar hisob-fakturalari | egasi tokeni |
+| `POST` | [`/platform/invoices/:id/confirm`](#post-platform-invoices-id-confirm) 📡 | Karta to‘lovini tasdiqlash | egasi tokeni |
+| `POST` | [`/platform/invoices/:id/reject`](#post-platform-invoices-id-reject) 📡 | Karta to‘lovini rad etish | egasi tokeni |
+| `GET` | [`/platform/invoices/:id/receipt`](#get-platform-invoices-id-receipt) | Karta to‘lovi cheki | egasi tokeni |
 | `GET` | [`/platform/audit`](#get-platform-audit) | Egasi amallari jurnali | egasi tokeni |
 | `GET` | [`/platform/settings`](#get-platform-settings) | Platforma sozlamasi | egasi tokeni |
 | `PATCH` | [`/platform/settings`](#patch-platform-settings) | Sozlamani o‘zgartirish | egasi tokeni |
@@ -6257,7 +6325,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Nom bo‘yicha qidiruv, holat/tarif filtri, muddati tugayotganlar; har qatorda ishlatilgan resurslar, administrator aloqasi, so‘nggi faollik.
 
-**Qachon / qanday:** Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, `sort` (`-createdAt` sukut, `name`, `planExpiresAt`). Har qator: `usage`, `admin` (aloqa), `activity` (so‘nggi chek).
+**Qachon / qanday:** Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, `trial=true` — hali to‘lamagan (sinovdagi yoki sinovi tugagan; `trialEndsAt`) — ularga qo‘ng‘iroq qilib yordam bering, `sort` (`-createdAt` sukut, `name`, `planExpiresAt`). Har qator: `usage`, `admin` (aloqa), `activity` (so‘nggi chek).
 
 | | |
 |---|---|
@@ -6274,8 +6342,9 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | `q` | query | `string` |  | Matn qidiruvi — maks. uzunlik `100` |
 | `sort` | query | `id` \| `-id` \| `name` \| `-name` \| `createdAt` \| `-createdAt` \| `planExpiresAt` \| `-planExpiresAt` |  | sukut `"-createdAt"` |
 | `status` | query | `active` \| `suspended` \| `blocked` \| `deleting` |  |  |
-| `plan` | query | `free` \| `basic` \| `pro` |  |  |
+| `plan` | query | `free` \| `basic` \| `business` \| `pro` |  |  |
 | `expiresWithinDays` | query | `number` |  | Pullik tarifi shuncha kun ichida tugaydiganlar (muddati o‘tganlar ham kiradi); `0` — faqat o‘tganlar — min `0`, max `365` |
+| `trial` | query | `boolean` |  | `true` — hali to‘lamagan, sinovdagi yoki sinovi tugagan do‘konlar (`trialEndsAt` bor); `false` — qolganlari |
 
 **Xatolar**
 
@@ -6295,7 +6364,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Ro‘yxatdan o‘tish bilan bir xil: do‘kon, sozlama, sukut ombor, tizim rollari va egasi (administrator) hisobi. Pullik boshlang‘ich tarif — `bonus` hisob-faktura (summa 0).
 
-**Qachon / qanday:** «Do‘kon ochish» formasi — ro‘yxatdan o‘tish maydonlari + boshlang‘ich tarif (`plan`, `months`; pullik bo‘lsa `months` shart). Parolni egasi do‘kon egasiga o‘zi yetkazadi — API uni qaytarmaydi. Email do‘kon ichida noyob (boshqa do‘konda takror bo‘lishi mumkin).
+**Qachon / qanday:** «Do‘kon ochish» formasi — ro‘yxatdan o‘tish maydonlari + boshlang‘ich tarif: `plan` yuborilmasa — sinov (Biznes, 14 kun; ro‘yxatdan o‘tish bilan bir xil), `free` — muddatsiz bepul, pullik bo‘lsa `months` shart (bonus hisob-faktura). Parolni egasi do‘kon egasiga o‘zi yetkazadi — API uni qaytarmaydi. Email do‘kon ichida noyob (boshqa do‘konda takror bo‘lishi mumkin).
 
 | | |
 |---|---|
@@ -6313,7 +6382,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | `phone` | `string` | ✔ | misol `+998901234567` |
 | `email` | `string` | ✔ | misol `ali@dokon.uz` |
 | `password` | `string` | ✔ | Kamida 8 belgi; ommabop parollar rad etiladi — misol `Qurilish2026!` |
-| `plan` | `free` \| `basic` \| `pro` |  | Boshlang‘ich tarif; pullik bo‘lsa `months` shart (bonus sifatida yoziladi) — sukut `"free"` |
+| `plan` | `free` \| `basic` \| `business` \| `pro` |  | Boshlang‘ich tarif. Berilmasa — sinov: «business» 14 kun (ro‘yxatdan o‘tish bilan bir xil); `free` — muddatsiz bepul; pullik bo‘lsa `months` shart (bonus sifatida yoziladi) |
 | `months` | `number` |  | Pullik tarif muddati (oy) — pullik tarifda SHART — min `1`, max `12` |
 | `notes` | `string` |  | Egasi izohi — maks. uzunlik `500` |
 
@@ -6479,7 +6548,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 > Pullik tarif — `paid` hisob-faktura (`provider`: `cash`, `transfer`, `bonus`) va tarif Payme/Click to‘lovi bilan bir xil qoidada uzayadi (o‘sha tarif — joriy muddat oxiridan, boshqa tarif — hozirdan; `suspended` ochiladi, `blocked` ochilmaydi). `free` — tarif darhol bepul, muddat o‘chadi.
 
-**Qachon / qanday:** «Tarif / to‘lov» oynasi: tarif, oy, usul (`cash` naqd, `transfer` o‘tkazma, `bonus` bepul), summa (sukut — narx × oy; UI `PLAN_MONTHLY_PRICE` dan hisoblab ko‘rsatsin, egasi o‘zgartira oladi), izoh (kvitansiya). `free` — faqat tarif, qolgani yuborilmaydi.
+**Qachon / qanday:** «Tarif / to‘lov» oynasi: tarif, oy, usul (`cash` naqd, `card` kartaga o‘tkazma, `transfer` bank o‘tkazmasi, `bonus` bepul), summa (sukut — `GET /billing/plans` narxi, muddat chegirmasi bilan; egasi o‘zgartira oladi), izoh (kvitansiya). `free` — faqat tarif, qolgani yuborilmaydi.
 
 | | |
 |---|---|
@@ -6499,10 +6568,10 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `plan` | `free` \| `basic` \| `pro` | ✔ |  |
+| `plan` | `free` \| `basic` \| `business` \| `pro` | ✔ |  |
 | `months` | `number` |  | Pullik tarifda SHART — min `1`, max `12` |
-| `provider` | `cash` \| `transfer` \| `bonus` |  | Pullik tarifda SHART: `cash` naqd, `transfer` o‘tkazma, `bonus` — bepul muddat (summa 0) |
-| `amount` | `number` |  | Olingan summa (so‘m). Berilmasa — tarif narxi × oy; `bonus` — 0 |
+| `provider` | `cash` \| `card` \| `transfer` \| `bonus` |  | Pullik tarifda SHART: `cash` naqd, `card` — kartaga o‘tkazma, `transfer` bank o‘tkazmasi, `bonus` — bepul muddat (summa 0) |
+| `amount` | `number` |  | Olingan summa (so‘m). Berilmasa — `GET /billing/plans` narxi (muddat chegirmasi bilan); `bonus` — 0 |
 | `note` | `string` |  | Kvitansiya raqami, kelishuv … — maks. uzunlik `500` |
 
 **Xatolar**
@@ -6683,7 +6752,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
 | `tenantId` | query | `string` (uuid) |  | Bitta do‘kon |
 | `state` | query | `created` \| `pending` \| `paid` \| `cancelled` |  |  |
-| `provider` | query | `payme` \| `click` \| `cash` \| `transfer` \| `bonus` |  |  |
+| `provider` | query | `payme` \| `click` \| `cash` \| `card` \| `transfer` \| `bonus` |  |  |
 | `dateFrom` | query | `string` |  | Yaratilgan sana, Toshkent kuni (shu kundan) — misol `2026-10-01` |
 | `dateTo` | query | `string` |  | Shu kungacha (kiradi) — misol `2026-10-31` |
 
@@ -7032,9 +7101,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 ### `GET /platform/stats` — Boshqaruv paneli
 
-> Do‘konlar holat va tarif bo‘yicha, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy).
+> Do‘konlar holat va tarif bo‘yicha, sinovdagilar, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy); tekshirish kutayotgan karta to‘lovlari.
 
-**Qachon / qanday:** Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar), 12 oylik tushum grafigi, `openRequests` — menyudagi «Murojaatlar» belgisi.
+**Qachon / qanday:** Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, `trialing` — sinovdagilar, tugayotganlar), 12 oylik tushum grafigi, `openRequests` — menyudagi «Murojaatlar» belgisi, `pendingPayments` — «To‘lovlar» belgisi (tekshirish kutayotgan karta to‘lovlari).
 
 | | |
 |---|---|
@@ -7056,9 +7125,9 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 
 ### `GET /platform/invoices` — Barcha do‘konlar hisob-fakturalari
 
-> Holat, provayder (onlayn yoki qo‘lda), sana oralig‘i va do‘kon bo‘yicha filtr; eng yangisi birinchi.
+> Holat, provayder (onlayn, karta yoki qo‘lda), sana oralig‘i va do‘kon bo‘yicha filtr; eng yangisi birinchi. Tekshirish navbati — `state=pending&provider=card`.
 
-**Qachon / qanday:** «To‘lovlar» sahifasi: `state`, `provider`, `dateFrom`/`dateTo` (Toshkent kuni), `tenantId`; eng yangisi birinchi.
+**Qachon / qanday:** «To‘lovlar» sahifasi: `state`, `provider`, `dateFrom`/`dateTo` (Toshkent kuni), `tenantId`; eng yangisi birinchi. «Tekshirish kerak» yorlig‘i — `state=pending&provider=card`: summa, `payerCard` (oxirgi 4 raqam), `transferredAt`, `payerNote`, `hasReceipt` — bankdagi tushum bilan solishtirib tasdiqlang yoki rad eting.
 
 | | |
 |---|---|
@@ -7074,7 +7143,7 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 | `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
 | `tenantId` | query | `string` (uuid) |  | Bitta do‘kon |
 | `state` | query | `created` \| `pending` \| `paid` \| `cancelled` |  |  |
-| `provider` | query | `payme` \| `click` \| `cash` \| `transfer` \| `bonus` |  |  |
+| `provider` | query | `payme` \| `click` \| `cash` \| `card` \| `transfer` \| `bonus` |  |  |
 | `dateFrom` | query | `string` |  | Yaratilgan sana, Toshkent kuni (shu kundan) — misol `2026-10-01` |
 | `dateTo` | query | `string` |  | Shu kungacha (kiradi) — misol `2026-10-31` |
 
@@ -7083,6 +7152,123 @@ Umumiy: 400 `VALIDATION_FAILED`; 404 `NOT_FOUND`.
 | Status | Kod — qachon |
 |---|---|
 | `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-invoices-id-confirm"></a>
+
+### `POST /platform/invoices/:id/confirm` — Karta to‘lovini tasdiqlash
+
+> Bankda tushum bor (summa, karta oxirgi 4 raqami, vaqt mos). Tarif Payme/Click to‘lovi bilan bir xil qoidada uzayadi, `suspended` ochiladi, do‘konga `billing.invoice` va `tenant.status`. Operator ham. Telegram’dagi «✅ Tasdiqlash» tugmasi — xuddi shu amal.
+
+**Qachon / qanday:** «✅ Tasdiqlash» (tasdiq oynasi, ixtiyoriy izoh — bank tranzaksiyasi): tarif uzayadi, `suspended` ochiladi. Telegram’dagi tugma — xuddi shu amal; ikkinchi marta — 422 (boshqa admin allaqachon tasdiqlagan).
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformInvoiceDto`](schemas.md#platforminvoicedto) |
+| Realtime | `billing.invoice` va `tenant.status` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`ConfirmCardPaymentDto`](schemas.md#confirmcardpaymentdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `note` | `string` |  | Izoh: bank tranzaksiyasi, kelishuv … — maks. uzunlik `500` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+| `422` | `INVALID_STATUS_TRANSITION` — to‘lov tekshiruvda emas (`meta.state`, `meta.provider`) |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="post-platform-invoices-id-reject"></a>
+
+### `POST /platform/invoices/:id/reject` — Karta to‘lovini rad etish
+
+> Tushum topilmadi yoki summa mos emas: hisob-faktura `cancelled`, tarif o‘zgarmaydi; sabab do‘kon administratoriga ko‘rinadi (`rejectReason`).
+
+**Qachon / qanday:** «❌ Rad etish» — sabab majburiy (3–300 belgi), do‘kon administratori ko‘radi va yangi hisob-faktura bilan qayta yuboradi.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`PlatformInvoiceDto`](schemas.md#platforminvoicedto) |
+| Realtime | `billing.invoice` (do‘konga) (COMMIT’dan keyin, do‘konning barcha ulanishlariga) |
+| Audit jurnali | ha |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**So‘rov tanasi** — [`RejectCardPaymentDto`](schemas.md#rejectcardpaymentdto)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `reason` | `string` | ✔ | Do‘kon administratori ko‘radi — maks. uzunlik `300`, misol `Tushum topilmadi — karta raqami va vaqtni tekshiring` |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` |
+| `422` | `INVALID_STATUS_TRANSITION` — to‘lov tekshiruvda emas (`meta.state`, `meta.provider`) |
+
+Umumiy: 400 `VALIDATION_FAILED`.
+
+[↑ Bo‘lim boshiga](#platform)
+
+---
+
+<a id="get-platform-invoices-id-receipt"></a>
+
+### `GET /platform/invoices/:id/receipt` — Karta to‘lovi cheki
+
+> Qisqa muddatli havola (rasm yoki PDF); `hasReceipt: false` — 404.
+
+**Qachon / qanday:** Chek (`hasReceipt: true`): qisqa muddatli havola — rasm bo‘lsa oynada ko‘rsating (`mime`), PDF — yangi tabda.
+
+| | |
+|---|---|
+| Huquq | platforma egasi tokeni (`POST /platform/auth/login`); do‘kon tokeni yoki tokensiz — 401 `AUTH_INVALID_CREDENTIALS`. Do‘kon ilovasi chaqirmaydi — [egasi paneli qo‘llanmasi](owner-panel.md) |
+| Sarlavhalar | `Authorization: Bearer <egasi accessToken>` |
+| Javob | `200` → [`ReceiptUrlDto`](schemas.md#receipturldto) |
+
+**Parametrlar**
+
+| Nomi | Joyi | Tip | Majburiy | Izoh |
+|---|---|---|:-:|---|
+| `id` | yo‘l | `string` | ✔ |  |
+
+**Xatolar**
+
+| Status | Kod — qachon |
+|---|---|
+| `401` | `AUTH_INVALID_CREDENTIALS` — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni |
+| `404` | `NOT_FOUND` — hisob-faktura yoki chek yo‘q |
 
 Umumiy: 400 `VALIDATION_FAILED`.
 
@@ -7111,7 +7297,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 | `page` | query | `number` |  | min `1`, sukut `1` |
 | `pageSize` | query | `number` |  | min `1`, max `200`, sukut `20` |
 | `tenantId` | query | `string` (uuid) |  | Bitta do‘kon tarixi |
-| `group` | query | `string` |  | Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `user`, `platform` — misol `tenant` |
+| `group` | query | `string` |  | Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `invoice` (karta to‘lovi tasdig‘i/radi), `user`, `platform`, `request` — misol `tenant` |
 
 **Xatolar**
 
@@ -7131,7 +7317,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Ro‘yxatdan o‘tish ochiq yoki yopiq; kim va qachon o‘zgartirgan.
 
-**Qachon / qanday:** «Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, egasining aloqasi (`support` — do‘kon ilovasida bannerda ko‘rinadi), kim va qachon o‘zgartirgan.
+**Qachon / qanday:** «Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, egasining aloqasi (`support` — do‘kon ilovasida bannerda ko‘rinadi), to‘lov kartasi (`paymentCard` — do‘kon to‘lov oynasida ko‘rinadi; `null` — karta usuli o‘chiq), kim va qachon o‘zgartirgan.
 
 | | |
 |---|---|
@@ -7155,7 +7341,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 
 > Faqat egasi (operator — 403). `registrationMode: closed` — `POST /tenants/register` darhol 403 `REGISTRATION_CLOSED`, do‘konni faqat panel ochadi. Qayta ishga tushirish shart emas.
 
-**Qachon / qanday:** Faqat egasi, faqat yuborilgan maydonlar. `registrationMode: closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. `support { phone, telegram, hours }` — `""` o‘chiradi. Darhol kuchga kiradi.
+**Qachon / qanday:** Faqat egasi, faqat yuborilgan maydonlar. `registrationMode: closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va `POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. `support { phone, telegram, hours }` — `""` o‘chiradi. `paymentCard { number, holder }` — 16 raqam (bo‘sh joy bo‘lishi mumkin), nazorat raqami tekshiriladi (xato — 400: do‘konlar pulni xato kartaga o‘tkazmasin); `number: ""` — karta usulini o‘chiradi. Darhol kuchga kiradi.
 
 | | |
 |---|---|
@@ -7170,6 +7356,7 @@ Umumiy: 400 `VALIDATION_FAILED`.
 |---|---|:-:|---|
 | `registrationMode` | `open` \| `closed` |  |  |
 | `support` | [`UpdatePlatformSupportDto`](schemas.md#updateplatformsupportdto) |  | Aloqa: faqat yuborilgan maydonlar o‘zgaradi |
+| `paymentCard` | [`UpdatePaymentCardDto`](schemas.md#updatepaymentcarddto) |  | To‘lov kartasi: faqat yuborilgan maydonlar o‘zgaradi |
 
 **Xatolar**
 

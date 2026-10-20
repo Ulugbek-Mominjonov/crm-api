@@ -8,7 +8,7 @@
 
 ## Mundarija
 
-[AbcRowDto](#abcrowdto) · [AddRequestMessageDto](#addrequestmessagedto) · [AdjustDto](#adjustdto) · [AdjustedLineDto](#adjustedlinedto) · [AdjustItemDto](#adjustitemdto) · [AdjustResultDto](#adjustresultdto) · [AnalyticsDto](#analyticsdto) · [ApiErrorDto](#apierrordto) · [ArchivedWarehouseDto](#archivedwarehousedto) · [AudiencePreviewDto](#audiencepreviewdto) · [AuditEntryDto](#auditentrydto) · [AuditPageDto](#auditpagedto) · [AuditUserDto](#audituserdto) · [AuthUserDto](#authuserdto) · [BackupDto](#backupdto) · [BlockTenantDto](#blocktenantdto) · [BulkPriceDto](#bulkpricedto) · [BulkPriceResultDto](#bulkpriceresultdto) · [CashMovementDto](#cashmovementdto) · [CashMovementInputDto](#cashmovementinputdto) · [CashMovementPageDto](#cashmovementpagedto) · [CatalogActionDto](#catalogactiondto) · [CatalogGroupDto](#cataloggroupdto) · [CatalogResourceDto](#catalogresourcedto) · [CategoryAmountDto](#categoryamountdto) · [CategoryDto](#categorydto) · [CategoryRevenueDto](#categoryrevenuedto) · [CategoryValueDto](#categoryvaluedto) · [ChangePasswordDto](#changepassworddto) · [CheckoutDto](#checkoutdto) · [ClickRequestDto](#clickrequestdto) · [ClientDto](#clientdto) · [ClientStatsDto](#clientstatsdto) · [CloseRequestDto](#closerequestdto) · [CloseShiftDto](#closeshiftdto) · [ConvertQuoteDto](#convertquotedto) · [CreateAccrualDto](#createaccrualdto) · [CreateCategoryDto](#createcategorydto) · [CreateClientDto](#createclientdto) · [CreateDeliveryDto](#createdeliverydto) · [CreateEmployeeDto](#createemployeedto) · [CreateExpenseDto](#createexpensedto) · [CreateExpenseTemplateDto](#createexpensetemplatedto) · [CreateInvoiceDto](#createinvoicedto) · [CreatePaymentDto](#createpaymentdto) · [CreatePlatformAdminDto](#createplatformadmindto) · [CreateProductDto](#createproductdto) · [CreatePurchaseOrderDto](#createpurchaseorderdto) · [CreateQuoteDto](#createquotedto) · [CreateRoleDto](#createroledto) · [CreateSaleDto](#createsaledto) · [CreateSupplierDto](#createsupplierdto) · [CreateTenantDto](#createtenantdto) · [CreateTenantRequestDto](#createtenantrequestdto) · [CreateUserDto](#createuserdto) · [CreateWarehouseDto](#createwarehousedto) · [CurrentShiftDto](#currentshiftdto) · [CustomerDebtDto](#customerdebtdto) · [DashboardDto](#dashboarddto) · [DayTotalsDto](#daytotalsdto) · [DeadStockDto](#deadstockdto) · [DeadStockItemDto](#deadstockitemdto) · [DebtPageDto](#debtpagedto) · [DebtPartyDto](#debtpartydto) · [DebtPaymentDto](#debtpaymentdto) · [DebtPaymentInputDto](#debtpaymentinputdto) · [DebtPaymentPageDto](#debtpaymentpagedto) · [DebtPaymentResultDto](#debtpaymentresultdto) · [DebtReceiptDto](#debtreceiptdto) · [DebtSaleStateDto](#debtsalestatedto) · [DebtSummaryDto](#debtsummarydto) · [DeleteTenantDto](#deletetenantdto) · [DeliveryDto](#deliverydto) · [DeliveryInputDto](#deliveryinputdto) · [DeliveryPageDto](#deliverypagedto) · [DeliveryPartyDto](#deliverypartydto) · [DeliveryStatusDto](#deliverystatusdto) · [DeliverySummaryDto](#deliverysummarydto) · [DriverLoadDto](#driverloaddto) · [EmployeeDto](#employeedto) · [ExpenseCategoryTotalDto](#expensecategorytotaldto) · [ExpenseDto](#expensedto) · [ExpensePageDto](#expensepagedto) · [ExpenseSummaryDto](#expensesummarydto) · [ExpenseTemplateDto](#expensetemplatedto) · [ExportJobDto](#exportjobdto) · [FieldErrorDto](#fielderrordto) · [FileDto](#filedto) · [FileUrlsDto](#fileurlsdto) · [GrantPlanDto](#grantplandto) · [ImportProductsDto](#importproductsdto) · [ImportResultDto](#importresultdto) · [ImportRowErrorDto](#importrowerrordto) · [IntakeDto](#intakedto) · [InvoiceDto](#invoicedto) · [LoginDto](#logindto) · [LoginResponseDto](#loginresponsedto) · [LowStockItemDto](#lowstockitemdto) · [MessageAudienceDto](#messageaudiencedto) · [MessageDto](#messagedto) · [MessagePageDto](#messagepagedto) · [MessageStatsDto](#messagestatsdto) · [MigrationDto](#migrationdto) · [MigrationIssueDto](#migrationissuedto) · [MigrationReportDto](#migrationreportdto) · [MigrationResultDto](#migrationresultdto) · [MigrationUserDto](#migrationuserdto) · [MovementDto](#movementdto) · [MovementPageDto](#movementpagedto) · [NamedValueDto](#namedvaluedto) · [OpenShiftDto](#openshiftdto) · [PaidDto](#paiddto) · [PartyRefDto](#partyrefdto) · [PaymentMixDto](#paymentmixdto) · [PaymeRequestDto](#paymerequestdto) · [PayPurchaseOrderDto](#paypurchaseorderdto) · [PayrollEntryDto](#payrollentrydto) · [PayrollEntryPageDto](#payrollentrypagedto) · [PayrollRunResultDto](#payrollrunresultdto) · [PayrollSheetDto](#payrollsheetdto) · [PayrollSheetRowDto](#payrollsheetrowdto) · [PayrollSheetTotalsDto](#payrollsheettotalsdto) · [PeriodDto](#perioddto) · [PermissionCatalogDto](#permissioncatalogdto) · [PlanLimitsDto](#planlimitsdto) · [PlanUsageDto](#planusagedto) · [PlatformAdminDto](#platformadmindto) · [PlatformAuditAdminDto](#platformauditadmindto) · [PlatformAuditEntryDto](#platformauditentrydto) · [PlatformInvoiceDto](#platforminvoicedto) · [PlatformLoginDto](#platformlogindto) · [PlatformLoginResponseDto](#platformloginresponsedto) · [PlatformRequestDetailDto](#platformrequestdetaildto) · [PlatformRequestDto](#platformrequestdto) · [PlatformSettingsDto](#platformsettingsdto) · [PlatformStatsDto](#platformstatsdto) · [PlatformSupportDto](#platformsupportdto) · [PlatformTenantDto](#platformtenantdto) · [PlatformTenantUserDto](#platformtenantuserdto) · [PnlChangeDto](#pnlchangedto) · [PnlDto](#pnldto) · [PnlTotalsDto](#pnltotalsdto) · [PoItemDto](#poitemdto) · [PoItemInputDto](#poiteminputdto) · [PoPaymentResultDto](#popaymentresultdto) · [PoSupplierRefDto](#posupplierrefdto) · [PresignDto](#presigndto) · [PresignResultDto](#presignresultdto) · [ProductDto](#productdto) · [ProductImportRowDto](#productimportrowdto) · [ProductSalesDto](#productsalesdto) · [ProductStatsDto](#productstatsdto) · [ProductStockDto](#productstockdto) · [ProductSummaryDto](#productsummarydto) · [PurchaseOrderDto](#purchaseorderdto) · [PurchaseOrderPageDto](#purchaseorderpagedto) · [PurchaseOrderSummaryDto](#purchaseordersummarydto) · [QuoteDto](#quotedto) · [QuoteItemDto](#quoteitemdto) · [QuotePageDto](#quotepagedto) · [QuotePartyDto](#quotepartydto) · [QuoteSummaryDto](#quotesummarydto) · [ReceiptDto](#receiptdto) · [ReceiptFiscalDto](#receiptfiscaldto) · [ReceiptStoreDto](#receiptstoredto) · [ReceiveItemDto](#receiveitemdto) · [ReceivePurchaseOrderDto](#receivepurchaseorderdto) · [RecentSaleDto](#recentsaledto) · [RegisterDto](#registerdto) · [RegistrationInfoDto](#registrationinfodto) · [ReorderGroupDto](#reordergroupdto) · [ReorderItemDto](#reorderitemdto) · [ReplyRequestDto](#replyrequestdto) · [ResetUserPasswordDto](#resetuserpassworddto) · [ReturnItemInputDto](#returniteminputdto) · [ReturnSaleDto](#returnsaledto) · [RevenueDto](#revenuedto) · [RevenueMonthDto](#revenuemonthdto) · [RoleDto](#roledto) · [RouteSheetDto](#routesheetdto) · [RouteStopDto](#routestopdto) · [RunDueResultDto](#rundueresultdto) · [SaleDeliveryRefDto](#saledeliveryrefdto) · [SaleDto](#saledto) · [SaleItemDto](#saleitemdto) · [SaleItemInputDto](#saleiteminputdto) · [SaleListItemDto](#salelistitemdto) · [SalePageDto](#salepagedto) · [SalePaidDto](#salepaiddto) · [SellerSalesDto](#sellersalesdto) · [SendMessageDto](#sendmessagedto) · [SettingsDto](#settingsdto) · [ShiftDto](#shiftdto) · [ShiftPageDto](#shiftpagedto) · [ShiftReportDto](#shiftreportdto) · [ShiftReturnsDto](#shiftreturnsdto) · [ShiftReversalsDto](#shiftreversalsdto) · [ShiftSalesDto](#shiftsalesdto) · [StockOperationResultDto](#stockoperationresultdto) · [StockWarningDto](#stockwarningdto) · [SupplierCardDto](#suppliercarddto) · [SupplierDto](#supplierdto) · [SupplierListItemDto](#supplierlistitemdto) · [SupplierOrderSummaryDto](#supplierordersummarydto) · [SupplierPaymentDto](#supplierpaymentdto) · [SupplierPaymentSummaryDto](#supplierpaymentsummarydto) · [SupplierRefDto](#supplierrefdto) · [SupplierSummaryDto](#suppliersummarydto) · [TelegramLinkDto](#telegramlinkdto) · [TelegramStatusDto](#telegramstatusdto) · [TemporaryPasswordDto](#temporarypassworddto) · [TenantAccountDto](#tenantaccountdto) · [TenantActivityDto](#tenantactivitydto) · [TenantAdminContactDto](#tenantadmincontactdto) · [TenantCountsDto](#tenantcountsdto) · [TenantRequestDto](#tenantrequestdto) · [TenantRequestMessageDto](#tenantrequestmessagedto) · [TenantSummaryDto](#tenantsummarydto) · [TenantUsageDto](#tenantusagedto) · [TotpCodeDto](#totpcodedto) · [TotpSetupDto](#totpsetupdto) · [TransferDto](#transferdto) · [TransferResultDto](#transferresultdto) · [TrendPointDto](#trendpointdto) · [UpdateCategoryDto](#updatecategorydto) · [UpdateClientDto](#updateclientdto) · [UpdateDeliveryDto](#updatedeliverydto) · [UpdateEmployeeDto](#updateemployeedto) · [UpdateExpenseDto](#updateexpensedto) · [UpdateExpenseTemplateDto](#updateexpensetemplatedto) · [UpdatePlatformAdminDto](#updateplatformadmindto) · [UpdatePlatformSettingsDto](#updateplatformsettingsdto) · [UpdatePlatformSupportDto](#updateplatformsupportdto) · [UpdateProductDto](#updateproductdto) · [UpdatePurchaseOrderDto](#updatepurchaseorderdto) · [UpdateQuoteDto](#updatequotedto) · [UpdateRoleDto](#updateroledto) · [UpdateSettingsDto](#updatesettingsdto) · [UpdateSupplierDto](#updatesupplierdto) · [UpdateTenantDto](#updatetenantdto) · [UpdateUserDto](#updateuserdto) · [UpdateWarehouseDto](#updatewarehousedto) · [UploadTargetDto](#uploadtargetdto) · [UsageDto](#usagedto) · [UserDto](#userdto) · [WarehouseDto](#warehousedto) · [WarehouseStockDto](#warehousestockdto) · [WriteoffDto](#writeoffdto)
+[AbcRowDto](#abcrowdto) · [AddRequestMessageDto](#addrequestmessagedto) · [AdjustDto](#adjustdto) · [AdjustedLineDto](#adjustedlinedto) · [AdjustItemDto](#adjustitemdto) · [AdjustResultDto](#adjustresultdto) · [AnalyticsDto](#analyticsdto) · [ApiErrorDto](#apierrordto) · [ArchivedWarehouseDto](#archivedwarehousedto) · [AudiencePreviewDto](#audiencepreviewdto) · [AuditEntryDto](#auditentrydto) · [AuditPageDto](#auditpagedto) · [AuditUserDto](#audituserdto) · [AuthUserDto](#authuserdto) · [BackupDto](#backupdto) · [BlockTenantDto](#blocktenantdto) · [BulkPriceDto](#bulkpricedto) · [BulkPriceResultDto](#bulkpriceresultdto) · [CardClaimDto](#cardclaimdto) · [CashMovementDto](#cashmovementdto) · [CashMovementInputDto](#cashmovementinputdto) · [CashMovementPageDto](#cashmovementpagedto) · [CatalogActionDto](#catalogactiondto) · [CatalogGroupDto](#cataloggroupdto) · [CatalogResourceDto](#catalogresourcedto) · [CategoryAmountDto](#categoryamountdto) · [CategoryDto](#categorydto) · [CategoryRevenueDto](#categoryrevenuedto) · [CategoryValueDto](#categoryvaluedto) · [ChangePasswordDto](#changepassworddto) · [CheckoutDto](#checkoutdto) · [ClickRequestDto](#clickrequestdto) · [ClientDto](#clientdto) · [ClientStatsDto](#clientstatsdto) · [CloseRequestDto](#closerequestdto) · [CloseShiftDto](#closeshiftdto) · [ConfirmCardPaymentDto](#confirmcardpaymentdto) · [ConvertQuoteDto](#convertquotedto) · [CreateAccrualDto](#createaccrualdto) · [CreateCategoryDto](#createcategorydto) · [CreateClientDto](#createclientdto) · [CreateDeliveryDto](#createdeliverydto) · [CreateEmployeeDto](#createemployeedto) · [CreateExpenseDto](#createexpensedto) · [CreateExpenseTemplateDto](#createexpensetemplatedto) · [CreateInvoiceDto](#createinvoicedto) · [CreatePaymentDto](#createpaymentdto) · [CreatePlatformAdminDto](#createplatformadmindto) · [CreateProductDto](#createproductdto) · [CreatePurchaseOrderDto](#createpurchaseorderdto) · [CreateQuoteDto](#createquotedto) · [CreateRoleDto](#createroledto) · [CreateSaleDto](#createsaledto) · [CreateSupplierDto](#createsupplierdto) · [CreateTenantDto](#createtenantdto) · [CreateTenantRequestDto](#createtenantrequestdto) · [CreateUserDto](#createuserdto) · [CreateWarehouseDto](#createwarehousedto) · [CurrentShiftDto](#currentshiftdto) · [CustomerDebtDto](#customerdebtdto) · [DashboardDto](#dashboarddto) · [DayTotalsDto](#daytotalsdto) · [DeadStockDto](#deadstockdto) · [DeadStockItemDto](#deadstockitemdto) · [DebtPageDto](#debtpagedto) · [DebtPartyDto](#debtpartydto) · [DebtPaymentDto](#debtpaymentdto) · [DebtPaymentInputDto](#debtpaymentinputdto) · [DebtPaymentPageDto](#debtpaymentpagedto) · [DebtPaymentResultDto](#debtpaymentresultdto) · [DebtReceiptDto](#debtreceiptdto) · [DebtSaleStateDto](#debtsalestatedto) · [DebtSummaryDto](#debtsummarydto) · [DeleteTenantDto](#deletetenantdto) · [DeliveryDto](#deliverydto) · [DeliveryInputDto](#deliveryinputdto) · [DeliveryPageDto](#deliverypagedto) · [DeliveryPartyDto](#deliverypartydto) · [DeliveryStatusDto](#deliverystatusdto) · [DeliverySummaryDto](#deliverysummarydto) · [DriverLoadDto](#driverloaddto) · [EmployeeDto](#employeedto) · [ExpenseCategoryTotalDto](#expensecategorytotaldto) · [ExpenseDto](#expensedto) · [ExpensePageDto](#expensepagedto) · [ExpenseSummaryDto](#expensesummarydto) · [ExpenseTemplateDto](#expensetemplatedto) · [ExportJobDto](#exportjobdto) · [FieldErrorDto](#fielderrordto) · [FileDto](#filedto) · [FileUrlsDto](#fileurlsdto) · [GrantPlanDto](#grantplandto) · [ImportProductsDto](#importproductsdto) · [ImportResultDto](#importresultdto) · [ImportRowErrorDto](#importrowerrordto) · [IntakeDto](#intakedto) · [InvoiceDto](#invoicedto) · [LoginDto](#logindto) · [LoginResponseDto](#loginresponsedto) · [LowStockItemDto](#lowstockitemdto) · [MessageAudienceDto](#messageaudiencedto) · [MessageDto](#messagedto) · [MessagePageDto](#messagepagedto) · [MessageStatsDto](#messagestatsdto) · [MigrationDto](#migrationdto) · [MigrationIssueDto](#migrationissuedto) · [MigrationReportDto](#migrationreportdto) · [MigrationResultDto](#migrationresultdto) · [MigrationUserDto](#migrationuserdto) · [MovementDto](#movementdto) · [MovementPageDto](#movementpagedto) · [NamedValueDto](#namedvaluedto) · [OpenShiftDto](#openshiftdto) · [PaidDto](#paiddto) · [PartyRefDto](#partyrefdto) · [PaymentCardDto](#paymentcarddto) · [PaymentMethodsDto](#paymentmethodsdto) · [PaymentMixDto](#paymentmixdto) · [PaymeRequestDto](#paymerequestdto) · [PayPurchaseOrderDto](#paypurchaseorderdto) · [PayrollEntryDto](#payrollentrydto) · [PayrollEntryPageDto](#payrollentrypagedto) · [PayrollRunResultDto](#payrollrunresultdto) · [PayrollSheetDto](#payrollsheetdto) · [PayrollSheetRowDto](#payrollsheetrowdto) · [PayrollSheetTotalsDto](#payrollsheettotalsdto) · [PeriodDto](#perioddto) · [PermissionCatalogDto](#permissioncatalogdto) · [PlanCatalogDto](#plancatalogdto) · [PlanLimitsDto](#planlimitsdto) · [PlanOfferDto](#planofferdto) · [PlanPriceDto](#planpricedto) · [PlanUsageDto](#planusagedto) · [PlatformAdminDto](#platformadmindto) · [PlatformAuditAdminDto](#platformauditadmindto) · [PlatformAuditEntryDto](#platformauditentrydto) · [PlatformInvoiceDto](#platforminvoicedto) · [PlatformLoginDto](#platformlogindto) · [PlatformLoginResponseDto](#platformloginresponsedto) · [PlatformRequestDetailDto](#platformrequestdetaildto) · [PlatformRequestDto](#platformrequestdto) · [PlatformSettingsDto](#platformsettingsdto) · [PlatformStatsDto](#platformstatsdto) · [PlatformSupportDto](#platformsupportdto) · [PlatformTenantDto](#platformtenantdto) · [PlatformTenantUserDto](#platformtenantuserdto) · [PnlChangeDto](#pnlchangedto) · [PnlDto](#pnldto) · [PnlTotalsDto](#pnltotalsdto) · [PoItemDto](#poitemdto) · [PoItemInputDto](#poiteminputdto) · [PoPaymentResultDto](#popaymentresultdto) · [PoSupplierRefDto](#posupplierrefdto) · [PresignDto](#presigndto) · [PresignResultDto](#presignresultdto) · [ProductDto](#productdto) · [ProductImportRowDto](#productimportrowdto) · [ProductSalesDto](#productsalesdto) · [ProductStatsDto](#productstatsdto) · [ProductStockDto](#productstockdto) · [ProductSummaryDto](#productsummarydto) · [PurchaseOrderDto](#purchaseorderdto) · [PurchaseOrderPageDto](#purchaseorderpagedto) · [PurchaseOrderSummaryDto](#purchaseordersummarydto) · [QuoteDto](#quotedto) · [QuoteItemDto](#quoteitemdto) · [QuotePageDto](#quotepagedto) · [QuotePartyDto](#quotepartydto) · [QuoteSummaryDto](#quotesummarydto) · [ReceiptDto](#receiptdto) · [ReceiptFiscalDto](#receiptfiscaldto) · [ReceiptStoreDto](#receiptstoredto) · [ReceiptUrlDto](#receipturldto) · [ReceiveItemDto](#receiveitemdto) · [ReceivePurchaseOrderDto](#receivepurchaseorderdto) · [RecentSaleDto](#recentsaledto) · [RegisterDto](#registerdto) · [RegistrationInfoDto](#registrationinfodto) · [RejectCardPaymentDto](#rejectcardpaymentdto) · [ReorderGroupDto](#reordergroupdto) · [ReorderItemDto](#reorderitemdto) · [ReplyRequestDto](#replyrequestdto) · [ResetUserPasswordDto](#resetuserpassworddto) · [ReturnItemInputDto](#returniteminputdto) · [ReturnSaleDto](#returnsaledto) · [RevenueDto](#revenuedto) · [RevenueMonthDto](#revenuemonthdto) · [RoleDto](#roledto) · [RouteSheetDto](#routesheetdto) · [RouteStopDto](#routestopdto) · [RunDueResultDto](#rundueresultdto) · [SaleDeliveryRefDto](#saledeliveryrefdto) · [SaleDto](#saledto) · [SaleItemDto](#saleitemdto) · [SaleItemInputDto](#saleiteminputdto) · [SaleListItemDto](#salelistitemdto) · [SalePageDto](#salepagedto) · [SalePaidDto](#salepaiddto) · [SellerSalesDto](#sellersalesdto) · [SendMessageDto](#sendmessagedto) · [SettingsDto](#settingsdto) · [ShiftDto](#shiftdto) · [ShiftPageDto](#shiftpagedto) · [ShiftReportDto](#shiftreportdto) · [ShiftReturnsDto](#shiftreturnsdto) · [ShiftReversalsDto](#shiftreversalsdto) · [ShiftSalesDto](#shiftsalesdto) · [StockOperationResultDto](#stockoperationresultdto) · [StockWarningDto](#stockwarningdto) · [SupplierCardDto](#suppliercarddto) · [SupplierDto](#supplierdto) · [SupplierListItemDto](#supplierlistitemdto) · [SupplierOrderSummaryDto](#supplierordersummarydto) · [SupplierPaymentDto](#supplierpaymentdto) · [SupplierPaymentSummaryDto](#supplierpaymentsummarydto) · [SupplierRefDto](#supplierrefdto) · [SupplierSummaryDto](#suppliersummarydto) · [TelegramLinkDto](#telegramlinkdto) · [TelegramStatusDto](#telegramstatusdto) · [TemporaryPasswordDto](#temporarypassworddto) · [TenantAccountDto](#tenantaccountdto) · [TenantActivityDto](#tenantactivitydto) · [TenantAdminContactDto](#tenantadmincontactdto) · [TenantCountsDto](#tenantcountsdto) · [TenantRequestDto](#tenantrequestdto) · [TenantRequestMessageDto](#tenantrequestmessagedto) · [TenantSummaryDto](#tenantsummarydto) · [TenantUsageDto](#tenantusagedto) · [TotpCodeDto](#totpcodedto) · [TotpSetupDto](#totpsetupdto) · [TransferDto](#transferdto) · [TransferResultDto](#transferresultdto) · [TrendPointDto](#trendpointdto) · [TrialDto](#trialdto) · [UpdateCategoryDto](#updatecategorydto) · [UpdateClientDto](#updateclientdto) · [UpdateDeliveryDto](#updatedeliverydto) · [UpdateEmployeeDto](#updateemployeedto) · [UpdateExpenseDto](#updateexpensedto) · [UpdateExpenseTemplateDto](#updateexpensetemplatedto) · [UpdatePaymentCardDto](#updatepaymentcarddto) · [UpdatePlatformAdminDto](#updateplatformadmindto) · [UpdatePlatformSettingsDto](#updateplatformsettingsdto) · [UpdatePlatformSupportDto](#updateplatformsupportdto) · [UpdateProductDto](#updateproductdto) · [UpdatePurchaseOrderDto](#updatepurchaseorderdto) · [UpdateQuoteDto](#updatequotedto) · [UpdateRoleDto](#updateroledto) · [UpdateSettingsDto](#updatesettingsdto) · [UpdateSupplierDto](#updatesupplierdto) · [UpdateTenantDto](#updatetenantdto) · [UpdateUserDto](#updateuserdto) · [UpdateWarehouseDto](#updatewarehousedto) · [UploadTargetDto](#uploadtargetdto) · [UsageDto](#usagedto) · [UserDto](#userdto) · [WarehouseDto](#warehousedto) · [WarehouseStockDto](#warehousestockdto) · [WriteoffDto](#writeoffdto)
 
 ### AbcRowDto
 
@@ -93,7 +93,7 @@ Ishlatiladi: [`GET /analytics`](endpoints.md#get-analytics) (javob 200)
 
 ### ApiErrorDto
 
-Ishlatiladi: [`POST /auth/login`](endpoints.md#post-auth-login) (javob 401), [`POST /auth/login`](endpoints.md#post-auth-login) (javob 409), [`POST /auth/refresh`](endpoints.md#post-auth-refresh) (javob 401), [`POST /auth/change-password`](endpoints.md#post-auth-change-password) (javob 401), [`POST /tenants/register`](endpoints.md#post-tenants-register) (javob 400), [`POST /tenants/register`](endpoints.md#post-tenants-register) (javob 403), [`POST /roles`](endpoints.md#post-roles) (javob 403), [`POST /roles`](endpoints.md#post-roles) (javob 409), [`GET /roles/:id`](endpoints.md#get-roles-id) (javob 404), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 403), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 404), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 409), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 422), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 403), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 404), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 409), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 422), [`PATCH /settings`](endpoints.md#patch-settings) (javob 400), [`PATCH /settings`](endpoints.md#patch-settings) (javob 403), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 402), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 409), [`GET /warehouses/:id`](endpoints.md#get-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 409), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 404), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 422), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 402), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 404), [`POST /categories`](endpoints.md#post-categories) (javob 409), [`GET /categories/:id`](endpoints.md#get-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 409), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 404), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 409), [`POST /categories/:id/restore`](endpoints.md#post-categories-id-restore) (javob 404), [`POST /products`](endpoints.md#post-products) (javob 409), [`POST /products`](endpoints.md#post-products) (javob 422), [`GET /products/:id/stats`](endpoints.md#get-products-id-stats) (javob 404), [`GET /products/:id`](endpoints.md#get-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 409), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 422), [`DELETE /products/:id`](endpoints.md#delete-products-id) (javob 404), [`POST /products/import`](endpoints.md#post-products-import) (javob 400), [`POST /products/bulk-price`](endpoints.md#post-products-bulk-price) (javob 400), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 404), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 409), [`GET /clients/:id/stats`](endpoints.md#get-clients-id-stats) (javob 404), [`GET /clients/:id`](endpoints.md#get-clients-id) (javob 404), [`PATCH /clients/:id`](endpoints.md#patch-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 409), [`POST /clients/:id/restore`](endpoints.md#post-clients-id-restore) (javob 404), [`POST /clients/:id/telegram-link`](endpoints.md#post-clients-id-telegram-link) (javob 404), [`POST /clients/:id/telegram-link`](endpoints.md#post-clients-id-telegram-link) (javob 422), [`POST /suppliers`](endpoints.md#post-suppliers) (javob 400), [`GET /suppliers/:id`](endpoints.md#get-suppliers-id) (javob 404), [`PATCH /suppliers/:id`](endpoints.md#patch-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 409), [`POST /suppliers/:id/restore`](endpoints.md#post-suppliers-id-restore) (javob 404), [`GET /employees/:id`](endpoints.md#get-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 422), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 404), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 409), [`POST /employees/:id/restore`](endpoints.md#post-employees-id-restore) (javob 404), [`POST /users`](endpoints.md#post-users) (javob 400), [`POST /users`](endpoints.md#post-users) (javob 402), [`POST /users`](endpoints.md#post-users) (javob 403), [`POST /users`](endpoints.md#post-users) (javob 409), [`POST /users`](endpoints.md#post-users) (javob 422), [`GET /users/:id`](endpoints.md#get-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 402), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 403), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 409), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 422), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 404), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 422), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 402), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 404), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 422), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 409), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 422), [`POST /stock/writeoff`](endpoints.md#post-stock-writeoff) (javob 422), [`POST /stock/adjust`](endpoints.md#post-stock-adjust) (javob 400), [`POST /stock/transfer`](endpoints.md#post-stock-transfer) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 403), [`POST /sales`](endpoints.md#post-sales) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 423), [`GET /sales/:id`](endpoints.md#get-sales-id) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 404), [`POST /sales/:id/receipt/telegram`](endpoints.md#post-sales-id-receipt-telegram) (javob 404), [`POST /sales/:id/receipt/telegram`](endpoints.md#post-sales-id-receipt-telegram) (javob 422), [`POST /sales/:id/receipt/telegram`](endpoints.md#post-sales-id-receipt-telegram) (javob 503), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 409), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 422), [`POST /sales/:id/cancel`](endpoints.md#post-sales-id-cancel) (javob 409), [`POST /cash/shifts/open`](endpoints.md#post-cash-shifts-open) (javob 409), [`POST /cash/shifts/close`](endpoints.md#post-cash-shifts-close) (javob 409), [`GET /cash/shifts/:id/report`](endpoints.md#get-cash-shifts-id-report) (javob 404), [`POST /cash/movements`](endpoints.md#post-cash-movements) (javob 423), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 413), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 422), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 404), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 409), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 413), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 422), [`GET /files/:id`](endpoints.md#get-files-id) (javob 404), [`DELETE /files/:id`](endpoints.md#delete-files-id) (javob 404), [`GET /files/:id/raw`](endpoints.md#get-files-id-raw) (javob 404), [`POST /quotes`](endpoints.md#post-quotes) (javob 403), [`POST /quotes`](endpoints.md#post-quotes) (javob 422), [`GET /quotes/:id`](endpoints.md#get-quotes-id) (javob 404), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 403), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 409), [`DELETE /quotes/:id`](endpoints.md#delete-quotes-id) (javob 409), [`POST /quotes/:id/restore`](endpoints.md#post-quotes-id-restore) (javob 404), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 409), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 422), [`POST /expenses`](endpoints.md#post-expenses) (javob 423), [`GET /expenses/:id`](endpoints.md#get-expenses-id) (javob 404), [`POST /payroll/accruals`](endpoints.md#post-payroll-accruals) (javob 404), [`POST /payroll/payments`](endpoints.md#post-payroll-payments) (javob 404), [`POST /payroll/payments`](endpoints.md#post-payroll-payments) (javob 423), [`DELETE /payroll/entries/:id`](endpoints.md#delete-payroll-entries-id) (javob 403), [`DELETE /payroll/entries/:id`](endpoints.md#delete-payroll-entries-id) (javob 404), [`POST /payroll/entries/:id/restore`](endpoints.md#post-payroll-entries-id-restore) (javob 403), [`POST /payroll/entries/:id/restore`](endpoints.md#post-payroll-entries-id-restore) (javob 404), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 422), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 423), [`POST /purchase-orders`](endpoints.md#post-purchase-orders) (javob 422), [`GET /purchase-orders/:id`](endpoints.md#get-purchase-orders-id) (javob 404), [`PATCH /purchase-orders/:id`](endpoints.md#patch-purchase-orders-id) (javob 409), [`POST /purchase-orders/:id/cancel`](endpoints.md#post-purchase-orders-id-cancel) (javob 409), [`POST /purchase-orders/:id/restore`](endpoints.md#post-purchase-orders-id-restore) (javob 404), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 409), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 423), [`GET /deliveries/:id`](endpoints.md#get-deliveries-id) (javob 404), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 403), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 422), [`POST /deliveries/:id/restore`](endpoints.md#post-deliveries-id-restore) (javob 404), [`POST /messages`](endpoints.md#post-messages) (javob 429), [`GET /exports/jobs/:id`](endpoints.md#get-exports-jobs-id) (javob 404), [`GET /exports/jobs/:id/download`](endpoints.md#get-exports-jobs-id-download) (javob 404), [`POST /migration/validate`](endpoints.md#post-migration-validate) (javob 403), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 402), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 403), [`POST /tenants/current/delete`](endpoints.md#post-tenants-current-delete) (javob 401), [`POST /tenants/current/requests`](endpoints.md#post-tenants-current-requests) (javob 409), [`POST /tenants/current/requests`](endpoints.md#post-tenants-current-requests) (javob 429), [`POST /tenants/current/requests/:id/messages`](endpoints.md#post-tenants-current-requests-id-messages) (javob 404), [`POST /tenants/current/requests/:id/messages`](endpoints.md#post-tenants-current-requests-id-messages) (javob 422), [`POST /tenants/current/requests/:id/messages`](endpoints.md#post-tenants-current-requests-id-messages) (javob 429), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 403), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 413), [`POST /platform/auth/login`](endpoints.md#post-platform-auth-login) (javob 401), [`POST /platform/auth/refresh`](endpoints.md#post-platform-auth-refresh) (javob 401), [`POST /platform/auth/logout`](endpoints.md#post-platform-auth-logout) (javob 401), [`GET /platform/auth/me`](endpoints.md#get-platform-auth-me) (javob 401), [`POST /platform/auth/totp/setup`](endpoints.md#post-platform-auth-totp-setup) (javob 401), [`POST /platform/auth/totp/setup`](endpoints.md#post-platform-auth-totp-setup) (javob 422), [`POST /platform/auth/totp/enable`](endpoints.md#post-platform-auth-totp-enable) (javob 401), [`POST /platform/auth/totp/enable`](endpoints.md#post-platform-auth-totp-enable) (javob 422), [`POST /platform/auth/totp/disable`](endpoints.md#post-platform-auth-totp-disable) (javob 401), [`POST /platform/auth/totp/disable`](endpoints.md#post-platform-auth-totp-disable) (javob 422), [`POST /platform/auth/telegram-link`](endpoints.md#post-platform-auth-telegram-link) (javob 401), [`POST /platform/auth/telegram-link`](endpoints.md#post-platform-auth-telegram-link) (javob 422), [`DELETE /platform/auth/telegram-link`](endpoints.md#delete-platform-auth-telegram-link) (javob 401), [`GET /platform/tenants`](endpoints.md#get-platform-tenants) (javob 401), [`POST /platform/tenants`](endpoints.md#post-platform-tenants) (javob 401), [`GET /platform/tenants/:id`](endpoints.md#get-platform-tenants-id) (javob 401), [`GET /platform/tenants/:id`](endpoints.md#get-platform-tenants-id) (javob 404), [`PATCH /platform/tenants/:id`](endpoints.md#patch-platform-tenants-id) (javob 401), [`POST /platform/tenants/:id/block`](endpoints.md#post-platform-tenants-id-block) (javob 401), [`POST /platform/tenants/:id/unblock`](endpoints.md#post-platform-tenants-id-unblock) (javob 401), [`POST /platform/tenants/:id/unblock`](endpoints.md#post-platform-tenants-id-unblock) (javob 422), [`POST /platform/tenants/:id/plan`](endpoints.md#post-platform-tenants-id-plan) (javob 401), [`POST /platform/tenants/:id/delete`](endpoints.md#post-platform-tenants-id-delete) (javob 401), [`POST /platform/tenants/:id/delete`](endpoints.md#post-platform-tenants-id-delete) (javob 422), [`POST /platform/tenants/:id/restore`](endpoints.md#post-platform-tenants-id-restore) (javob 401), [`POST /platform/tenants/:id/restore`](endpoints.md#post-platform-tenants-id-restore) (javob 422), [`GET /platform/tenants/:id/users`](endpoints.md#get-platform-tenants-id-users) (javob 401), [`POST /platform/tenants/:id/users/:userId/reset-password`](endpoints.md#post-platform-tenants-id-users-userid-reset-password) (javob 401), [`POST /platform/tenants/:id/users/:userId/reset-password`](endpoints.md#post-platform-tenants-id-users-userid-reset-password) (javob 404), [`GET /platform/tenants/:id/invoices`](endpoints.md#get-platform-tenants-id-invoices) (javob 401), [`GET /platform/requests`](endpoints.md#get-platform-requests) (javob 401), [`GET /platform/requests/:id`](endpoints.md#get-platform-requests-id) (javob 401), [`GET /platform/requests/:id`](endpoints.md#get-platform-requests-id) (javob 404), [`POST /platform/requests/:id/reply`](endpoints.md#post-platform-requests-id-reply) (javob 401), [`POST /platform/requests/:id/reply`](endpoints.md#post-platform-requests-id-reply) (javob 404), [`POST /platform/requests/:id/reply`](endpoints.md#post-platform-requests-id-reply) (javob 422), [`POST /platform/requests/:id/close`](endpoints.md#post-platform-requests-id-close) (javob 401), [`POST /platform/requests/:id/close`](endpoints.md#post-platform-requests-id-close) (javob 404), [`POST /platform/requests/:id/close`](endpoints.md#post-platform-requests-id-close) (javob 422), [`GET /platform/admins`](endpoints.md#get-platform-admins) (javob 401), [`POST /platform/admins`](endpoints.md#post-platform-admins) (javob 401), [`POST /platform/admins`](endpoints.md#post-platform-admins) (javob 409), [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (javob 401), [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (javob 404), [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (javob 422), [`POST /platform/admins/:id/reset-password`](endpoints.md#post-platform-admins-id-reset-password) (javob 401), [`POST /platform/admins/:id/reset-password`](endpoints.md#post-platform-admins-id-reset-password) (javob 404), [`POST /platform/admins/:id/totp/reset`](endpoints.md#post-platform-admins-id-totp-reset) (javob 401), [`POST /platform/admins/:id/totp/reset`](endpoints.md#post-platform-admins-id-totp-reset) (javob 422), [`GET /platform/stats`](endpoints.md#get-platform-stats) (javob 401), [`GET /platform/invoices`](endpoints.md#get-platform-invoices) (javob 401), [`GET /platform/audit`](endpoints.md#get-platform-audit) (javob 401), [`GET /platform/settings`](endpoints.md#get-platform-settings) (javob 401), [`PATCH /platform/settings`](endpoints.md#patch-platform-settings) (javob 401)
+Ishlatiladi: [`POST /auth/login`](endpoints.md#post-auth-login) (javob 401), [`POST /auth/login`](endpoints.md#post-auth-login) (javob 409), [`POST /auth/refresh`](endpoints.md#post-auth-refresh) (javob 401), [`POST /auth/change-password`](endpoints.md#post-auth-change-password) (javob 401), [`POST /tenants/register`](endpoints.md#post-tenants-register) (javob 400), [`POST /tenants/register`](endpoints.md#post-tenants-register) (javob 403), [`POST /roles`](endpoints.md#post-roles) (javob 403), [`POST /roles`](endpoints.md#post-roles) (javob 409), [`GET /roles/:id`](endpoints.md#get-roles-id) (javob 404), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 403), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 404), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 409), [`PATCH /roles/:id`](endpoints.md#patch-roles-id) (javob 422), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 403), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 404), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 409), [`DELETE /roles/:id`](endpoints.md#delete-roles-id) (javob 422), [`PATCH /settings`](endpoints.md#patch-settings) (javob 400), [`PATCH /settings`](endpoints.md#patch-settings) (javob 403), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 402), [`POST /warehouses`](endpoints.md#post-warehouses) (javob 409), [`GET /warehouses/:id`](endpoints.md#get-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 404), [`PATCH /warehouses/:id`](endpoints.md#patch-warehouses-id) (javob 409), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 404), [`POST /warehouses/:id/archive`](endpoints.md#post-warehouses-id-archive) (javob 422), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 402), [`POST /warehouses/:id/restore`](endpoints.md#post-warehouses-id-restore) (javob 404), [`POST /categories`](endpoints.md#post-categories) (javob 409), [`GET /categories/:id`](endpoints.md#get-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 404), [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (javob 409), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 404), [`DELETE /categories/:id`](endpoints.md#delete-categories-id) (javob 409), [`POST /categories/:id/restore`](endpoints.md#post-categories-id-restore) (javob 404), [`POST /products`](endpoints.md#post-products) (javob 409), [`POST /products`](endpoints.md#post-products) (javob 422), [`GET /products/:id/stats`](endpoints.md#get-products-id-stats) (javob 404), [`GET /products/:id`](endpoints.md#get-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 404), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 409), [`PATCH /products/:id`](endpoints.md#patch-products-id) (javob 422), [`DELETE /products/:id`](endpoints.md#delete-products-id) (javob 404), [`POST /products/import`](endpoints.md#post-products-import) (javob 400), [`POST /products/bulk-price`](endpoints.md#post-products-bulk-price) (javob 400), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 404), [`POST /products/:id/restore`](endpoints.md#post-products-id-restore) (javob 409), [`GET /clients/:id/stats`](endpoints.md#get-clients-id-stats) (javob 404), [`GET /clients/:id`](endpoints.md#get-clients-id) (javob 404), [`PATCH /clients/:id`](endpoints.md#patch-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 404), [`DELETE /clients/:id`](endpoints.md#delete-clients-id) (javob 409), [`POST /clients/:id/restore`](endpoints.md#post-clients-id-restore) (javob 404), [`POST /clients/:id/telegram-link`](endpoints.md#post-clients-id-telegram-link) (javob 404), [`POST /clients/:id/telegram-link`](endpoints.md#post-clients-id-telegram-link) (javob 422), [`POST /suppliers`](endpoints.md#post-suppliers) (javob 400), [`GET /suppliers/:id`](endpoints.md#get-suppliers-id) (javob 404), [`PATCH /suppliers/:id`](endpoints.md#patch-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 404), [`DELETE /suppliers/:id`](endpoints.md#delete-suppliers-id) (javob 409), [`POST /suppliers/:id/restore`](endpoints.md#post-suppliers-id-restore) (javob 404), [`GET /employees/:id`](endpoints.md#get-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 404), [`PATCH /employees/:id`](endpoints.md#patch-employees-id) (javob 422), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 404), [`DELETE /employees/:id`](endpoints.md#delete-employees-id) (javob 409), [`POST /employees/:id/restore`](endpoints.md#post-employees-id-restore) (javob 404), [`POST /users`](endpoints.md#post-users) (javob 400), [`POST /users`](endpoints.md#post-users) (javob 402), [`POST /users`](endpoints.md#post-users) (javob 403), [`POST /users`](endpoints.md#post-users) (javob 409), [`POST /users`](endpoints.md#post-users) (javob 422), [`GET /users/:id`](endpoints.md#get-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 402), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 403), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 404), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 409), [`PATCH /users/:id`](endpoints.md#patch-users-id) (javob 422), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 404), [`DELETE /users/:id`](endpoints.md#delete-users-id) (javob 422), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 402), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 404), [`POST /users/:id/restore`](endpoints.md#post-users-id-restore) (javob 422), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 409), [`POST /stock/intake`](endpoints.md#post-stock-intake) (javob 422), [`POST /stock/writeoff`](endpoints.md#post-stock-writeoff) (javob 422), [`POST /stock/adjust`](endpoints.md#post-stock-adjust) (javob 400), [`POST /stock/transfer`](endpoints.md#post-stock-transfer) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 403), [`POST /sales`](endpoints.md#post-sales) (javob 422), [`POST /sales`](endpoints.md#post-sales) (javob 423), [`GET /sales/:id`](endpoints.md#get-sales-id) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 404), [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javob 404), [`POST /sales/:id/receipt/telegram`](endpoints.md#post-sales-id-receipt-telegram) (javob 404), [`POST /sales/:id/receipt/telegram`](endpoints.md#post-sales-id-receipt-telegram) (javob 422), [`POST /sales/:id/receipt/telegram`](endpoints.md#post-sales-id-receipt-telegram) (javob 503), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 409), [`POST /sales/:id/return`](endpoints.md#post-sales-id-return) (javob 422), [`POST /sales/:id/cancel`](endpoints.md#post-sales-id-cancel) (javob 409), [`POST /cash/shifts/open`](endpoints.md#post-cash-shifts-open) (javob 409), [`POST /cash/shifts/close`](endpoints.md#post-cash-shifts-close) (javob 409), [`GET /cash/shifts/:id/report`](endpoints.md#get-cash-shifts-id-report) (javob 404), [`POST /cash/movements`](endpoints.md#post-cash-movements) (javob 423), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 413), [`POST /files/presign`](endpoints.md#post-files-presign) (javob 422), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 404), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 409), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 413), [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (javob 422), [`GET /files/:id`](endpoints.md#get-files-id) (javob 404), [`DELETE /files/:id`](endpoints.md#delete-files-id) (javob 404), [`GET /files/:id/raw`](endpoints.md#get-files-id-raw) (javob 404), [`POST /quotes`](endpoints.md#post-quotes) (javob 403), [`POST /quotes`](endpoints.md#post-quotes) (javob 422), [`GET /quotes/:id`](endpoints.md#get-quotes-id) (javob 404), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 403), [`PATCH /quotes/:id`](endpoints.md#patch-quotes-id) (javob 409), [`DELETE /quotes/:id`](endpoints.md#delete-quotes-id) (javob 409), [`POST /quotes/:id/restore`](endpoints.md#post-quotes-id-restore) (javob 404), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 409), [`POST /quotes/:id/convert`](endpoints.md#post-quotes-id-convert) (javob 422), [`POST /expenses`](endpoints.md#post-expenses) (javob 423), [`GET /expenses/:id`](endpoints.md#get-expenses-id) (javob 404), [`POST /payroll/accruals`](endpoints.md#post-payroll-accruals) (javob 404), [`POST /payroll/payments`](endpoints.md#post-payroll-payments) (javob 404), [`POST /payroll/payments`](endpoints.md#post-payroll-payments) (javob 423), [`DELETE /payroll/entries/:id`](endpoints.md#delete-payroll-entries-id) (javob 403), [`DELETE /payroll/entries/:id`](endpoints.md#delete-payroll-entries-id) (javob 404), [`POST /payroll/entries/:id/restore`](endpoints.md#post-payroll-entries-id-restore) (javob 403), [`POST /payroll/entries/:id/restore`](endpoints.md#post-payroll-entries-id-restore) (javob 404), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 422), [`POST /debts/payments`](endpoints.md#post-debts-payments) (javob 423), [`POST /purchase-orders`](endpoints.md#post-purchase-orders) (javob 422), [`GET /purchase-orders/:id`](endpoints.md#get-purchase-orders-id) (javob 404), [`PATCH /purchase-orders/:id`](endpoints.md#patch-purchase-orders-id) (javob 409), [`POST /purchase-orders/:id/cancel`](endpoints.md#post-purchase-orders-id-cancel) (javob 409), [`POST /purchase-orders/:id/restore`](endpoints.md#post-purchase-orders-id-restore) (javob 404), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 409), [`POST /purchase-orders/:id/receive`](endpoints.md#post-purchase-orders-id-receive) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 422), [`POST /purchase-orders/:id/pay`](endpoints.md#post-purchase-orders-id-pay) (javob 423), [`GET /deliveries/:id`](endpoints.md#get-deliveries-id) (javob 404), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 403), [`POST /deliveries/:id/status`](endpoints.md#post-deliveries-id-status) (javob 422), [`POST /deliveries/:id/restore`](endpoints.md#post-deliveries-id-restore) (javob 404), [`POST /messages`](endpoints.md#post-messages) (javob 429), [`GET /exports/jobs/:id`](endpoints.md#get-exports-jobs-id) (javob 404), [`GET /exports/jobs/:id/download`](endpoints.md#get-exports-jobs-id-download) (javob 404), [`POST /migration/validate`](endpoints.md#post-migration-validate) (javob 403), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 402), [`POST /migration/import`](endpoints.md#post-migration-import) (javob 403), [`POST /billing/invoices/:id/card-payment`](endpoints.md#post-billing-invoices-id-card-payment) (javob 409), [`POST /billing/invoices/:id/card-payment`](endpoints.md#post-billing-invoices-id-card-payment) (javob 422), [`POST /tenants/current/delete`](endpoints.md#post-tenants-current-delete) (javob 401), [`POST /tenants/current/requests`](endpoints.md#post-tenants-current-requests) (javob 409), [`POST /tenants/current/requests`](endpoints.md#post-tenants-current-requests) (javob 429), [`POST /tenants/current/requests/:id/messages`](endpoints.md#post-tenants-current-requests-id-messages) (javob 404), [`POST /tenants/current/requests/:id/messages`](endpoints.md#post-tenants-current-requests-id-messages) (javob 422), [`POST /tenants/current/requests/:id/messages`](endpoints.md#post-tenants-current-requests-id-messages) (javob 429), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 403), [`GET /backup/export`](endpoints.md#get-backup-export) (javob 413), [`POST /platform/auth/login`](endpoints.md#post-platform-auth-login) (javob 401), [`POST /platform/auth/refresh`](endpoints.md#post-platform-auth-refresh) (javob 401), [`POST /platform/auth/logout`](endpoints.md#post-platform-auth-logout) (javob 401), [`GET /platform/auth/me`](endpoints.md#get-platform-auth-me) (javob 401), [`POST /platform/auth/totp/setup`](endpoints.md#post-platform-auth-totp-setup) (javob 401), [`POST /platform/auth/totp/setup`](endpoints.md#post-platform-auth-totp-setup) (javob 422), [`POST /platform/auth/totp/enable`](endpoints.md#post-platform-auth-totp-enable) (javob 401), [`POST /platform/auth/totp/enable`](endpoints.md#post-platform-auth-totp-enable) (javob 422), [`POST /platform/auth/totp/disable`](endpoints.md#post-platform-auth-totp-disable) (javob 401), [`POST /platform/auth/totp/disable`](endpoints.md#post-platform-auth-totp-disable) (javob 422), [`POST /platform/auth/telegram-link`](endpoints.md#post-platform-auth-telegram-link) (javob 401), [`POST /platform/auth/telegram-link`](endpoints.md#post-platform-auth-telegram-link) (javob 422), [`DELETE /platform/auth/telegram-link`](endpoints.md#delete-platform-auth-telegram-link) (javob 401), [`GET /platform/tenants`](endpoints.md#get-platform-tenants) (javob 401), [`POST /platform/tenants`](endpoints.md#post-platform-tenants) (javob 401), [`GET /platform/tenants/:id`](endpoints.md#get-platform-tenants-id) (javob 401), [`GET /platform/tenants/:id`](endpoints.md#get-platform-tenants-id) (javob 404), [`PATCH /platform/tenants/:id`](endpoints.md#patch-platform-tenants-id) (javob 401), [`POST /platform/tenants/:id/block`](endpoints.md#post-platform-tenants-id-block) (javob 401), [`POST /platform/tenants/:id/unblock`](endpoints.md#post-platform-tenants-id-unblock) (javob 401), [`POST /platform/tenants/:id/unblock`](endpoints.md#post-platform-tenants-id-unblock) (javob 422), [`POST /platform/tenants/:id/plan`](endpoints.md#post-platform-tenants-id-plan) (javob 401), [`POST /platform/tenants/:id/delete`](endpoints.md#post-platform-tenants-id-delete) (javob 401), [`POST /platform/tenants/:id/delete`](endpoints.md#post-platform-tenants-id-delete) (javob 422), [`POST /platform/tenants/:id/restore`](endpoints.md#post-platform-tenants-id-restore) (javob 401), [`POST /platform/tenants/:id/restore`](endpoints.md#post-platform-tenants-id-restore) (javob 422), [`GET /platform/tenants/:id/users`](endpoints.md#get-platform-tenants-id-users) (javob 401), [`POST /platform/tenants/:id/users/:userId/reset-password`](endpoints.md#post-platform-tenants-id-users-userid-reset-password) (javob 401), [`POST /platform/tenants/:id/users/:userId/reset-password`](endpoints.md#post-platform-tenants-id-users-userid-reset-password) (javob 404), [`GET /platform/tenants/:id/invoices`](endpoints.md#get-platform-tenants-id-invoices) (javob 401), [`GET /platform/requests`](endpoints.md#get-platform-requests) (javob 401), [`GET /platform/requests/:id`](endpoints.md#get-platform-requests-id) (javob 401), [`GET /platform/requests/:id`](endpoints.md#get-platform-requests-id) (javob 404), [`POST /platform/requests/:id/reply`](endpoints.md#post-platform-requests-id-reply) (javob 401), [`POST /platform/requests/:id/reply`](endpoints.md#post-platform-requests-id-reply) (javob 404), [`POST /platform/requests/:id/reply`](endpoints.md#post-platform-requests-id-reply) (javob 422), [`POST /platform/requests/:id/close`](endpoints.md#post-platform-requests-id-close) (javob 401), [`POST /platform/requests/:id/close`](endpoints.md#post-platform-requests-id-close) (javob 404), [`POST /platform/requests/:id/close`](endpoints.md#post-platform-requests-id-close) (javob 422), [`GET /platform/admins`](endpoints.md#get-platform-admins) (javob 401), [`POST /platform/admins`](endpoints.md#post-platform-admins) (javob 401), [`POST /platform/admins`](endpoints.md#post-platform-admins) (javob 409), [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (javob 401), [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (javob 404), [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (javob 422), [`POST /platform/admins/:id/reset-password`](endpoints.md#post-platform-admins-id-reset-password) (javob 401), [`POST /platform/admins/:id/reset-password`](endpoints.md#post-platform-admins-id-reset-password) (javob 404), [`POST /platform/admins/:id/totp/reset`](endpoints.md#post-platform-admins-id-totp-reset) (javob 401), [`POST /platform/admins/:id/totp/reset`](endpoints.md#post-platform-admins-id-totp-reset) (javob 422), [`GET /platform/stats`](endpoints.md#get-platform-stats) (javob 401), [`GET /platform/invoices`](endpoints.md#get-platform-invoices) (javob 401), [`POST /platform/invoices/:id/confirm`](endpoints.md#post-platform-invoices-id-confirm) (javob 401), [`POST /platform/invoices/:id/confirm`](endpoints.md#post-platform-invoices-id-confirm) (javob 404), [`POST /platform/invoices/:id/confirm`](endpoints.md#post-platform-invoices-id-confirm) (javob 422), [`POST /platform/invoices/:id/reject`](endpoints.md#post-platform-invoices-id-reject) (javob 401), [`POST /platform/invoices/:id/reject`](endpoints.md#post-platform-invoices-id-reject) (javob 404), [`POST /platform/invoices/:id/reject`](endpoints.md#post-platform-invoices-id-reject) (javob 422), [`GET /platform/invoices/:id/receipt`](endpoints.md#get-platform-invoices-id-receipt) (javob 401), [`GET /platform/invoices/:id/receipt`](endpoints.md#get-platform-invoices-id-receipt) (javob 404), [`GET /platform/audit`](endpoints.md#get-platform-audit) (javob 401), [`GET /platform/settings`](endpoints.md#get-platform-settings) (javob 401), [`PATCH /platform/settings`](endpoints.md#patch-platform-settings) (javob 401)
 
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
@@ -241,6 +241,19 @@ Ishlatiladi: [`POST /products/bulk-price`](endpoints.md#post-products-bulk-price
 
 [↑ Mundarija](#mundarija)
 
+### CardClaimDto
+
+Ishlatiladi: [`POST /billing/invoices/:id/card-payment`](endpoints.md#post-billing-invoices-id-card-payment) (so‘rov)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `payerCard` | `string` | ✔ | Qaysi kartadan o‘tkazildi — oxirgi 4 raqam — misol `6311` |
+| `transferredAt` | `string` (date-time) |  | O‘tkazma vaqti; berilmasa — hozir. Kelajakda emas, 30 kundan eski emas |
+| `receiptFileId` | `string` (uuid) |  | Chek (skrinshot yoki PDF) — `POST /files/presign` `kind: payment_receipt` bilan yuklangan, tasdiqlangan fayl |
+| `note` | `string` |  | maks. uzunlik `300`, misol `Akamning kartasidan o‘tkazdim` |
+
+[↑ Mundarija](#mundarija)
+
 ### CashMovementDto
 
 Ishlatiladi: [`POST /cash/movements`](endpoints.md#post-cash-movements) (javob 201)
@@ -375,6 +388,7 @@ Ishlatiladi: [`POST /billing/invoices`](endpoints.md#post-billing-invoices) (jav
 | `invoice` | [`InvoiceDto`](#invoicedto) | ✔ |  |
 | `payme` | `string` \| `null` | ✔ | Payme to‘lov sahifasi (kassa sozlangan bo‘lsa) |
 | `click` | `string` \| `null` | ✔ | Click to‘lov sahifasi |
+| `card` | [`PaymentCardDto`](#paymentcarddto) \| `null` | ✔ | Egasining kartasi: shu kartaga `invoice.amount` o‘tkaziladi, keyin `POST /billing/invoices/:id/card-payment`; `null` — usul o‘chiq |
 
 [↑ Mundarija](#mundarija)
 
@@ -456,6 +470,16 @@ Ishlatiladi: [`POST /cash/shifts/close`](endpoints.md#post-cash-shifts-close) (s
 | `countedBalance` | `number` | ✔ | Yopishda sanalgan naqd — misol `1450000` |
 | `note` | `string` |  | maks. uzunlik `500`, misol `5000 kam chiqdi` |
 | `denominations` | `Record<string, integer>` |  | Kupyura → soni. Berilsa, yig‘indisi `countedBalance` ga teng bo‘lishi shart |
+
+[↑ Mundarija](#mundarija)
+
+### ConfirmCardPaymentDto
+
+Ishlatiladi: [`POST /platform/invoices/:id/confirm`](endpoints.md#post-platform-invoices-id-confirm) (so‘rov)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `note` | `string` |  | Izoh: bank tranzaksiyasi, kelishuv … — maks. uzunlik `500` |
 
 [↑ Mundarija](#mundarija)
 
@@ -589,8 +613,8 @@ Ishlatiladi: [`POST /billing/invoices`](endpoints.md#post-billing-invoices) (so�
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `plan` | `basic` \| `pro` | ✔ |  |
-| `months` | `number` | ✔ | min `1`, max `12`, misol `1` |
+| `plan` | `basic` \| `business` \| `pro` | ✔ |  |
+| `months` | `1` \| `3` \| `6` \| `12` | ✔ | Oy: 1, 3, 6 yoki 12 — uzoqroq muddatga chegirma (`GET /billing/plans`) — misol `1` |
 
 [↑ Mundarija](#mundarija)
 
@@ -737,7 +761,7 @@ Ishlatiladi: [`POST /platform/tenants`](endpoints.md#post-platform-tenants) (so�
 | `phone` | `string` | ✔ | misol `+998901234567` |
 | `email` | `string` | ✔ | misol `ali@dokon.uz` |
 | `password` | `string` | ✔ | Kamida 8 belgi; ommabop parollar rad etiladi — misol `Qurilish2026!` |
-| `plan` | `free` \| `basic` \| `pro` |  | Boshlang‘ich tarif; pullik bo‘lsa `months` shart (bonus sifatida yoziladi) — sukut `"free"` |
+| `plan` | `free` \| `basic` \| `business` \| `pro` |  | Boshlang‘ich tarif. Berilmasa — sinov: «business» 14 kun (ro‘yxatdan o‘tish bilan bir xil); `free` — muddatsiz bepul; pullik bo‘lsa `months` shart (bonus sifatida yoziladi) |
 | `months` | `number` |  | Pullik tarif muddati (oy) — pullik tarifda SHART — min `1`, max `12` |
 | `notes` | `string` |  | Egasi izohi — maks. uzunlik `500` |
 
@@ -1218,7 +1242,7 @@ Ishlatiladi: [`POST /files/:id/confirm`](endpoints.md#post-files-id-confirm) (ja
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
 | `id` | `string` | ✔ |  |
-| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` | ✔ |  |
+| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` \| `payment_receipt` | ✔ |  |
 | `mime` | `string` | ✔ |  |
 | `sizeBytes` | `number` | ✔ |  |
 | `sha256` | `string` | ✔ |  |
@@ -1246,10 +1270,10 @@ Ishlatiladi: [`POST /platform/tenants/:id/plan`](endpoints.md#post-platform-tena
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `plan` | `free` \| `basic` \| `pro` | ✔ |  |
+| `plan` | `free` \| `basic` \| `business` \| `pro` | ✔ |  |
 | `months` | `number` |  | Pullik tarifda SHART — min `1`, max `12` |
-| `provider` | `cash` \| `transfer` \| `bonus` |  | Pullik tarifda SHART: `cash` naqd, `transfer` o‘tkazma, `bonus` — bepul muddat (summa 0) |
-| `amount` | `number` |  | Olingan summa (so‘m). Berilmasa — tarif narxi × oy; `bonus` — 0 |
+| `provider` | `cash` \| `card` \| `transfer` \| `bonus` |  | Pullik tarifda SHART: `cash` naqd, `card` — kartaga o‘tkazma, `transfer` bank o‘tkazmasi, `bonus` — bepul muddat (summa 0) |
+| `amount` | `number` |  | Olingan summa (so‘m). Berilmasa — `GET /billing/plans` narxi (muddat chegirmasi bilan); `bonus` — 0 |
 | `note` | `string` |  | Kvitansiya raqami, kelishuv … — maks. uzunlik `500` |
 
 [↑ Mundarija](#mundarija)
@@ -1306,16 +1330,22 @@ Ishlatiladi: [`POST /stock/intake`](endpoints.md#post-stock-intake) (so‘rov)
 
 ### InvoiceDto
 
-Ishlatiladi: [`GET /billing/invoices`](endpoints.md#get-billing-invoices) (javob 200 (massiv))
+Ishlatiladi: [`GET /billing/invoices`](endpoints.md#get-billing-invoices) (javob 200 (massiv)), [`POST /billing/invoices/:id/card-payment`](endpoints.md#post-billing-invoices-id-card-payment) (javob 200)
 
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
 | `id` | `string` | ✔ |  |
-| `plan` | `basic` \| `pro` | ✔ |  |
+| `plan` | `basic` \| `business` \| `pro` | ✔ |  |
 | `months` | `number` | ✔ |  |
 | `amount` | `number` | ✔ | So‘m |
-| `state` | `created` \| `pending` \| `paid` \| `cancelled` | ✔ |  |
-| `provider` | `payme` \| `click` \| `cash` \| `transfer` \| `bonus` \| `null` | ✔ | `payme`/`click` — onlayn; `cash`/`transfer`/`bonus` — platforma qo‘lda yozgan (naqd, o‘tkazma, bonus muddat) |
+| `state` | `created` \| `pending` \| `paid` \| `cancelled` | ✔ | `pending` — provayder boshladi yoki karta to‘lovi egasi tekshiruvida (`provider: card`) |
+| `provider` | `payme` \| `click` \| `card` \| `cash` \| `transfer` \| `bonus` \| `null` | ✔ | `payme`/`click` — onlayn; `card` — egasining kartasiga o‘tkazma; `cash`/`transfer`/`bonus` — platforma qo‘lda yozgan (naqd, o‘tkazma, bonus muddat) |
+| `payerCard` | `string` \| `null` | ✔ | Karta to‘lovi: to‘lovchi kartasining oxirgi 4 raqami — misol `6311` |
+| `payerNote` | `string` \| `null` | ✔ | Karta to‘lovi: administrator izohi |
+| `transferredAt` | `string` (date-time) \| `null` | ✔ | Karta to‘lovi: o‘tkazma vaqti (administrator aytgani) |
+| `claimedAt` | `string` (date-time) \| `null` | ✔ | Karta to‘lovi: «to‘ladim» bosilgan vaqt |
+| `receiptFileId` | `string` \| `null` | ✔ | Karta to‘lovi: chek fayli (`payment_receipt`) |
+| `rejectReason` | `string` \| `null` | ✔ | Egasi karta to‘lovini rad etgan sabab (`state: cancelled`) |
 | `createdAt` | `string` (date-time) | ✔ |  |
 | `paidAt` | `string` (date-time) \| `null` | ✔ |  |
 
@@ -1554,6 +1584,25 @@ Ishlatiladi: [`POST /cash/shifts/open`](endpoints.md#post-cash-shifts-open) (so�
 
 [↑ Mundarija](#mundarija)
 
+### PaymentCardDto
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `number` | `string` | ✔ | 16 raqam — ko‘rsatishda 4 tadan guruhlang (`8600 0691 9540 6311`) — misol `8600069195406311` |
+| `holder` | `string` \| `null` | ✔ | Karta egasi — to‘lovchi ilovasi o‘tkazmada ko‘rsatadigan ism bilan solishtiradi — misol `ULUGBEK M.` |
+
+[↑ Mundarija](#mundarija)
+
+### PaymentMethodsDto
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `card` | `boolean` | ✔ | Egasining kartasiga o‘tkazma (egasi tasdiqlaydi) |
+| `payme` | `boolean` | ✔ |  |
+| `click` | `boolean` | ✔ |  |
+
+[↑ Mundarija](#mundarija)
+
 ### PaymentMixDto
 
 | Maydon | Tip | Doim bor | Izoh |
@@ -1714,15 +1763,52 @@ Ishlatiladi: [`GET /roles/catalog`](endpoints.md#get-roles-catalog) (javob 200)
 
 [↑ Mundarija](#mundarija)
 
+### PlanCatalogDto
+
+Ishlatiladi: [`GET /billing/plans`](endpoints.md#get-billing-plans) (javob 200)
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `plans` | [`PlanOfferDto`](#planofferdto)[] | ✔ | Hamma tariflar, arzonidan; do‘konga `sellable` lari ko‘rsatiladi |
+| `trial` | [`TrialDto`](#trialdto) | ✔ | Yangi do‘kon shu tarifda shuncha kun bepul ishlaydi |
+| `methods` | [`PaymentMethodsDto`](#paymentmethodsdto) | ✔ | Hozir ishlaydigan to‘lov usullari |
+| `sms` | `boolean` | ✔ | `false` — SMS provayderi ulanmagan: tarif kartasida SMS qatorini yashiring (Telegram ishlaydi) |
+
+[↑ Mundarija](#mundarija)
+
 ### PlanLimitsDto
 
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
-| `users` | `number` | ✔ |  |
-| `warehouses` | `number` | ✔ |  |
+| `users` | `number` | ✔ | Faol kirish hisoblari |
+| `warehouses` | `number` | ✔ | Arxivlanmagan omborlar |
 | `storageBytes` | `number` | ✔ |  |
 | `fileBytes` | `number` | ✔ |  |
-| `smsPerDay` | `number` | ✔ |  |
+| `smsPerMonth` | `number` | ✔ | Oyiga SMS (Toshkent oyi); Telegram xabarlari cheklanmaydi |
+
+[↑ Mundarija](#mundarija)
+
+### PlanOfferDto
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `key` | `free` \| `basic` \| `business` \| `pro` | ✔ |  |
+| `label` | `string` | ✔ | misol `Start` |
+| `audience` | `string` | ✔ | misol `1–3 kishilik do‘kon: savdo joyi va ombor` |
+| `sellable` | `boolean` | ✔ | `false` — sotilmaydi (`free`: platforma egasi beradi); narxlar bo‘sh |
+| `monthlyPrice` | `number` | ✔ | Oylik narx (so‘m) — misol `99000` |
+| `prices` | [`PlanPriceDto`](#planpricedto)[] | ✔ | Har muddat uchun summa |
+| `limits` | [`PlanLimitsDto`](#planlimitsdto) | ✔ |  |
+
+[↑ Mundarija](#mundarija)
+
+### PlanPriceDto
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `months` | `1` \| `3` \| `6` \| `12` | ✔ |  |
+| `amount` | `number` | ✔ | Jami summa (so‘m), chegirma bilan — hisob-faktura aynan shu |
+| `discountPct` | `number` | ✔ | Oldindan to‘lov chegirmasi, % — misol `20` |
 
 [↑ Mundarija](#mundarija)
 
@@ -1733,7 +1819,7 @@ Ishlatiladi: [`GET /roles/catalog`](endpoints.md#get-roles-catalog) (javob 200)
 | `users` | `number` | ✔ |  |
 | `warehouses` | `number` | ✔ |  |
 | `storageBytes` | `number` | ✔ |  |
-| `smsToday` | `number` | ✔ | Bugun (Toshkent kuni) |
+| `smsThisMonth` | `number` | ✔ | Shu oyda yuborilgan SMS (Toshkent oyi) |
 
 [↑ Mundarija](#mundarija)
 
@@ -1783,17 +1869,25 @@ Ishlatiladi: [`GET /platform/auth/me`](endpoints.md#get-platform-auth-me) (javob
 
 ### PlatformInvoiceDto
 
+Ishlatiladi: [`POST /platform/invoices/:id/confirm`](endpoints.md#post-platform-invoices-id-confirm) (javob 200), [`POST /platform/invoices/:id/reject`](endpoints.md#post-platform-invoices-id-reject) (javob 200)
+
 | Maydon | Tip | Doim bor | Izoh |
 |---|---|:-:|---|
 | `id` | `string` | ✔ |  |
 | `tenantId` | `string` | ✔ |  |
 | `tenantName` | `string` | ✔ | misol `Qurilish Mollari` |
-| `plan` | `basic` \| `pro` | ✔ |  |
+| `plan` | `basic` \| `business` \| `pro` | ✔ |  |
 | `months` | `number` | ✔ |  |
 | `amount` | `number` | ✔ | So‘m |
-| `state` | `created` \| `pending` \| `paid` \| `cancelled` | ✔ |  |
-| `provider` | `payme` \| `click` \| `cash` \| `transfer` \| `bonus` \| `null` | ✔ |  |
-| `note` | `string` \| `null` | ✔ |  |
+| `state` | `created` \| `pending` \| `paid` \| `cancelled` | ✔ | `pending` + `provider: card` — karta to‘lovi tekshiruvingizni kutmoqda |
+| `provider` | `payme` \| `click` \| `cash` \| `card` \| `transfer` \| `bonus` \| `null` | ✔ |  |
+| `note` | `string` \| `null` | ✔ | Egasi izohi (qo‘lda to‘lov yoki tasdiqlashda) |
+| `payerCard` | `string` \| `null` | ✔ | Karta to‘lovi: to‘lovchi kartasining oxirgi 4 raqami — misol `6311` |
+| `payerNote` | `string` \| `null` | ✔ | Karta to‘lovi: do‘kon izohi |
+| `transferredAt` | `string` (date-time) \| `null` | ✔ | Karta to‘lovi: o‘tkazma vaqti (do‘kon aytgani) |
+| `claimedAt` | `string` (date-time) \| `null` | ✔ | Karta to‘lovi: «to‘ladim» bosilgan vaqt |
+| `hasReceipt` | `boolean` | ✔ | Chek bor — `GET /platform/invoices/:id/receipt` |
+| `rejectReason` | `string` \| `null` | ✔ | Rad etilgan karta to‘lovining sababi |
 | `createdAt` | `string` (date-time) | ✔ |  |
 | `paidAt` | `string` (date-time) \| `null` | ✔ |  |
 
@@ -1874,6 +1968,7 @@ Ishlatiladi: [`GET /platform/settings`](endpoints.md#get-platform-settings) (jav
 |---|---|:-:|---|
 | `registrationMode` | `open` \| `closed` | ✔ | `open` — har kim do‘kon ochadi (`POST /tenants/register`); `closed` — faqat egasi paneli ochadi, ochiq yo‘l 403 `REGISTRATION_CLOSED` |
 | `support` | [`PlatformSupportDto`](#platformsupportdto) | ✔ |  |
+| `paymentCard` | [`PaymentCardDto`](#paymentcarddto) \| `null` | ✔ | To‘lov kartasi; `null` — karta orqali to‘lov o‘chiq |
 | `updatedAt` | `string` (date-time) | ✔ |  |
 | `updatedBy` | `string` \| `null` | ✔ | Oxirgi o‘zgartirgan egasi hisobi (nomi) |
 
@@ -1888,6 +1983,7 @@ Ishlatiladi: [`GET /platform/stats`](endpoints.md#get-platform-stats) (javob 200
 | `tenants` | [`TenantCountsDto`](#tenantcountsdto) | ✔ |  |
 | `revenue` | [`RevenueDto`](#revenuedto) | ✔ |  |
 | `openRequests` | `number` | ✔ | Egasi javobini kutayotgan do‘kon murojaatlari (menyuda belgi; T-140) |
+| `pendingPayments` | `number` | ✔ | Tekshirishingizni kutayotgan karta to‘lovlari (menyuda belgi; T-149) — `GET /platform/invoices?state=pending&provider=card` |
 
 [↑ Mundarija](#mundarija)
 
@@ -1909,9 +2005,10 @@ Ishlatiladi: [`POST /platform/tenants`](endpoints.md#post-platform-tenants) (jav
 |---|---|:-:|---|
 | `id` | `string` | ✔ |  |
 | `name` | `string` | ✔ | misol `Qurilish Mollari` |
-| `plan` | `free` \| `basic` \| `pro` | ✔ |  |
+| `plan` | `free` \| `basic` \| `business` \| `pro` | ✔ |  |
 | `status` | `active` \| `suspended` \| `blocked` \| `deleting` | ✔ | `active` dan boshqasi — do‘kon faqat o‘qiydi |
 | `planExpiresAt` | `string` (date-time) \| `null` | ✔ | Pullik tarif muddati (`free` — null) |
+| `trialEndsAt` | `string` (date-time) \| `null` | ✔ | Sinov muddati oxiri (T-148): `null` emas — hali to‘lamagan (sinovda yoki sinovi tugagan); birinchi to‘lov yoki egasi tarifi tozalaydi |
 | `deletionScheduledAt` | `string` (date-time) \| `null` | ✔ | Shu vaqtda ma’lumot to‘liq o‘chadi |
 | `blockedAt` | `string` (date-time) \| `null` | ✔ | Egasi bloklagan payt (holat `deleting` bo‘lsa ham saqlanadi) |
 | `blockedReason` | `string` \| `null` | ✔ |  |
@@ -2038,7 +2135,7 @@ Ishlatiladi: [`POST /files/presign`](endpoints.md#post-files-presign) (so‘rov)
 
 | Maydon | Tip | Majburiy | Izoh |
 |---|---|:-:|---|
-| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` | ✔ |  |
+| `kind` | `product_image` \| `document` \| `export` \| `import` \| `tenant_backup` \| `avatar` \| `store_logo` \| `payment_receipt` | ✔ |  |
 | `mime` | `string` | ✔ | Oq ro‘yxatdan (09 §9.6) — misol `image/webp` |
 | `size` | `number` | ✔ | Bayt — imzoga kiradi — misol `153600` |
 | `sha256` | `string` | ✔ | Tarkib SHA-256 (hex) — takror yuklashni aniqlash — misol `ab12…` |
@@ -2324,6 +2421,18 @@ Ishlatiladi: [`GET /sales/:id/receipt`](endpoints.md#get-sales-id-receipt) (javo
 
 [↑ Mundarija](#mundarija)
 
+### ReceiptUrlDto
+
+Ishlatiladi: [`GET /platform/invoices/:id/receipt`](endpoints.md#get-platform-invoices-id-receipt) (javob 200)
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `url` | `string` | ✔ |  |
+| `mime` | `string` | ✔ | misol `image/jpeg` |
+| `expiresAt` | `string` (date-time) | ✔ | Havola shu paytgacha amal qiladi |
+
+[↑ Mundarija](#mundarija)
+
 ### ReceiveItemDto
 
 | Maydon | Tip | Doim bor | Izoh |
@@ -2379,6 +2488,16 @@ Ishlatiladi: [`GET /tenants/registration`](endpoints.md#get-tenants-registration
 |---|---|:-:|---|
 | `mode` | `open` \| `closed` | ✔ | `closed` — platforma egasi yopgan; `POST /tenants/register` 403 `REGISTRATION_CLOSED` |
 | `support` | [`PlatformSupportDto`](#platformsupportdto) | ✔ | Platforma egasining aloqasi (telefon, Telegram, ish vaqti) — hammasi `null` bo‘lishi mumkin |
+
+[↑ Mundarija](#mundarija)
+
+### RejectCardPaymentDto
+
+Ishlatiladi: [`POST /platform/invoices/:id/reject`](endpoints.md#post-platform-invoices-id-reject) (so‘rov)
+
+| Maydon | Tip | Majburiy | Izoh |
+|---|---|:-:|---|
+| `reason` | `string` | ✔ | Do‘kon administratori ko‘radi — maks. uzunlik `300`, misol `Tushum topilmadi — karta raqami va vaqtni tekshiring` |
 
 [↑ Mundarija](#mundarija)
 
@@ -2988,14 +3107,16 @@ Ishlatiladi: [`GET /tenants/current`](endpoints.md#get-tenants-current) (javob 2
 |---|---|:-:|---|
 | `id` | `string` | ✔ |  |
 | `name` | `string` | ✔ |  |
-| `plan` | `free` \| `basic` \| `pro` | ✔ |  |
+| `plan` | `free` \| `basic` \| `business` \| `pro` | ✔ |  |
 | `status` | `active` \| `suspended` \| `blocked` \| `deleting` | ✔ | `suspended`/`blocked`/`deleting` — faqat o‘qish |
 | `planExpiresAt` | `string` (date-time) \| `null` | ✔ |  |
+| `trialEndsAt` | `string` (date-time) \| `null` | ✔ | Sinov muddati oxiri (T-148): `null` emas — do‘kon hali to‘lamagan (sinovda yoki sinovi tugagan); birinchi to‘lov tozalaydi |
 | `deletionScheduledAt` | `string` (date-time) \| `null` | ✔ | Shu vaqtdan keyin ma’lumot to‘liq o‘chadi |
 | `blockedReason` | `string` \| `null` | ✔ | Platforma bloklagan bo‘lsa — sababi (bannerda ko‘rsating); to‘lov blokni ochmaydi |
 | `limits` | [`PlanLimitsDto`](#planlimitsdto) | ✔ |  |
 | `usage` | [`PlanUsageDto`](#planusagedto) | ✔ |  |
 | `support` | [`PlatformSupportDto`](#platformsupportdto) | ✔ | Platforma egasining aloqasi — bannerda va murojaat oynasida (T-140) |
+| `paymentCard` | [`PaymentCardDto`](#paymentcarddto) \| `null` | ✔ | Karta orqali to‘lov uchun egasining kartasi (T-149); `null` — usul o‘chiq |
 
 [↑ Mundarija](#mundarija)
 
@@ -3024,8 +3145,9 @@ Ishlatiladi: [`GET /tenants/current`](endpoints.md#get-tenants-current) (javob 2
 |---|---|:-:|---|
 | `total` | `number` | ✔ | Barcha do‘konlar |
 | `byStatus` | `object` | ✔ | Holat bo‘yicha |
-| `byPlan` | `object` | ✔ | Tarif bo‘yicha |
+| `byPlan` | `object` | ✔ | Tarif bo‘yicha (sinovdagilar — sinov tarifida) |
 | `newThisMonth` | `number` | ✔ | Shu oyda ochilganlar (Toshkent oyi) |
+| `trialing` | `number` | ✔ | Sinov muddatidagilar (hali to‘lamagan, sinovi tugamagan) — ularga qo‘ng‘iroq qilib, ishga tushirishda yordam bering |
 | `expiringIn7Days` | `number` | ✔ | Pullik tarifi 7 kun ichida tugaydiganlar |
 | `overdue` | `number` | ✔ | Muddati o‘tgan, hali to‘xtatilmagan (3 kunlik imtiyozda) |
 
@@ -3137,6 +3259,15 @@ Ishlatiladi: [`POST /stock/transfer`](endpoints.md#post-stock-transfer) (javob 2
 
 [↑ Mundarija](#mundarija)
 
+### TrialDto
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `plan` | `basic` \| `business` \| `pro` | ✔ | misol `business` |
+| `days` | `number` | ✔ | misol `14` |
+
+[↑ Mundarija](#mundarija)
+
 ### UpdateCategoryDto
 
 Ishlatiladi: [`PATCH /categories/:id`](endpoints.md#patch-categories-id) (so‘rov)
@@ -3234,6 +3365,15 @@ Ishlatiladi: [`PATCH /expense-templates/:id`](endpoints.md#patch-expense-templat
 
 [↑ Mundarija](#mundarija)
 
+### UpdatePaymentCardDto
+
+| Maydon | Tip | Doim bor | Izoh |
+|---|---|:-:|---|
+| `number` | `string` |  | 16 raqam (bo‘sh joy, chiziqcha bo‘lishi mumkin), nazorat raqami tekshiriladi; `""` — o‘chirish — misol `8600 0691 9540 6311` |
+| `holder` | `string` |  | `""` — o‘chirish — maks. uzunlik `64`, misol `ULUGBEK M.` |
+
+[↑ Mundarija](#mundarija)
+
 ### UpdatePlatformAdminDto
 
 Ishlatiladi: [`PATCH /platform/admins/:id`](endpoints.md#patch-platform-admins-id) (so‘rov)
@@ -3254,6 +3394,7 @@ Ishlatiladi: [`PATCH /platform/settings`](endpoints.md#patch-platform-settings) 
 |---|---|:-:|---|
 | `registrationMode` | `open` \| `closed` |  |  |
 | `support` | [`UpdatePlatformSupportDto`](#updateplatformsupportdto) |  | Aloqa: faqat yuborilgan maydonlar o‘zgaradi |
+| `paymentCard` | [`UpdatePaymentCardDto`](#updatepaymentcarddto) |  | To‘lov kartasi: faqat yuborilgan maydonlar o‘zgaradi |
 
 [↑ Mundarija](#mundarija)
 

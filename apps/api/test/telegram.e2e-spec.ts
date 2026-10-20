@@ -46,6 +46,10 @@ class FakeTelegram implements TelegramClient {
     return []
   }
 
+  async answerCallbackQuery(): Promise<void> {}
+
+  async removeButtons(): Promise<void> {}
+
   private fail(chatId: number): void {
     const failure = this.failures.get(chatId)
     if (failure) throw failure
@@ -355,7 +359,7 @@ describe('Telegram bot + SMS: ulanmagan va bloklaganga — SMS', () => {
     expect(telegram.sent.at(-1)).toMatchObject({ chatId: ALI_CHAT, text: '🏪 <b>Qurilish Mollari</b>\n\nSalom <b>Ali</b>' })
     expect(sms.sent.map((s) => s.phone).sort()).toEqual(['+998935554433', '+998977777777'])
 
-    // Tarif sahifasi: bugun 2 ta SMS (Telegram sanalmaydi)
-    expect((await bot.api().get('/api/v1/tenants/current').set('Authorization', auth).expect(200)).body.usage.smsToday).toBe(2)
+    // Tarif sahifasi: shu oyda 2 ta SMS (Telegram sanalmaydi)
+    expect((await bot.api().get('/api/v1/tenants/current').set('Authorization', auth).expect(200)).body.usage.smsThisMonth).toBe(2)
   })
 })

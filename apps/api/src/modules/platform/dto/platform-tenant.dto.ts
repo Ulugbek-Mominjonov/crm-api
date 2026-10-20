@@ -1,11 +1,11 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger'
 import { SystemRole, type Prisma } from '@prisma/client'
 import { Type } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator'
-import { PAID_PLANS, PLAN_NAMES } from '@crm/shared'
+import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator'
+import { PAID_PLANS, PLAN_NAMES, TRIAL_DAYS, TRIAL_PLAN } from '@crm/shared'
 import { ListQueryDto } from '@/common/crud/list-query.dto'
 import { byField, sortValues, type SortMap } from '@/common/crud/sort'
-import { Trim } from '@/common/validation/decorators'
+import { ToBoolean, Trim } from '@/common/validation/decorators'
 import { PlanLimitsDto } from '@/modules/account/dto/account.dto'
 import { RegisterDto } from '@/modules/auth/dto/register.dto'
 import { MAX_PASSWORD_LENGTH } from '@/modules/auth/password.service'
@@ -51,6 +51,12 @@ export class PlatformTenantsQueryDto extends ListQueryDto {
   @Min(0)
   @Max(MAX_EXPIRES_WITHIN_DAYS)
   expiresWithinDays?: number
+
+  @ApiPropertyOptional({ description: '`true` — hali to‘lamagan, sinovdagi yoki sinovi tugagan do‘konlar (`trialEndsAt` bor); `false` — qolganlari' })
+  @IsOptional()
+  @ToBoolean()
+  @IsBoolean()
+  trial?: boolean
 }
 
 export class TenantUsageDto {
@@ -77,6 +83,11 @@ export class PlatformTenantDto {
   @ApiProperty({ enum: TENANT_STATUSES, description: '`active` dan boshqasi — do‘kon faqat o‘qiydi' }) status!: string
   @ApiProperty({ nullable: true, type: String, format: 'date-time', description: 'Pullik tarif muddati (`free` — null)' })
   planExpiresAt!: Date | null
+  @ApiProperty({
+    nullable: true, type: String, format: 'date-time',
+    description: 'Sinov muddati oxiri (T-148): `null` emas — hali to‘lamagan (sinovda yoki sinovi tugagan); birinchi to‘lov yoki egasi tarifi tozalaydi',
+  })
+  trialEndsAt!: Date | null
   @ApiProperty({ nullable: true, type: String, format: 'date-time', description: 'Shu vaqtda ma’lumot to‘liq o‘chadi' })
   deletionScheduledAt!: Date | null
   @ApiProperty({ nullable: true, type: String, format: 'date-time', description: 'Egasi bloklagan payt (holat `deleting` bo‘lsa ham saqlanadi)' })
@@ -94,7 +105,11 @@ export class PlatformTenantDto {
 
 /** Do'kon ochish — ro'yxatdan o'tish bilan bir xil maydonlar + boshlang'ich tarif */
 export class CreateTenantDto extends RegisterDto {
-  @ApiPropertyOptional({ enum: PLAN_NAMES, default: 'free', description: 'Boshlang‘ich tarif; pullik bo‘lsa `months` shart (bonus sifatida yoziladi)' })
+  @ApiPropertyOptional({
+    enum: PLAN_NAMES,
+    description: `Boshlang‘ich tarif. Berilmasa — sinov: «${TRIAL_PLAN}» ${TRIAL_DAYS} kun (ro‘yxatdan o‘tish bilan bir xil); ` +
+      '`free` — muddatsiz bepul; pullik bo‘lsa `months` shart (bonus sifatida yoziladi)',
+  })
   @IsOptional()
   @IsIn(PLAN_NAMES)
   plan?: string

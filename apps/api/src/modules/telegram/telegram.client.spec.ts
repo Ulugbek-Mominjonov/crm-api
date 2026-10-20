@@ -36,7 +36,29 @@ describe('Telegram mijozi (telegram.client)', () => {
     expect([file.name, file.type, new Uint8Array(await file.arrayBuffer())]).toEqual(['CHEK-1.pdf', 'application/pdf', pdf])
   })
 
-  it('setWebhook: sir va faqat kerakli yangilanishlar (xabar, bloklash)', async () => {
+  it('tugmalar (T-149): xabar va hujjatda `reply_markup`, javob — `reply_parameters`; bosilganiga javob, tugmalarni olib tashlash', async () => {
+    const http = reply(200, { ok: true, result: { message_id: 5 } })
+    const client = new HttpTelegramClient('t', http)
+    const buttons = [[{ text: '✅ Tasdiqlash', data: 'pay:ok:1' }, { text: '❌ Rad etish', data: 'pay:no:1' }]]
+    const keyboard = { inline_keyboard: [[{ text: '✅ Tasdiqlash', callback_data: 'pay:ok:1' }, { text: '❌ Rad etish', callback_data: 'pay:no:1' }]] }
+
+    await client.sendMessage(42, 'To‘lov', { buttons, replyTo: 3 })
+    expect(JSON.parse(String(http.mock.calls[0]![1]?.body))).toMatchObject({
+      reply_markup: keyboard, reply_parameters: { message_id: 3, allow_sending_without_reply: true },
+    })
+
+    await client.sendDocument(42, { name: 'chek.png', content: new Uint8Array([1]), mime: 'image/png' }, 'Chek', { html: true, buttons })
+    const form = http.mock.calls[1]![1]?.body as FormData
+    expect([form.get('parse_mode'), JSON.parse(String(form.get('reply_markup')))]).toEqual(['HTML', keyboard])
+
+    await client.answerCallbackQuery('cb-1', 'Tasdiqlandi')
+    await client.removeButtons(42, 5)
+    const [answer, remove] = [http.mock.calls[2]!, http.mock.calls[3]!]
+    expect([answer[0], JSON.parse(String(answer[1]?.body))]).toEqual([`${TELEGRAM_API}/bott/answerCallbackQuery`, { callback_query_id: 'cb-1', text: 'Tasdiqlandi' }])
+    expect([remove[0], JSON.parse(String(remove[1]?.body))]).toEqual([`${TELEGRAM_API}/bott/editMessageReplyMarkup`, { chat_id: 42, message_id: 5 }])
+  })
+
+  it('setWebhook: sir va faqat kerakli yangilanishlar (xabar, bloklash, tugma)', async () => {
     const http = reply(200, { ok: true, result: true })
     await new HttpTelegramClient('t', http).setWebhook('https://crm.uz/api/v1/telegram/webhook', 's'.repeat(32))
     expect(JSON.parse(String(http.mock.calls[0]![1]?.body))).toEqual({

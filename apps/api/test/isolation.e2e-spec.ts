@@ -122,6 +122,8 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
     const tenantRequest = await testDb.tenantRequest.create({
       data: { id: randomUUID(), tenantId, type: 'other', messages: { create: { id: randomUUID(), author: 'store', authorName: 'B admin', body: 'B savoli' } } },
     })
+    // Karta to'lovi (T-149): `POST /billing/invoices/:id/card-payment`
+    const invoice = await testDb.billingInvoice.create({ data: { id: randomUUID(), tenantId, plan: 'basic', months: 1, amount: 99_000n } })
     const renamed = { name: 'Buzildi' }
     return {
       warehouses: { id: warehouse.id, patch: renamed },
@@ -153,6 +155,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       roles: { id: role.id, patch: renamed, listQuery: '' },
       // Ro'yxati `GET /tenants/current/requests` — `tenants` resursi sifatida alohida tekshirilmaydi
       tenants: { id: tenantRequest.id, patch: {}, post: { messages: { message: 'Begona' } }, noList: true },
+      billing: { id: invoice.id, patch: {}, post: { 'card-payment': { payerCard: '6311' } }, listPath: 'billing/invoices', listQuery: '' },
     }
   }
 
@@ -178,6 +181,7 @@ describe('Tenant izolyatsiyasi (A → B)', () => {
       testDb.export.findUnique({ where: { id: s.exports!.id } }),
       testDb.role.findUnique({ where: { id: s.roles!.id } }),
       testDb.tenantRequest.findUnique({ where: { id: s.tenants!.id }, include: { messages: true } }),
+      testDb.billingInvoice.findUnique({ where: { id: s.billing!.id } }),
     ])
   }
 

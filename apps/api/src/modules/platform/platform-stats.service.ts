@@ -16,10 +16,11 @@ export class PlatformStatsService {
   async stats(): Promise<PlatformStatsDto> {
     const now = new Date()
     const thisMonth = monthStart(now, 0)
-    const [byStatus, byPlan, newThisMonth, expiringIn7Days, overdue, revenue, [requests]] = await Promise.all([
+    const [byStatus, byPlan, newThisMonth, trialing, expiringIn7Days, overdue, revenue, [requests], [payments]] = await Promise.all([
       this.prisma.tenant.groupBy({ by: ['status'], _count: { _all: true } }),
       this.prisma.tenant.groupBy({ by: ['plan'], _count: { _all: true } }),
       this.prisma.tenant.count({ where: { createdAt: { gte: thisMonth } } }),
+      this.prisma.tenant.count({ where: { trialEndsAt: { gt: now } } }),
       this.prisma.tenant.count({
         where: { plan: { not: 'free' }, status: 'active', planExpiresAt: { gte: now, lt: new Date(now.getTime() + EXPIRING_DAYS * DAY_MS) } },
       }),
@@ -29,6 +30,7 @@ export class PlatformStatsService {
       this.prisma.$queryRaw<{ month: Date; amount: bigint; invoices: number }[]>`
         SELECT month, amount, invoices FROM platform_revenue(${monthStart(now, -(REVENUE_MONTHS - 1))}::timestamptz)`,
       this.prisma.$queryRaw<[{ open: number }]>`SELECT platform_open_requests() AS open`,
+      this.prisma.$queryRaw<[{ pending: number }]>`SELECT platform_pending_payments() AS pending`,
     ])
     const months: RevenueMonthDto[] = revenue.map((r) => ({ month: r.month.toISOString().slice(0, 10), amount: Number(r.amount), invoices: r.invoices }))
     const amountOf = (month: Date): number => months.find((m) => m.month === businessDate(month))?.amount ?? 0
@@ -38,11 +40,13 @@ export class PlatformStatsService {
         byStatus: Object.fromEntries(byStatus.map((r) => [r.status, r._count._all])),
         byPlan: Object.fromEntries(byPlan.map((r) => [r.plan, r._count._all])),
         newThisMonth,
+        trialing,
         expiringIn7Days,
         overdue,
       },
       revenue: { thisMonth: amountOf(thisMonth), lastMonth: amountOf(monthStart(now, -1)), months },
       openRequests: requests.open,
+      pendingPayments: payments.pending,
     }
   }
 }
