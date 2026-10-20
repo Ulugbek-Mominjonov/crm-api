@@ -44,6 +44,7 @@ const AUTH_ONLY = new Set([
   // Obuna va do'kon hisobi — faqat administrator (Billing/AccountService tekshiradi)
   'POST /api/v1/billing/invoices',
   'GET /api/v1/billing/invoices',
+  'POST /api/v1/billing/invoices/:id/card-payment',
   'GET /api/v1/tenants/current',
   'POST /api/v1/tenants/current/delete',
   'POST /api/v1/tenants/current/restore',
@@ -107,6 +108,8 @@ describe('Har bir endpoint himoyalangan', () => {
 
     // Har bir ochiq yo'l ONGLI qaror. Ro'yxat o'zgarsa — test yiqiladi.
     expect(publicRoutes).toEqual([
+      // Tariflar va narxlar (T-148) — ro'yxatdan o'tish sahifasi hisobsiz ko'rsatadi; maxfiy ma'lumot yo'q (karta raqami emas)
+      'GET /api/v1/billing/plans',
       // Ro'yxatdan o'tish ochiqmi (T-138) — kirish sahifasi hisobsiz so'raydi
       'GET /api/v1/tenants/registration',
       'GET /health/live',

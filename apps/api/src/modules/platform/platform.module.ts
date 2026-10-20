@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common'
 import { AuthModule } from '@/modules/auth/auth.module'
 import { BillingModule } from '@/modules/billing/billing.module'
+import { FilesModule } from '@/modules/files/files.module'
 import { TelegramModule } from '@/modules/telegram/telegram.module'
 import { TenantsModule } from '@/modules/tenants/tenant.module'
 import { PlatformAdminsController } from './platform-admins.controller'
@@ -28,7 +29,8 @@ import { PlatformTenantsService } from './platform-tenants.service'
  * murojaatlari — T-140.
  */
 @Module({
-  imports: [AuthModule, TenantsModule, BillingModule, TelegramModule, PlatformCoreModule],
+  // FilesModule — karta to'lovi cheki havolasi (T-149)
+  imports: [AuthModule, TenantsModule, BillingModule, TelegramModule, PlatformCoreModule, FilesModule],
   controllers: [PlatformAuthController, PlatformTenantsController, PlatformRequestsController, PlatformAdminsController, PlatformController],
   providers: [
     PlatformAuthGuard,

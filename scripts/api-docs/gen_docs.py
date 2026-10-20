@@ -60,7 +60,8 @@ PLATFORM_OWNER_ONLY = PLATFORM_ONLY + '. Faqat `owner` roli — `operator` uchun
 ANY_USER = 'har qanday kirgan foydalanuvchi'
 FILE_PERM = ('fayl turiga qarab (servisda, `FILE_RULES`): `product_image`, `import` → `products.view/create/delete`; '
              '`avatar` → `employees.*`; `document` → `sales.view/create/cancel`; `export` → `reports.view`; '
-             '`tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish). '
+             '`tenant_backup`, `store_logo` → `settings.view` (o‘qish; logotipni hamma o‘qiydi) / `settings.edit` (yuklash, o‘chirish); '
+             '`payment_receipt` (to‘lov cheki) → `settings.edit`. '
              'Tartib: o‘qish / yuklash va tasdiqlash / o‘chirish')
 EXPORT_PERM = ('ro‘yxatga qarab (servisda): `products` → `products.view`; `stock-movements` → `stock.view`; '
                '`clients` → `customers.view`; `sales` → `sales.view`; `expenses` → `expenses.view`; `audit` → `users.view`')
@@ -113,6 +114,10 @@ EVENTS = {
     ('POST', '/platform/tenants/:id/restore'): '`tenant.status` (do‘konga)',
     ('POST', '/platform/requests/:id/reply'): '`tenant.request` (do‘konga)',
     ('POST', '/platform/requests/:id/close'): '`tenant.request` (do‘konga)',
+    ('POST', '/platform/invoices/:id/confirm'): '`billing.invoice` va `tenant.status` (do‘konga)',
+    ('POST', '/platform/invoices/:id/reject'): '`billing.invoice` (do‘konga)',
+    ('POST', '/billing/payme'): '`billing.invoice` (to‘lov bajarilganda, do‘konga)',
+    ('POST', '/billing/click/complete'): '`billing.invoice` (to‘lov bajarilganda, do‘konga)',
 }
 
 # ───────────────────────────── Bo'limlar tartibi va kirish matni
@@ -124,9 +129,11 @@ GROUPS = [
     ('account', 'Do‘kon hisobi: tarif, holat, o‘chirish, egasiga murojaat', [r'^/tenants/current'],
      'Sozlamalar → «Tarif va hisob» sahifasi va faqat-o‘qish banneridagi «Egasiga murojaat». Faqat administrator. '
      'Holatlar va cheklovlar — [README → Do‘kon holati va tarif](README.md#tenant), murojaat — [README → 8.5](README.md#support).'),
-    ('billing', 'Obuna to‘lovi (Payme, Click)', [r'^/billing'],
-     'Tarifni to‘lash: hisob-faktura yaratiladi, foydalanuvchi Payme/Click sahifasida to‘laydi, provayder '
-     'serverimizga webhook yuboradi va tarif uzayadi. Frontend faqat `POST/GET /billing/invoices` ni chaqiradi.'),
+    ('billing', 'Tariflar va obuna to‘lovi (karta, Payme, Click)', [r'^/billing'],
+     'Tariflar katalogi (ochiq) va tarifni to‘lash: hisob-faktura yaratiladi; karta — administrator egasining kartasiga '
+     'o‘tkazib «to‘ladim» deydi, egasi tasdiqlaydi; Payme/Click — provayder sahifasida to‘lanadi, webhook tarifni uzaytiradi. '
+     'Frontend `GET /billing/plans`, `POST/GET /billing/invoices` va `POST /billing/invoices/:id/card-payment` ni chaqiradi — '
+     '[README → 8.2–8.3](README.md#tenant).'),
     ('settings', 'Do‘kon sozlamalari', [r'^/settings'],
      'Bitta obyekt (do‘kon nomi, QQS, chegirma chegarasi, ulgurji/bonus rejimi, chek matnlari). '
      'Ilova ochilganda bir marta o‘qiladi — POS hisobi shunga tayanadi.'),
@@ -264,12 +271,15 @@ NOTES = {
         '«TOTP’ni olib tashlash» (qurilma yo‘qolganda), tasdiq oynasi bilan. 204; 422 — yoqilmagan.',
     ('GET', '/platform/settings'):
         '«Sozlamalar» sahifasi: ro‘yxatdan o‘tish ochiq/yopiq, egasining aloqasi (`support` — do‘kon ilovasida bannerda ko‘rinadi), '
-        'kim va qachon o‘zgartirgan.',
+        'to‘lov kartasi (`paymentCard` — do‘kon to‘lov oynasida ko‘rinadi; `null` — karta usuli o‘chiq), kim va qachon o‘zgartirgan.',
     ('PATCH', '/platform/settings'):
         'Faqat egasi, faqat yuborilgan maydonlar. `registrationMode: closed` — do‘kon ilovasida «Do‘kon ochish» yo‘qoladi va '
-        '`POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. `support { phone, telegram, hours }` — `""` o‘chiradi. Darhol kuchga kiradi.',
+        '`POST /tenants/register` 403 beradi; do‘konni faqat panel ochadi. `support { phone, telegram, hours }` — `""` o‘chiradi. '
+        '`paymentCard { number, holder }` — 16 raqam (bo‘sh joy bo‘lishi mumkin), nazorat raqami tekshiriladi (xato — 400: '
+        'do‘konlar pulni xato kartaga o‘tkazmasin); `number: ""` — karta usulini o‘chiradi. Darhol kuchga kiradi.',
     ('GET', '/platform/stats'):
-        'Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, tugayotganlar), 12 oylik tushum grafigi, `openRequests` — menyudagi «Murojaatlar» belgisi.',
+        'Bosh sahifa kartalari (holat/tarif bo‘yicha do‘konlar, `trialing` — sinovdagilar, tugayotganlar), 12 oylik tushum grafigi, '
+        '`openRequests` — menyudagi «Murojaatlar» belgisi, `pendingPayments` — «To‘lovlar» belgisi (tekshirish kutayotgan karta to‘lovlari).',
     ('GET', '/platform/requests'):
         '«Murojaatlar» sahifasi: yopilmaganlar birinchi; `status=open` — javob kutayotganlar, `type`, `tenantId` (do‘kon kartasidagi bo‘lim). '
         'Qatorda do‘kon (holati bilan), kim yozgan, telefon, birinchi xabar qisqacha, xabarlar soni.',
@@ -280,9 +290,11 @@ NOTES = {
     ('POST', '/platform/requests/:id/close'): '«Yopish» (ixtiyoriy yakuniy javob bilan) → `closed`; do‘kon unga yozolmaydi, yangisini ochadi.',
     ('GET', '/platform/tenants'):
         'Do‘konlar jadvali: `q` — nom bo‘yicha, `status`, `plan`, `expiresWithinDays=7` — «tez orada tugaydi» filtri, '
+        '`trial=true` — hali to‘lamagan (sinovdagi yoki sinovi tugagan; `trialEndsAt`) — ularga qo‘ng‘iroq qilib yordam bering, '
         '`sort` (`-createdAt` sukut, `name`, `planExpiresAt`). Har qator: `usage`, `admin` (aloqa), `activity` (so‘nggi chek).',
     ('POST', '/platform/tenants'):
-        '«Do‘kon ochish» formasi — ro‘yxatdan o‘tish maydonlari + boshlang‘ich tarif (`plan`, `months`; pullik bo‘lsa `months` shart). '
+        '«Do‘kon ochish» formasi — ro‘yxatdan o‘tish maydonlari + boshlang‘ich tarif: `plan` yuborilmasa — sinov (Biznes, 14 kun; '
+        'ro‘yxatdan o‘tish bilan bir xil), `free` — muddatsiz bepul, pullik bo‘lsa `months` shart (bonus hisob-faktura). '
         'Parolni egasi do‘kon egasiga o‘zi yetkazadi — API uni qaytarmaydi. Email do‘kon ichida noyob (boshqa do‘konda takror bo‘lishi mumkin).',
     ('GET', '/platform/tenants/:id'): 'Do‘kon kartasi: sarlavha, holat (`blockedReason` bilan), tarif va muddati, ko‘rsatkichlar, administrator aloqasi, izoh.',
     ('PATCH', '/platform/tenants/:id'): 'Nom va egasi izohi; `notes: ""` — izoh o‘chadi. `If-Match` YO‘Q.',
@@ -290,15 +302,26 @@ NOTES = {
         'Tasdiq oynasi + sabab (majburiy, do‘kon administratori ko‘radi). Do‘kondagi ochiq ilovalar `tenant.status` hodisasi bilan bannerni darhol ko‘rsatadi.',
     ('POST', '/platform/tenants/:id/unblock'): 'Blok bo‘lmasa — 422 `INVALID_STATUS_TRANSITION`.',
     ('POST', '/platform/tenants/:id/plan'):
-        '«Tarif / to‘lov» oynasi: tarif, oy, usul (`cash` naqd, `transfer` o‘tkazma, `bonus` bepul), summa (sukut — narx × oy; '
-        'UI `PLAN_MONTHLY_PRICE` dan hisoblab ko‘rsatsin, egasi o‘zgartira oladi), izoh (kvitansiya). `free` — faqat tarif, qolgani yuborilmaydi.',
+        '«Tarif / to‘lov» oynasi: tarif, oy, usul (`cash` naqd, `card` kartaga o‘tkazma, `transfer` bank o‘tkazmasi, `bonus` bepul), '
+        'summa (sukut — `GET /billing/plans` narxi, muddat chegirmasi bilan; egasi o‘zgartira oladi), izoh (kvitansiya). '
+        '`free` — faqat tarif, qolgani yuborilmaydi.',
     ('POST', '/platform/tenants/:id/delete'): 'Tasdiq oynasi («30 kundan keyin butunlay o‘chadi»). Muhlatdagi do‘kon — 422.',
     ('POST', '/platform/tenants/:id/restore'): 'Muhlat ichida qaytarish; muhlatda bo‘lmasa — 422.',
     ('GET', '/platform/tenants/:id/users'): 'Do‘kon kartasidagi «Hisoblar» jadvali (parolni tiklash tugmasi shu yerda).',
     ('POST', '/platform/tenants/:id/users/:userId/reset-password'):
         'Yangi parol oynasi (kamida 8 belgi, ommabop parol — 400). 204 — tana yo‘q. Parolni egasi do‘kon xodimiga o‘zi yetkazadi.',
     ('GET', '/platform/tenants/:id/invoices'): 'Do‘kon kartasidagi «To‘lovlar» jadvali — onlayn va qo‘lda yozilganlar birga.',
-    ('GET', '/platform/invoices'): '«To‘lovlar» sahifasi: `state`, `provider`, `dateFrom`/`dateTo` (Toshkent kuni), `tenantId`; eng yangisi birinchi.',
+    ('GET', '/platform/invoices'):
+        '«To‘lovlar» sahifasi: `state`, `provider`, `dateFrom`/`dateTo` (Toshkent kuni), `tenantId`; eng yangisi birinchi. '
+        '«Tekshirish kerak» yorlig‘i — `state=pending&provider=card`: summa, `payerCard` (oxirgi 4 raqam), `transferredAt`, '
+        '`payerNote`, `hasReceipt` — bankdagi tushum bilan solishtirib tasdiqlang yoki rad eting.',
+    ('POST', '/platform/invoices/:id/confirm'):
+        '«✅ Tasdiqlash» (tasdiq oynasi, ixtiyoriy izoh — bank tranzaksiyasi): tarif uzayadi, `suspended` ochiladi. Telegram’dagi '
+        'tugma — xuddi shu amal; ikkinchi marta — 422 (boshqa admin allaqachon tasdiqlagan).',
+    ('POST', '/platform/invoices/:id/reject'):
+        '«❌ Rad etish» — sabab majburiy (3–300 belgi), do‘kon administratori ko‘radi va yangi hisob-faktura bilan qayta yuboradi.',
+    ('GET', '/platform/invoices/:id/receipt'):
+        'Chek (`hasReceipt: true`): qisqa muddatli havola — rasm bo‘lsa oynada ko‘rsating (`mime`), PDF — yangi tabda.',
     ('GET', '/platform/audit'): '«Jurnal» sahifasi: `group` (`tenant`, `user`, `platform`), `tenantId`; `diff` — amal tafsiloti (sabab, tarif, summa).',
     # auth
     ('POST', '/auth/login'):
@@ -342,8 +365,9 @@ NOTES = {
         'sahifasini yashiring (`/register` ga kirilsa — xabar va `support` dagi aloqa). `open` — avvalgidek.',
     # account
     ('GET', '/tenants/current'):
-        '«Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `deletionScheduledAt`, `limits` va '
-        '`usage` — «3 / 10 foydalanuvchi», «1,2 GB / 2 GB» kabi; `support` — egasining aloqasi (banner va murojaat oynasi). '
+        '«Tarif va hisob» sahifasi: `plan`, `status`, `planExpiresAt`, `trialEndsAt` (bor — «Sinov: N kun qoldi»), '
+        '`deletionScheduledAt`, `limits` va `usage` — «3 / 10 foydalanuvchi», «1,2 GB / 5 GB», «SMS 40 / 300» kabi; `support` — '
+        'egasining aloqasi (banner va murojaat oynasi); `paymentCard` — karta orqali to‘lov uchun egasining kartasi. '
         'Banner uchun holat hamma rolga login/refresh javobida ham bor (`user.tenant.status`) — README → Do‘kon holati.',
     ('GET', '/tenants/current/requests'):
         'Banner («Egasiga murojaat») va «Tarif va hisob» sahifasidagi murojaatlar bo‘limi: yopilmagani bo‘lsa — oyna uni ko‘rsatadi '
@@ -362,14 +386,23 @@ NOTES = {
         'O‘chirish muhlatidagi do‘konni qaytarish (banner tugmasi). Tarif muddati o‘tib ketgan bo‘lsa holat '
         '`suspended` ga qaytadi (to‘lov kerak), aks holda `active`. Muhlatda bo‘lmasa — 422 `INVALID_STATUS_TRANSITION`.',
     # billing
+    ('GET', '/billing/plans'):
+        'Tarif kartalari (do‘kon ilovasi, ro‘yxatdan o‘tish sahifasi, egasi paneli): har tarif — nom, kimga mos, chegaralar, '
+        'har muddat (1/3/6/12 oy) summasi va chegirmasi; `trial` — sinov tarifi va kunlari; `methods` — ishlaydigan to‘lov '
+        'usullari (tugmalarni shunga qarab ko‘rsating); `sms: false` — SMS qatorini yashiring. Narxni frontendda yozmang.',
     ('POST', '/billing/invoices'):
-        '«To‘lash»: `plan` (`basic` | `pro`) va `months` (1–12). Summa serverda: oylik narx × oy '
-        '(`basic` 99 000, `pro` 249 000 so‘m). Javobdagi `payme`/`click` havolasini yangi oynada oching; '
-        '`null` — serverda shu provayder sozlanmagan (tugmani yashiring). Tarif to‘lov TASDIQLANGACH o‘zgaradi: '
-        'foydalanuvchi qaytgach `GET /billing/invoices` (`state: paid`) va `GET /tenants/current` ni qayta so‘rang. '
-        'To‘xtatilgan (`suspended`) do‘konda ham ishlaydi.',
+        '«To‘lash»: `plan` (`basic` | `business` | `pro`) va `months` (1, 3, 6 yoki 12). Summa serverda — katalogdagi narx '
+        '(uzoq muddatga chegirma). Javobda: `card` — egasining kartasi (bor bo‘lsa — «Kartaga o‘tkazish» oynasi: summa, raqam, '
+        'egasi va «To‘ladim» formasi), `payme`/`click` — havola (yangi oynada; `null` — sozlanmagan, tugmani yashiring). '
+        'Tarif to‘lov TASDIQLANGACH o‘zgaradi — `billing.invoice` hodisasi. To‘xtatilgan (`suspended`) do‘konda ham ishlaydi.',
+    ('POST', '/billing/invoices/:id/card-payment'):
+        '«To‘ladim» formasi: kartaning oxirgi 4 raqami (majburiy), o‘tkazma vaqti (sukut — hozir), chek (skrinshot/PDF — '
+        '`POST /files/presign` `kind: payment_receipt`, tasdiqlangan fayl), izoh. Javob — `pending` («Tekshirilmoqda»); egasi '
+        'tasdiqlasa/rad etsa — `billing.invoice` hodisasi. 409 — boshqa karta to‘lovi tekshiruvda; 422 — hisob-faktura `created` '
+        'emas yoki karta usuli o‘chiq (`PAYMENT_METHOD_UNAVAILABLE`).',
     ('GET', '/billing/invoices'):
-        'To‘lovlar tarixi (oxirgi 50). `state`: `created` → `pending` (provayder boshladi) → `paid` yoki `cancelled`.',
+        'To‘lovlar tarixi (oxirgi 50). `state`: `created` → `pending` (provayder boshladi yoki karta to‘lovi tekshiruvda) → '
+        '`paid` yoki `cancelled` (karta to‘lovi rad etilsa — `rejectReason`).',
     ('POST', '/billing/payme'): 'Frontend CHAQIRMAYDI — Payme serveri uchun (JSON-RPC, Basic auth).',
     ('POST', '/billing/click/prepare'): 'Frontend CHAQIRMAYDI — Click serveri uchun (form-urlencoded, MD5 imzo).',
     ('POST', '/billing/click/complete'): 'Frontend CHAQIRMAYDI — Click serveri uchun.',
@@ -637,8 +670,9 @@ NOTES = {
         '`{name}`, `{phone}`, `{debt}`, `{bonus}`, `{store}` — har qabul qiluvchiga serverda almashtiriladi. Yuborish fonda. '
         'Botga ulangan mijozga — Telegram (do‘kon kartasi: sarlavha, qalin qiymatlar, aloqa), aks holda SMS (sozlangan bo‘lsa). '
         'Yetib bormaydigan bitta mijoz — 422 `RECIPIENT_UNREACHABLE` («Mijoz botga ulanmagan», `meta.reason`); guruhda — '
-        'qolganlarga yuboriladi, yetmaganlar `unreachable` da (hech kimga — 422). Kunlik chegara (faqat SMS) — tarif `smsPerDay` va server `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi; oshsa 429 '
-        '`MESSAGE_LIMIT_EXCEEDED` (`meta.limit/used/requested`).',
+        'qolganlarga yuboriladi, yetmaganlar `unreachable` da (hech kimga — 422). SMS chegarasi — tarifning oylik hajmi (`smsPerMonth`) '
+        'va server `SMS_DAILY_LIMIT` (sukut 1000, kuniga); oshsa 429 `MESSAGE_LIMIT_EXCEEDED` (`meta.period` — `month`/`day`, '
+        '`limit/used/requested`). Telegram xabarlari cheklanmaydi.',
     ('GET', '/messages'):
         'Xabarlar jurnali: `recipients` (yuborilganlar; `telegram` — shundan Telegram orqali), `unreachable` (yetib bormaganlar) '
         'va yuborish holati statistikasi.',

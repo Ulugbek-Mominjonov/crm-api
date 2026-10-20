@@ -101,15 +101,15 @@ export class MessagesService {
   }
 
   /**
-   * Xabar va uning qabul qiluvchilari — BITTA so'rov. Kunlik chegara
-   * (T-078) yozishdan oldin: bugungi jami + yangi > chegara — 429.
+   * Xabar va uning qabul qiluvchilari — BITTA so'rov. SMS chegarasi
+   * (T-078, T-148) yozishdan oldin: ishlatilgani + yangi > chegara — 429.
    */
   async send(dto: SendMessageDto): Promise<MessageDto> {
     const { tenantId } = requireTenantTx()
     const { reachable, unreachable } = await this.audience(dto)
     if (reachable.length === 0) throw this.nobodyReachable(dto, unreachable)
     const telegram = reachable.filter((r) => r.channel === 'telegram').length
-    await this.assertDailyLimit(reachable.length - telegram)
+    await this.assertSmsLimits(reachable.length - telegram)
 
     const [settings, label] = await Promise.all([this.settings.get(), this.label(dto)])
     const id = uuidv7()
@@ -261,29 +261,41 @@ export class MessagesService {
   }
 
   /**
-   * Bugungi (Toshkent kuni) SMS + yangi SMS > chegara — 429. Chegara — tarif (T-125) va provayder
-   * cheklovi (env) dan kichigi. Faqat Telegram'ga ketadigan xabar tekshirilmaydi
+   * SMS chegarasi (Toshkent vaqti): tarifning OYLIK hajmi (T-148 — har SMS pul turadi) va provayderning
+   * kunlik cheklovi (env `SMS_DAILY_LIMIT`). Oshsa 429, `meta.period` — qaysi biri. Faqat Telegram'ga
+   * ketadigan xabar tekshirilmaydi
    */
-  private async assertDailyLimit(requested: number): Promise<void> {
+  private async assertSmsLimits(requested: number): Promise<void> {
     if (requested === 0) return
     const { tenantId } = requireTenantTx()
-    const { limits } = await this.plans.current()
-    const limit = Math.min(this.config.get('SMS_DAILY_LIMIT', { infer: true }), limits.smsPerDay)
-    const used = await smsUsedToday(this.prisma.scoped, tenantId)
-    if (used + requested > limit) {
-      throw new DomainError('MESSAGE_LIMIT_EXCEEDED', `Kunlik chegara ${limit} ta: bugun ${used} ta yuborilgan`, [
-        { field: 'target', code: 'MESSAGE_LIMIT_EXCEEDED', meta: { limit, used, requested } },
-      ])
+    const [{ limits }, used] = await Promise.all([this.plans.current(), smsUsage(this.prisma.scoped, tenantId)])
+    const daily = this.config.get('SMS_DAILY_LIMIT', { infer: true })
+    if (used.today + requested > daily) {
+      throw smsLimitError('day', `Kunlik SMS chegarasi ${daily} ta: bugun ${used.today} ta yuborilgan`, daily, used.today, requested)
+    }
+    if (used.month + requested > limits.smsPerMonth) {
+      throw smsLimitError('month', `Tarifdagi oylik SMS ${limits.smsPerMonth} ta: shu oy ${used.month} ta yuborilgan`, limits.smsPerMonth, used.month, requested)
     }
   }
 }
 
-/** Bugun (Toshkent kuni) navbatga qo'yilgan SMS soni (Telegram'dagilarsiz) — chegara va tarif sahifasi uchun */
-export async function smsUsedToday(tx: TenantTx, tenantId: string): Promise<number> {
-  const [row] = await tx.$queryRaw<{ used: bigint }[]>`
-    SELECT COALESCE(SUM(recipients - telegram_recipients), 0)::bigint AS used
+function smsLimitError(period: 'day' | 'month', message: string, limit: number, used: number, requested: number): DomainError {
+  return new DomainError('MESSAGE_LIMIT_EXCEEDED', message, [
+    { field: 'target', code: 'MESSAGE_LIMIT_EXCEEDED', meta: { period, limit, used, requested } },
+  ])
+}
+
+/**
+ * Bugun va shu oyda (Toshkent vaqti) navbatga qo'yilgan SMS (Telegram'dagilarsiz) — chegara va tarif
+ * sahifasi uchun; bitta so'rov, `(tenant_id, created_at)` indeksi bo'yicha
+ */
+export async function smsUsage(tx: TenantTx, tenantId: string): Promise<{ today: number; month: number }> {
+  const [row] = await tx.$queryRaw<{ today: bigint; month: bigint }[]>`
+    SELECT COALESCE(SUM(recipients - telegram_recipients)
+                      FILTER (WHERE created_at >= (date_trunc('day', now() AT TIME ZONE ${BUSINESS_TIME_ZONE}) AT TIME ZONE ${BUSINESS_TIME_ZONE})), 0)::bigint AS today,
+           COALESCE(SUM(recipients - telegram_recipients), 0)::bigint AS month
       FROM messages
      WHERE tenant_id = ${tenantId}::uuid
-       AND created_at >= (date_trunc('day', now() AT TIME ZONE ${BUSINESS_TIME_ZONE}) AT TIME ZONE ${BUSINESS_TIME_ZONE})`
-  return Number(row!.used)
+       AND created_at >= (date_trunc('month', now() AT TIME ZONE ${BUSINESS_TIME_ZONE}) AT TIME ZONE ${BUSINESS_TIME_ZONE})`
+  return { today: Number(row!.today), month: Number(row!.month) }
 }

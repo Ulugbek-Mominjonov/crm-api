@@ -52,7 +52,8 @@ describe('Do‘konni to‘xtatish va o‘chirish', () => {
 
   it('hisob: tarif, chegaralar, ishlatilgan hajm; faqat administrator', async () => {
     expect(await account()).toMatchObject({
-      plan: 'free', status: 'active', limits: { users: 3, warehouses: 2 }, usage: { users: 1, warehouses: 1, storageBytes: 0, smsToday: 0 },
+      plan: 'free', status: 'active', trialEndsAt: null, limits: { users: 3, warehouses: 2, smsPerMonth: 50 },
+      usage: { users: 1, warehouses: 1, storageBytes: 0, smsThisMonth: 0 }, paymentCard: null,
     })
     await api().get('/api/v1/tenants/current').set('Authorization', await bearer(app, a, 'manager')).expect(403)
   })

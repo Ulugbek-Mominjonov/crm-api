@@ -1,19 +1,21 @@
 import { Injectable } from '@nestjs/common'
 import type { Prisma } from '@prisma/client'
 import { PrismaService } from '@/prisma/prisma.service'
-import type { PlatformSettingsDto, PlatformSupportDto, RegistrationMode, UpdatePlatformSettingsDto } from './dto/platform-settings.dto'
+import type { PaymentCardDto, PlatformSettingsDto, PlatformSupportDto, RegistrationMode, UpdatePlatformSettingsDto } from './dto/platform-settings.dto'
 import { PlatformAuditService } from './platform-audit.service'
 
 /** Yagona qator — migratsiya yaratadi, CHECK (id = 1) boshqasini kiritmaydi */
 const ROW_ID = 1
 const ROW_SELECT = {
-  registrationMode: true, supportPhone: true, supportTelegram: true, supportHours: true,
+  registrationMode: true, supportPhone: true, supportTelegram: true, supportHours: true, paymentCardNumber: true, paymentCardHolder: true,
 } satisfies Prisma.PlatformSettingsSelect
 
 type Row = Prisma.PlatformSettingsGetPayload<{ select: typeof ROW_SELECT }>
 
-/** Qator yo'q (bo'sh baza) — sukut: ro'yxatdan o'tish ochiq, aloqa yo'q */
-const DEFAULTS: Row = { registrationMode: 'open', supportPhone: null, supportTelegram: null, supportHours: null }
+/** Qator yo'q (bo'sh baza) — sukut: ro'yxatdan o'tish ochiq, aloqa va to'lov kartasi yo'q */
+const DEFAULTS: Row = {
+  registrationMode: 'open', supportPhone: null, supportTelegram: null, supportHours: null, paymentCardNumber: null, paymentCardHolder: null,
+}
 
 /** Ochiq yo'l (`GET /tenants/registration`) ko'radigan qismi */
 export interface PlatformPublicInfo {
@@ -21,9 +23,15 @@ export interface PlatformPublicInfo {
   support: PlatformSupportDto
 }
 
+/** Do'kon administratori ko'radigan qismi (`GET /tenants/current`): aloqa va to'lov kartasi */
+export interface PlatformStoreInfo {
+  support: PlatformSupportDto
+  paymentCard: PaymentCardDto | null
+}
+
 /**
- * Platforma sozlamasi (T-138, T-140): ro'yxatdan o'tish ochiq yoki yopiq,
- * egasining aloqa ma'lumoti. Env emas, baza — egasi panelidan serverga
+ * Platforma sozlamasi (T-138, T-140, T-149): ro'yxatdan o'tish ochiq yoki
+ * yopiq, egasining aloqa ma'lumoti va to'lov kartasi. Env emas, baza — egasi panelidan serverga
  * kirmasdan o'zgartiriladi, qayta ishga tushirish shart emas. Ochiq yo'l
  * (`POST /tenants/register`) har safar bitta kichik so'rov bilan tekshiradi
  * — ro'yxatdan o'tish kam va rate limit ostida.
@@ -40,8 +48,13 @@ export class PlatformSettingsService {
       where: { id: ROW_ID },
       select: { ...ROW_SELECT, updatedAt: true, updatedBy: { select: { name: true } } },
     })
-    if (!row) return { registrationMode: DEFAULTS.registrationMode as RegistrationMode, support: supportOf(DEFAULTS), updatedAt: new Date(0), updatedBy: null }
-    return { registrationMode: row.registrationMode as RegistrationMode, support: supportOf(row), updatedAt: row.updatedAt, updatedBy: row.updatedBy?.name ?? null }
+    if (!row) {
+      return { registrationMode: DEFAULTS.registrationMode as RegistrationMode, support: supportOf(DEFAULTS), paymentCard: null, updatedAt: new Date(0), updatedBy: null }
+    }
+    return {
+      registrationMode: row.registrationMode as RegistrationMode, support: supportOf(row), paymentCard: cardOf(row),
+      updatedAt: row.updatedAt, updatedBy: row.updatedBy?.name ?? null,
+    }
   }
 
   async registrationMode(): Promise<RegistrationMode> {
@@ -49,8 +62,14 @@ export class PlatformSettingsService {
     return (row?.registrationMode as RegistrationMode | undefined) ?? (DEFAULTS.registrationMode as RegistrationMode)
   }
 
-  async support(): Promise<PlatformSupportDto> {
-    return supportOf(await this.row())
+  async forStore(): Promise<PlatformStoreInfo> {
+    const row = await this.row()
+    return { support: supportOf(row), paymentCard: cardOf(row) }
+  }
+
+  /** Karta orqali to'lov (T-149): `null` — egasi kartani kiritmagan, usul o'chiq */
+  async paymentCard(): Promise<PaymentCardDto | null> {
+    return cardOf(await this.row())
   }
 
   async publicInfo(): Promise<PlatformPublicInfo> {
@@ -83,6 +102,10 @@ function supportOf(row: Row): PlatformSupportDto {
   return { phone: row.supportPhone, telegram: row.supportTelegram, hours: row.supportHours }
 }
 
+function cardOf(row: Row): PaymentCardDto | null {
+  return row.paymentCardNumber ? { number: row.paymentCardNumber, holder: row.paymentCardHolder } : null
+}
+
 /** DTO → o'zgargan ustunlar; `""` — tozalash (`null`) */
 function changes(dto: UpdatePlatformSettingsDto, before: Row): Partial<Row> {
   const next: Partial<Row> = {}
@@ -93,6 +116,8 @@ function changes(dto: UpdatePlatformSettingsDto, before: Row): Partial<Row> {
   set('supportPhone', emptyToNull(dto.support?.phone))
   set('supportTelegram', emptyToNull(dto.support?.telegram))
   set('supportHours', emptyToNull(dto.support?.hours))
+  set('paymentCardNumber', emptyToNull(dto.paymentCard?.number))
+  set('paymentCardHolder', emptyToNull(dto.paymentCard?.holder))
   return next
 }
 

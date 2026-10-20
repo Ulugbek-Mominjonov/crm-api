@@ -38,6 +38,7 @@ erDiagram
     employees |o--o{ sales : "seller_id"
     employees ||--o| users : "employee_id"
     expense_templates |o--o{ expenses : "template_id"
+    files |o--o{ billing_invoices : "receipt_file_id"
     files |o--o{ exports : "file_id"
     files |o--o{ products : "image_file_id"
     files |o--o{ settings : "logo_file_id"
@@ -102,6 +103,7 @@ erDiagram
         timestamptz blocked_at
         text blocked_reason
         text notes
+        timestamptz trial_ends_at
     }
     tenant_state {
         uuid tenant_id PK, FK
@@ -247,6 +249,7 @@ Do'kon — tizimdagi eng yuqori birlik; boshqa jadvallardagi `tenant_id` shunga 
 | `blocked_at` | timestamptz | ha | Platforma egasi bloklagan (T-135): holatdan mustaqil saqlanadi — o'chirishdan qaytganda ham blok qoladi |
 | `blocked_reason` | text | ha |  |
 | `notes` | text | ha | Egasi paneli uchun izoh (do'kon ko'rmaydi) |
+| `trial_ends_at` | timestamptz | ha | Sinov muddati oxiri (T-148): ro'yxatdan o'tganda qo'yiladi, birinchi to'lov (yoki egasi tarifi) tozalaydi |
 
 ### `tenant_state`
 
@@ -1575,6 +1578,7 @@ Tarif to'lovlari (Payme, Click) va egasi qo'lda yozgan to'lovlar.
 
 ```mermaid
 erDiagram
+    files |o--o{ billing_invoices : "receipt_file_id"
     billing_invoices {
         uuid id PK
         uuid tenant_id FK
@@ -1592,6 +1596,12 @@ erDiagram
         integer cancel_reason
         uuid platform_admin_id
         text note
+        text payer_card
+        text payer_note
+        timestamptz transferred_at
+        timestamptz claimed_at
+        uuid receipt_file_id FK
+        text reject_reason
     }
 ```
 
@@ -1600,6 +1610,7 @@ erDiagram
 Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click) tranzaksiyasi; egasi qo'lda yozgan to'lov ham shu yerda (`provider` — `cash`, `transfer`, `bonus`; `platform_admin_id`, `note`, summa 0 bo'lishi mumkin). Tarif faqat `paid` bo'lganda uzayadi.
 
 - RLS: majburiy (FORCE)
+- Bog‘lanishlar: `receipt_file_id` → `files` (SET NULL)
 
 | Ustun | Tur | Bo‘sh bo‘lishi mumkin | Izoh |
 |-------|-----|----|------|
@@ -1609,7 +1620,7 @@ Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click)
 | `months` | integer | — | Necha oyga |
 | `amount` | bigint | — | Summa (so'm) |
 | `state` | `InvoiceState` (enum) | — | Holat |
-| `provider` | text | ha | payme \| click — provayder; cash \| transfer \| bonus — egasi qo'lda yozgan to'lov (T-135) |
+| `provider` | text | ha | payme \| click — provayder; card — egasining kartasiga o'tkazma (T-149); cash \| transfer \| bonus — egasi qo'lda yozgan to'lov (T-135) |
 | `provider_tx_id` | text | ha | Provayder tranzaksiya ID |
 | `provider_time` | bigint | ha | Provayder vaqti (ms) |
 | `created_by_id` | uuid | ha | Yaratgan foydalanuvchi |
@@ -1617,8 +1628,14 @@ Obuna hisob-fakturalari (tarif × oy): holat va to'lov provayderi (Payme, Click)
 | `paid_at` | timestamptz | ha | To'langan vaqt |
 | `cancelled_at` | timestamptz | ha | Bekor qilingan vaqt |
 | `cancel_reason` | integer | ha | Bekor qilish sababi (provayder kodi) |
-| `platform_admin_id` | uuid | ha | Egasi panelidan yozilgan bo'lsa — kim (T-135) |
+| `platform_admin_id` | uuid | ha | Egasi panelidan yozilgan, karta to'lovini tasdiqlagan yoki rad etgan bo'lsa — kim (T-135, T-149) |
 | `note` | text | ha | Egasi izohi: kvitansiya raqami, kelishuv … |
+| `payer_card` | text | ha | Karta to'lovi da'vosi (T-149): to'lovchi kartasining oxirgi 4 raqami |
+| `payer_note` | text | ha | Karta to'lovi: do'kon administratori izohi («akamning kartasidan») |
+| `transferred_at` | timestamptz | ha | Karta to'lovi: o'tkazma vaqti (administrator aytgani) — egasi bank tarixidan shu bo'yicha topadi |
+| `claimed_at` | timestamptz | ha | Karta to'lovi: «to'ladim» bosilgan vaqt |
+| `receipt_file_id` | uuid | ha | → `files` · Karta to'lovi cheki — `payment_receipt` fayli (GC bog'langan chekni o'chirmaydi) |
+| `reject_reason` | text | ha | Egasi karta to'lovini rad etgan sabab — do'kon ko'radi |
 
 ## Platforma egasi paneli
 
@@ -1679,6 +1696,8 @@ erDiagram
         text support_phone
         text support_telegram
         text support_hours
+        text payment_card_number
+        text payment_card_holder
     }
 ```
 
@@ -1760,6 +1779,8 @@ Platforma sozlamasi — BITTA qator (`id = 1`, CHECK): `registration_mode` — `
 | `support_phone` | text | ha | Egasining aloqa ma'lumoti (T-140): do'kon ilovasida bannerda va murojaat oynasida ko'rinadi |
 | `support_telegram` | text | ha | Egasining Telegram foydalanuvchi nomi (`@`siz) |
 | `support_hours` | text | ha | Egasining ish vaqti (erkin matn) |
+| `payment_card_number` | text | ha | Egasining to'lov kartasi raqami (T-149, 16 raqam): do'kon to'lov oynasida ko'radi; yo'q — karta usuli o'chiq |
+| `payment_card_holder` | text | ha | Karta egasi (kartadagi ism) — to'lovchi ilovasi o'tkazmada ko'rsatadigan ism bilan solishtiradi |
 
 ## Hisobot yordamchilari
 
@@ -1860,7 +1881,7 @@ Ustunlar: `tenant_id`, `date`, `revenue`, `returns`, `cogs`, `returns_cogs`, `sa
 | `EmployeeStatus` | `active` — ishlayapti, `on_leave` — ta'tilda, `fired` — bo'shatilgan |
 | `ExpenseCategory` | `rent`, `utilities`, `salary`, `transport`, `tax`, `other` |
 | `ExportStatus` | `queued` — navbatda, `running` — tayyorlanmoqda, `ready` — tayyor, `failed` — xato |
-| `FileKind` | `product_image`, `document`, `export`, `import`, `tenant_backup`, `avatar`, `store_logo` |
+| `FileKind` | `product_image`, `document`, `export`, `import`, `tenant_backup`, `avatar`, `store_logo`, `payment_receipt` |
 | `FileStatus` | `pending` — yuklanmoqda, `ready` — tayyor, `quarantined` — karantin (tekshiruvdan o'tmadi) |
 | `FiscalStatus` | `pending` — navbatda, `sent` — yuborildi, `confirmed` — tasdiqlandi, `failed` — rad etildi |
 | `InvoiceState` | `created` — yaratildi, `pending` — to'lov kutilmoqda, `paid` — to'landi, `cancelled` — bekor qilindi |

@@ -72,9 +72,9 @@ login’da do‘kon tanlash).
 | Fayllar | Presigned yuklash (server orqali o‘tmaydi), tekshiruv (MIME, xesh), rasm variantlari 128/512 WebP, kvota; do‘kon brendi — logotip va rang (chek PDF’ida ham) |
 | Eksport / zaxira | CSV/JSON eksport (katta — fonda), butun do‘kon zaxirasi (gzip JSON) |
 | Migratsiya | Brauzerdagi eski (localStorage) ma’lumotni serverga ko‘chirish: dry-run + import |
-| Tarif / to‘lov | `free`/`basic`/`pro` chegaralari, hisob-faktura, Payme va Click webhook’lari, muddati o‘tgan do‘kon — faqat o‘qish |
+| Tarif / to‘lov | Tariflar katalogi (`GET /billing/plans`: Start/Biznes/Pro, muddat chegirmasi, 14 kunlik sinov), hisob-faktura, egasining kartasiga to‘lov («to‘ladim» → egasi tasdiqlaydi), Payme va Click webhook’lari, muddati o‘tgan do‘kon — faqat o‘qish |
 | Hayot sikli | Do‘konni o‘chirish (30 kun muhlat, bekor qilish mumkin) |
-| Egasi paneli | Platforma egasi uchun alohida kirish va API (`/platform/*`): do‘konlar ro‘yxati, ochish, bloklash (`blocked` — faqat o‘qish), tarif va qo‘lda to‘lov, o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali — [owner-panel.md](owner-panel.md) |
+| Egasi paneli | Platforma egasi uchun alohida kirish va API (`/platform/*`): do‘konlar ro‘yxati, ochish, bloklash (`blocked` — faqat o‘qish), tarif va qo‘lda to‘lov, karta to‘lovlarini tasdiqlash (panel yoki Telegram tugmasi), o‘chirish, hisoblar, barcha hisob-fakturalar, egasi jurnali — [owner-panel.md](owner-panel.md) |
 | Realtime | `/events` — sotuv, qoldiq, smena, qarz, yetkazish, kirim, sozlama, huquq hodisalari |
 | Audit | Har bir pul/ombor/spravochnik amali jurnalga yoziladi |
 
@@ -247,7 +247,7 @@ Shuning uchun frontend `packages/shared/src/*` dagi funksiyalardan foydalansin:
 | `finance.ts` | `evaluateCredit`, `dueDateFor`, `isRevenueSale`, ... |
 | `loyalty.ts` | `bonusEarned` |
 | `permissions.ts` | `PERMISSIONS`, `PERMISSION_CATALOG`, `normalizePermissions` (rol oynasidagi bog‘liqliklar), `hasPermission(permissions, resource, action)` — rol emas, ruxsatlar to‘plami ([6](#roles)) |
-| `plans.ts` | `PLANS`, `planLimits`, `PLAN_MONTHLY_PRICE` |
+| `plans.ts` | `PLANS`, `planLimits`, `PLAN_INFO`, `PLAN_MONTHLY_PRICE`, `BILLING_PERIODS`, `planPrice`, `TRIAL_*` — UI narxni shu yerdan emas, `GET /billing/plans` dan oladi ([8.2](#tenant)) |
 | `csv.ts` | `csvLine`, `CSV_BOM` (formula in’yeksiyasidan himoya bilan) |
 | `recurring.ts`, `reorder.ts`, `warehouse.ts`, `cost.ts` | shablon muddati, buyurtma taklifi, ombor, o‘rtacha tannarx |
 
@@ -691,7 +691,7 @@ Rollarni boshqarish esa — ODDIY ruxsat (`roles.*`, [6.4](#roles-api)), istalga
 
 | Amal | Endpointlar | Nega rolga berilmaydi |
 |------|-------------|------------------------|
-| Tarif, to‘lov, do‘kon holati, do‘konni o‘chirish | `GET /tenants/current`, `POST /tenants/current/delete`, `/restore`, `GET/POST /billing/invoices` | Pul va do‘konning mavjudligi |
+| Tarif, to‘lov, do‘kon holati, do‘konni o‘chirish | `GET /tenants/current`, `POST /tenants/current/delete`, `/restore`, `GET/POST /billing/invoices`, `POST /billing/invoices/:id/card-payment` | Pul va do‘konning mavjudligi |
 | Zaxira | `GET /backup/export` | Butun do‘kon ma’lumoti bitta faylda |
 | Migratsiya | `POST /migration/validate`, `/import` | Ommaviy yozuv |
 
@@ -995,7 +995,7 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `REGISTRATION_CLOSED` | 403 | `POST /tenants/register` — platforma egasi ro‘yxatdan o‘tishni yopgan (oldindan `GET /tenants/registration` → `mode`) | «Yangi do‘kon ochish vaqtincha yopiq» |
 | `NOT_FOUND` | 404 | Yo‘ldagi yozuv yo‘q / o‘chirilgan / boshqa do‘konniki | Ro‘yxatga qaytish |
 | `AUTH_TENANT_REQUIRED` | 409 | Email bir necha do‘konda — `errors[].meta.{tenantId, tenantName}` | Do‘kon tanlash |
-| `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field`; yopilmagan murojaat bor (`errors[0].meta.requestId`, [8.5](#support)) | Maydon ostida; murojaatda — mavjudini ochish |
+| `ALREADY_EXISTS` | 409 | Noyob qiymat band (ombor/kategoriya nomi, shtrix-kod, email) — `errors[].field`; yopilmagan murojaat bor (`errors[0].meta.requestId`, [8.5](#support)); boshqa karta to‘lovi tekshiruvda (`errors[0].meta.invoiceId`, [8.3](#tenant)) | Maydon ostida; murojaatda — mavjudini ochish; to‘lovda — «tekshiruv natijasini kuting» |
 | `DUPLICATE_SKU` | 409 | SKU band | «Bunday artikul bor» |
 | `VERSION_CONFLICT` | 409 | `If-Match` eskirgan — `current` bilan | [4.5](#ifmatch) |
 | `IDEMPOTENCY_MISMATCH` | 409 | Kalit boshqa tana bilan ishlatilgan | Frontend xatosi: yangi amalga yangi kalit |
@@ -1032,13 +1032,14 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `SELF_DELETE` / `SELF_ROLE_CHANGE` | 422 | O‘zini o‘chirish / o‘z rolini o‘zgartirish | Tugmani yashiring |
 | `ROLE_PROTECTED` | 422 | Tizim rolini o‘zgartirib bo‘lmaydigan qilib tahrir: `admin` rolining har qanday tahriri; boshqa tizim rolining nomi (`field: name`); tizim rolini o‘chirish | `admin` — faqat ko‘rish; tizim rolida nom maydoni o‘chiq, «O‘chirish» yo‘q |
 | `FILE_REJECTED` | 422 | Fayl tarkibi e’lon qilingan MIME/xeshga mos emas — karantinda (`meta.id`) | «Fayl buzilgan yoki turi noto‘g‘ri» |
-| `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati orqaga (`meta.from/to`); do‘kon o‘chirish muhlatida emas; murojaat yopilgan ([8.5](#support)) | — |
-| `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot, rol `roleId`, `replaceWith`…) yo‘q yoki boshqa do‘konniki — `errors[].field`; xodimi o‘chirilgan hisobni tiklash (`field: employeeId`) | Tanlovni yangilash |
+| `INVALID_STATUS_TRANSITION` | 422 | Yetkazish holati orqaga (`meta.from/to`); do‘kon o‘chirish muhlatida emas; murojaat yopilgan ([8.5](#support)); «to‘ladim» — hisob-faktura `created` emas (`meta.state`, [8.3](#tenant)) | — |
+| `REFERENCE_NOT_FOUND` | 422 | Tanadagi havola (kategoriya, mijoz, mahsulot, rol `roleId`, `replaceWith`, to‘lov cheki `receiptFileId`…) yo‘q yoki boshqa do‘konniki — `errors[].field`; xodimi o‘chirilgan hisobni tiklash (`field: employeeId`) | Tanlovni yangilash |
+| `PAYMENT_METHOD_UNAVAILABLE` | 422 | Karta orqali to‘lov o‘chiq — platforma egasi kartani kiritmagan yoki olib tashlagan (`meta.method: card`) | Boshqa usul yoki egasiga murojaat; usullarni `GET /billing/plans` → `methods` dan oling |
 | `SHIFT_REQUIRED` | 423 | Smena ochilmagan (sotuv, qaytarish, naqd amal) | Smena ochish oynasi |
 | `TENANT_READ_ONLY` | 423 | Do‘kon `suspended`/`deleting` — yozish yopiq (`meta.status`) | Banner + to‘lov/qaytarish tugmasi |
 | `AUTH_ACCOUNT_LOCKED` | 423 | Xodim ishdan bo‘shatilgan (login/refresh) | Login sahifasida xabar |
 | `RECIPIENT_UNREACHABLE` | 422 | Mijozga yetkazib bo‘lmaydi (xabar, chek, Telegram havolasi): `meta.reason` — `not_linked` (botga ulanmagan), `blocked` (botni bloklagan), `no_customer` (chekda mijoz yo‘q), `no_channel` (bot/SMS sozlanmagan); guruhda `meta.unreachable` | «Telegram’ga ulash» (shaxsiy QR) |
-| `MESSAGE_LIMIT_EXCEEDED` | 429 | Kunlik SMS chegarasi (`meta.limit`, `used`, `requested`); egasiga murojaat — 24 soatda 5 ta xabar (`meta.limit`, `used`) | — |
+| `MESSAGE_LIMIT_EXCEEDED` | 429 | SMS chegarasi: `meta.period` — `month` (tarifning oylik hajmi) yoki `day` (provayderning kunlik cheklovi), `limit`, `used`, `requested`; egasiga murojaat — 24 soatda 5 ta xabar (`meta.limit`, `used`) | `month` — «Tarifni oshiring yoki Telegram’dan yuboring» |
 | `INTERNAL` | 500 | Kutilmagan xato (tafsilot loglarda, `traceId` bo‘yicha) | Xato kodi bilan |
 
 ---
@@ -1052,12 +1053,12 @@ Forma validatsiyasini frontendda ham qiling (maydon cheklovlari — [schemas.md]
 | `status` | Qachon | Nima mumkin |
 |----------|--------|-------------|
 | `active` | Oddiy holat | Hammasi |
-| `suspended` | Pullik tarif muddati (`planExpiresAt`) + 3 kun imtiyoz o‘tdi (har kecha 01:00 da tekshiriladi) | Faqat O‘QISH + to‘lov (`POST /billing/invoices`), zaxira, chiqish, parol |
+| `suspended` | Pullik tarif yoki sinov muddati (`planExpiresAt`) + 3 kun imtiyoz o‘tdi (har kecha 01:00 da tekshiriladi) | Faqat O‘QISH + to‘lov (`POST /billing/invoices`, `…/:id/card-payment`), zaxira, chiqish, parol |
 | `blocked` | Platforma egasi do‘konni blokladi (sabab — `GET /tenants/current` → `blockedReason`) | Faqat O‘QISH, zaxira, chiqish, parol, egasiga murojaat ([8.5](#support)). To‘lov blokni OCHMAYDI (tarif uzayadi, holat qoladi); do‘kon o‘zi blokni olib tashlay olmaydi — egasiga murojaat yuboradi |
 | `deleting` | Admin do‘konni o‘chirishni so‘radi (`POST /tenants/current/delete`) | Faqat O‘QISH + o‘chirishni bekor qilish, zaxira, chiqish, parol. 30 kundan keyin hamma ma’lumot va fayllar o‘chadi |
 
 Faqat-o‘qish holatida har yozuvchi so‘rov (POST/PATCH/DELETE) → **423 `TENANT_READ_ONLY`**
-(`errors[0].meta.status`). Istisnolar: `POST /billing/invoices`, `/tenants/current/delete`,
+(`errors[0].meta.status`). Istisnolar: `POST /billing/invoices`, `/billing/invoices/:id/card-payment`, `/tenants/current/delete`,
 `/tenants/current/restore`, `/auth/logout-all`, `/auth/change-password` (va GET’lar, jumladan
 `/backup/export`). Holat serverda ~30 soniya keshlanadi.
 
@@ -1077,39 +1078,92 @@ ni qayta so‘rang. O‘chirishdan qaytganda (`restore`) blok bo‘lsa holat `bl
 
 ### 8.2 Tariflar va chegaralar
 
-Manba — `packages/shared/src/plans.ts`. Narx — oyiga.
+Narx — **do‘kon uchun**, foydalanuvchi uchun emas: kichik do‘konda 1–2 xodim, bitta hisobni bir necha kishi ishlatishi
+mumkin. Tariflar hajm bilan farqlanadi; imkoniyatlar (POS, nasiya, yetkazish, maosh, rollar, hisobotlar …) hammasida bir
+xil. Manba — `packages/shared/src/plans.ts`. **Frontend narx va chegarani o‘zida yozmaydi — `GET /billing/plans` dan
+oladi**: narx o‘zgarsa frontend qayta yig‘ilmaydi.
 
-| Tarif | Narx | Faol foydalanuvchi | Arxivlanmagan ombor | Saqlash hajmi | Bitta fayl | SMS / kun |
-|-------|------|:-:|:-:|:-:|:-:|:-:|
-| `free` | 0 | 3 | 2 | 200 MB | 5 MB | 50 |
-| `basic` | 99 000 so‘m | 10 | 5 | 2 GB | 10 MB | 500 |
-| `pro` | 249 000 so‘m | 50 | 20 | 20 GB | 50 MB | 5 000 |
+| `key` | Nomi | Oyiga | Faol foydalanuvchi | Ombor | Saqlash | Bitta fayl | SMS / oy |
+|-------|------|------:|:-:|:-:|:-:|:-:|:-:|
+| `basic` | Start | 99 000 so‘m | 3 | 2 | 1 GB | 10 MB | 100 |
+| `business` | Biznes | 199 000 so‘m | 10 | 5 | 5 GB | 20 MB | 300 |
+| `pro` | Pro | 399 000 so‘m | 50 | 20 | 20 GB | 50 MB | 1 000 |
+| `free` | Bepul (sotilmaydi) | — | 3 | 2 | 200 MB | 5 MB | 50 |
 
+- **Muddat va chegirma** (oldindan to‘lov): 1 oy; 3 oy −5%; 6 oy −10%; 12 oy −20%; summa 1 000 so‘mga pastga yaxlitlanadi
+  (Start 12 oy — 950 000 so‘m). `POST /billing/invoices` faqat shu muddatlarni qabul qiladi (boshqa `months` — 400).
+- **Sinov:** yangi do‘kon (`POST /tenants/register`) **Biznes tarifida 14 kun** bepul ishlaydi — `GET /tenants/current` →
+  `trialEndsAt` (= `planExpiresAt`). Birinchi to‘lov `trialEndsAt` ni `null` qiladi; o‘sha tarifga to‘lov sinovdagi qolgan
+  kunlarni saqlab uzaytiradi. To‘lanmasa — sinov tugagach 3 kun imtiyoz, keyin `suspended` (faqat o‘qish).
+- `free` — faqat platforma egasi beradi (hamkor, sinov loyihasi) va avval ochilgan do‘konlar; muddatsiz.
 - Chegara oshsa — **402 `PLAN_LIMIT_EXCEEDED`** (`errors[0].meta`: `resource` — `users`/`warehouses`,
   `plan`, `limit`, `used`). Tekshiriladi: `POST /users`, `PATCH /users/:id` (qayta faollashtirish),
   `POST /users/:id/restore`, `POST /warehouses`, `POST /warehouses/:id/restore`, `POST /migration/import`.
+  Tarif pasaysa (Biznes → Start) mavjud hisob va omborlar ishlayveradi — faqat yangisi qo‘shilmaydi.
 - Saqlash hajmi — **413 `STORAGE_QUOTA_EXCEEDED`**; bitta fayl — 413 `PAYLOAD_TOO_LARGE`
   (fayl turi chegarasi va tarif chegarasining kichigi).
-- SMS — **429 `MESSAGE_LIMIT_EXCEEDED`**. Amaldagi kunlik chegara = tarif `smsPerDay` va server
-  `SMS_DAILY_LIMIT` (sukut 1000) ning kichigi (Toshkent kuni). `GET /tenants/current` esa tarif qiymatini
-  ko‘rsatadi (`pro` — 5000) — UI’da «≈» deb ko‘rsating yoki 429 dagi `meta.limit` ni ishlating.
-- «Ishlatilgan / chegara» — `GET /tenants/current` (`limits`, `usage`) va `GET /files/usage`.
+- SMS — **429 `MESSAGE_LIMIT_EXCEEDED`**: tarifning **oylik** hajmi (Toshkent oyi; `meta.period: "month"`) yoki server
+  provayderining kunlik cheklovi `SMS_DAILY_LIMIT` (sukut 1000; `meta.period: "day"`). Telegram xabarlari cheklanmaydi —
+  mijozlarni botga ulashni taklif qiling. `GET /billing/plans` → `sms: false` — SMS provayderi ulanmagan: SMS qatorini yashiring.
+- «Ishlatilgan / chegara» — `GET /tenants/current` (`limits`, `usage.smsThisMonth`) va `GET /files/usage`.
+
+**`GET /billing/plans`** — ochiq (tokensiz), ro‘yxatdan o‘tish sahifasi ham ko‘rsatadi → `PlanCatalogDto`:
+
+```json
+{
+  "plans": [
+    { "key": "basic", "label": "Start", "audience": "1–3 kishilik do‘kon: savdo joyi va ombor", "sellable": true, "monthlyPrice": 99000,
+      "prices": [ { "months": 1, "amount": 99000, "discountPct": 0 }, { "months": 3, "amount": 282000, "discountPct": 5 },
+                  { "months": 6, "amount": 534000, "discountPct": 10 }, { "months": 12, "amount": 950000, "discountPct": 20 } ],
+      "limits": { "users": 3, "warehouses": 2, "storageBytes": 1073741824, "fileBytes": 10485760, "smsPerMonth": 100 } }
+  ],
+  "trial": { "plan": "business", "days": 14 },
+  "methods": { "card": true, "payme": false, "click": false },
+  "sms": false
+}
+```
+
+Tarif kartalarida `sellable: true` larni ko‘rsating (`free` — `false`, narxlari bo‘sh); Biznes’ni «ko‘p tanlanadi» deb
+belgilash mumkin. Muddat tanlovida oyiga summani ham ko‘rsating (`amount / months`).
 
 ### 8.3 To‘lov (obuna)
 
-1. Admin tarif va oy sonini tanlaydi → `POST /billing/invoices { plan, months }` →
-   `{ invoice, payme, click }` (summa = oylik narx × oy).
-2. Frontend `payme` yoki `click` havolasini yangi oynada ochadi (`null` — provayder sozlanmagan).
-3. Foydalanuvchi provayder sahifasida to‘laydi; provayder serverimizga webhook yuboradi
-   (`/billing/payme`, `/billing/click/*` — frontend chaqirmaydi).
-4. Tasdiqlangach: hisob-faktura `paid`, tarif uzayadi (o‘sha tarif — joriy muddat oxiridan,
-   boshqa tarif — hozirdan), `suspended` do‘kon `active` bo‘ladi.
-5. Frontend natijani so‘rov bilan biladi: oynaga qaytilganda (focus) yoki har 5–10 soniyada
-   `GET /billing/invoices` (`state`) va `GET /tenants/current` — realtime hodisa YO‘Q.
+Usullar — `GET /billing/plans` → `methods`: **`card`** — platforma egasining kartasiga o‘tkazma (hozir asosiy usul: yuridik
+shaxs ochilguncha Payme/Click ulanmaydi), `payme`/`click` — onlayn (sozlangan bo‘lsa).
 
-Hisob-faktura holatlari: `created` → `pending` (provayder boshladi) → `paid` / `cancelled`.
-`GET /billing/invoices` da `provider` `payme`/`click` dan tashqari `cash`, `transfer`, `bonus` ham bo‘lishi
-mumkin — platforma egasi qo‘lda yozgan to‘lov (naqd, o‘tkazma, bonus muddat); ro‘yxatda shunday ko‘rsating.
+1. Admin tarif va muddatni tanlaydi → `POST /billing/invoices { plan, months }` → `{ invoice, payme, click, card }`
+   (`invoice.amount` — katalogdagi summa, chegirma bilan).
+2. **Karta** (`card` ≠ `null`). Ekranda: summa (`invoice.amount`), karta raqami (`card.number` — 4 tadan guruhlab, nusxa
+   olish tugmasi bilan) va egasi (`card.holder` — to‘lov ilovasi ko‘rsatadigan ism bilan solishtirsin). Admin o‘z bank
+   ilovasida (Payme, Click, Uzum yoki bank ilovasi) aynan shu summani o‘tkazadi, keyin «To‘ladim» formasi:
+   `POST /billing/invoices/:id/card-payment { payerCard, transferredAt?, receiptFileId?, note? }`
+   - `payerCard` — qaysi kartadan o‘tkazgan: **oxirgi 4 raqam** (majburiy);
+   - `transferredAt` — o‘tkazma vaqti (ISO; sukut — hozir; kelajakda yoki 30 kundan eski — 400);
+   - `receiptFileId` — chek: ilova skrinshoti yoki PDF (ixtiyoriy, tavsiya etiladi). Avval
+     `POST /files/presign { kind: "payment_receipt", … }` → PUT → `POST /files/:id/confirm` ([12.5](#flow-upload) bilan
+     bir xil; JPEG/PNG/WebP/PDF, ≤ 5 MB);
+   - `note` — izoh (≤ 300 belgi), masalan «akamning kartasidan».
+
+   Javob — `InvoiceDto`: `state: "pending"`, `provider: "card"` — «Tekshirilmoqda». Tarif hali o‘zgarmaydi: egasi bankdagi
+   tushumni ko‘rib tasdiqlaydi yoki rad etadi. Natija — **`billing.invoice` hodisasi** ([9.2](#realtime)): `paid` — tarif
+   uzaydi, `suspended` do‘kon ochiladi; `cancelled` — `rejectReason` ni ko‘rsating va «Qayta yuborish» (yangi
+   hisob-faktura bilan) taklif qiling.
+   Xatolar: 409 `ALREADY_EXISTS` (`meta.invoiceId`) — boshqa karta to‘lovi hali tekshiruvda; 422
+   `INVALID_STATUS_TRANSITION` — hisob-faktura `created` emas; 422 `PAYMENT_METHOD_UNAVAILABLE` — egasi kartani olib
+   tashlagan; 422 `REFERENCE_NOT_FOUND` (`field: receiptFileId`) — chek fayli emas yoki hali tasdiqlanmagan.
+3. **Payme / Click** (havola `null` emas): frontend havolani yangi oynada ochadi; provayder serverimizga webhook yuboradi
+   (`/billing/payme`, `/billing/click/*` — frontend chaqirmaydi). Tasdiqlangach ham `billing.invoice` hodisasi keladi.
+4. Tasdiqlangach: hisob-faktura `paid`, tarif uzayadi (o‘sha tarif — joriy muddat oxiridan, sinovdagi qolgan kunlar ham
+   saqlanadi; boshqa tarif — hozirdan), `trialEndsAt` → `null`, `suspended` do‘kon `active` bo‘ladi.
+
+Hisob-faktura holatlari: `created` → `pending` (provayder boshladi yoki karta to‘lovi tekshiruvda) → `paid` / `cancelled`.
+`GET /billing/invoices` da `provider`: `payme`/`click` — onlayn; `card` — kartaga o‘tkazma (do‘kon «to‘ladim» degan yoki
+egasi qo‘lda yozgan); `cash`, `transfer`, `bonus` — egasi qo‘lda yozgan to‘lov (naqd, bank o‘tkazmasi, bonus muddat). Karta
+to‘lovida qo‘shimcha maydonlar: `payerCard`, `payerNote`, `transferredAt`, `claimedAt`, `receiptFileId`, `rejectReason`.
+
+UI — «Tarif va to‘lov» sahifasi: joriy tarif va muddat (sinovda — «Sinov: N kun qoldi»), tarif kartalari va muddat tanlovi
+(`GET /billing/plans`), to‘lov oynasi (karta / Payme / Click), to‘lovlar tarixi (holat: «Tekshirilmoqda», «To‘langan»,
+«Rad etildi: sabab»). Muddat tugashiga 3–7 kun qolganda bannerda eslatma (`planExpiresAt`).
 
 ### 8.4 Do‘konni o‘chirish
 
@@ -1201,6 +1255,7 @@ COMMIT’dan keyin, do‘konning BARCHA ulanishlariga (amalni qilgan foydalanuvc
 | `access.changed` | `{}` | Rol ruxsatlari tahriri (`PATCH /roles/:id`), rolni o‘chirish, foydalanuvchiga boshqa rol (`PATCH /users/:id`) | `GET /auth/me` (o‘z `permissions` i — menyu va tugmalar), `GET /roles`, `GET /users`. Refresh CHAQIRILMAYDI ([6.5](#access-changed)) |
 | `tenant.status` | `{ status, plan }` | Platforma egasi: blok / blokdan chiqarish, tarif yoki qo‘lda to‘lov, o‘chirish / qaytarish ([8.1](#tenant)) | `GET /auth/me` (`user.tenant.status` — banner), `GET /tenants/current` (tarif, `blockedReason`), `GET /billing/invoices` |
 | `tenant.request` | `{ requestId, status }` | Platforma egasi do‘kon murojaatiga javob berdi (`answered`) yoki yopdi (`closed`) ([8.5](#support)) | `GET /tenants/current/requests` (banner, murojaat oynasi) |
+| `billing.invoice` | `{ invoiceId, state }` | To‘lov tasdiqlandi — Payme/Click yoki egasi (karta, qo‘lda): `paid`; karta to‘lovi rad etildi: `cancelled` ([8.3](#tenant)) | `GET /billing/invoices`, `GET /tenants/current` (tarif, muddat), `GET /auth/me` (`suspended` banneri) |
 
 Hodisa kelmaydigan amallar (masalan spravochnik tahriri, xarajat, naqd harakat, SMS, migratsiya)
 — o‘z mutatsiyasidan keyin kesh bekor qilinadi; boshqa foydalanuvchilarda ma’lumot sahifa
@@ -1908,7 +1963,7 @@ Frontenddagi mavjud sahifalar (`src/pages`) va ular chaqiradigan API. Qavsdagi r
 | **Maosh** (`/payroll`, `payroll.view`) | `GET /payroll?period=`, `GET /payroll/entries?employeeId=` | `POST /payroll/accruals`, `POST /payroll/payments`, `POST /payroll/run-due`, `DELETE /payroll/entries/:id`, `.../restore` | — |
 | **Foydalanuvchilar** (`/users`, `users.view`) | `GET /users`, `GET /roles` (rol tanlovi va nomi), `GET /employees` (hisobsiz xodimlar: `userId === null`, 10.12 izohi bilan) | CRUD (`roleId`), «O‘chirilganlar» (`GET /users?deleted=true`) → `.../restore`, parolni tiklash | `access.changed` |
 | **Rollar** (yangi; `/users/roles` yoki tab, `roles.view`) | `GET /roles`, `GET /roles/catalog` | `POST /roles` (`roles.create`), `PATCH /roles/:id` (`roles.edit`, `If-Match`), `DELETE /roles/:id?replaceWith=` (`roles.delete`) ([6.8](#roles-migration)) | `access.changed` |
-| **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /files/usage`, `GET /billing/invoices`, `GET /tenants/current/requests` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, murojaat (`POST /tenants/current/requests`, `…/:id/messages`), migratsiya sehrgari | `tenant.request` |
+| **Sozlamalar** (`/settings`, `settings.view`) | `GET /settings`; admin: `GET /tenants/current`, `GET /billing/plans`, `GET /files/usage`, `GET /billing/invoices`, `GET /tenants/current/requests` | `PATCH /settings` (shu jumladan «Sotuvchiga ulgurji» — `sellerWholesaleEnabled`); admin: `POST /billing/invoices`, `POST /billing/invoices/:id/card-payment` (+ chek `POST /files/presign`), `GET /backup/export`, `POST /tenants/current/delete`, `/restore`, murojaat (`POST /tenants/current/requests`, `…/:id/messages`), migratsiya sehrgari | `tenant.request`, `billing.invoice` |
 | **Audit** (`/audit`, `audit.view`) | `GET /audit` (kursor) | filtrlar, `GET /exports/audit` | — |
 | **Migratsiya sehrgari** (yangi, admin) | brauzer `localStorage` | `POST /migration/validate`, `POST /migration/import` | — |
 | **Bildirishnomalar** (Notifications) | `GET /products?lowStock=true&pageSize=5`, `GET /debts?overdue=true&pageSize=5` (`debts.view`) | — | `stock.changed`, `sale.*`, `debt.paid` |
@@ -2183,7 +2238,7 @@ const z = await api<Schemas['ShiftReportDto']>(`/cash/shifts/${closed.id}/report
 | Taklif | `POST /quotes` → `PATCH { status: "sent" }` → chop etish → `PATCH { status: "accepted" }` → `POST /quotes/:id/convert { method, warehouseId }` (kalit) → chek |
 | Yetkazish | `POST /sales` (`delivery` bilan) → manager `PATCH /deliveries/:id { driverId }` → haydovchi `GET /deliveries/my` → `POST .../status { on_way }` → `{ delivered }` |
 | Inventarizatsiya | `GET /products` (filtrsiz, sahifalab; ombor qoldig‘i — `stocks[warehouseId] ?? 0`; `?warehouseId=` faqat qoldig‘i bor tovarlarni beradi) → `POST /stock/adjust { warehouseId, items: [{ productId, countedQty }] }` (kalit) |
-| Tarif to‘lovi | `GET /tenants/current` → `POST /billing/invoices` → havolani ochish → qaytganda `GET /billing/invoices`, `GET /tenants/current` |
+| Tarif to‘lovi | `GET /billing/plans` + `GET /tenants/current` → `POST /billing/invoices` → karta: o‘tkazma → (chek yuklash) → `POST /billing/invoices/:id/card-payment` → «Tekshirilmoqda» → `billing.invoice`; Payme/Click: havolani ochish → qaytganda yoki `billing.invoice` da `GET /billing/invoices`, `GET /tenants/current` |
 | Do‘konni o‘chirish | `GET /backup/export` (taklif) → `POST /tenants/current/delete { password }` → banner → `POST /tenants/current/restore` |
 
 ---
@@ -2210,8 +2265,8 @@ Backend rejasidagi (PLAN.md) frontend vazifalari. Backend tomoni hammasi uchun t
 | T-134 | Ruxsatlar va «Rollar» sahifasi | Menyu, yo‘l himoyasi, tugmalar va yashirin maydonlar FAQAT `user.permissions` bo‘yicha (rol nomiga qarab shart yo‘q, `role === 'admin'` — faqat [6.3](#admin-only)); hisob formasida rol — `GET /roles` dan, `roleId` yuboriladi; «Rollar» sahifasi `roles.*` ruxsatlari bilan (yaratish, ruxsatlar jadvali katalogdan, tahrir `If-Match` bilan, o‘chirishda hisoblarni ko‘chirish; administrator bo‘lmaganda faqat o‘zida bor ruxsatlar); `access.changed` → `GET /auth/me`, ochiq ilovada menyu sahifa yangilanmasdan o‘zgaradi; ruxsatsiz sahifadan bosh sahifaga — [6](#roles), [6.8](#roles-migration) |
 
 Qo‘shimcha (rejada alohida vazifa emas, lekin kerak): ro‘yxatdan o‘tish sahifasi va dastlabki
-sozlash sehrgari (`/tenants/register`, `onboarded`), «Tarif va hisob» sahifasi (tarif, to‘lov, zaxira,
-do‘konni o‘chirish, murojaatlar tarixi), faqat-o‘qish banneri («Egasiga murojaat» tugmasi va oynasi — [8.5](#support)),
+sozlash sehrgari (`/tenants/register`, `onboarded`; tariflar va sinov — `GET /billing/plans`), «Tarif va hisob» sahifasi
+(tarif kartalari, karta orqali to‘lov va «To‘ladim» formasi — [8.3](#tenant), zaxira, do‘konni o‘chirish, murojaatlar tarixi), faqat-o‘qish banneri («Egasiga murojaat» tugmasi va oynasi — [8.5](#support)),
 haydovchi ko‘rinishi (`/deliveries/my`), audit sahifasi (serverdan), eksport tugmalari (server eksporti).
 
 **Brauzerdan olib tashlanadigan narsalar:** lokal store’dagi biznes ma’lumoti (mahsulot, chek,
@@ -2233,6 +2288,18 @@ Hozircha yo‘q. (Avvalgi masalalar yopildi: «narxni qo‘lda o‘zgartirish ch
 kassaga tushmaydi» — T-146, [10.9](#deliveries).)
 
 ### 14.2 Hujjat yozilgach o‘zgarganlar
+
+**2026-10-20** — tariflar qayta ko‘rildi va karta orqali to‘lov (T-148, T-149); frontendga ta’sir qiladi:
+
+| Avval | Endi | Frontendda |
+|-------|------|-----------|
+| Tariflar `free`/`basic`/`pro` foydalanuvchi soni bilan (3/10/50); narx frontendda yozilgan | `basic` (Start) / `business` (Biznes) / `pro` — narx do‘kon uchun, hajm bilan farq; nom, narx, muddat chegirmasi, sinov, ishlaydigan usullar — **`GET /billing/plans`** (ochiq) ([8.2](#tenant)) | Tarif kartalarini katalogdan quring; narx/chegarani kodga yozmang |
+| `POST /billing/invoices` — `months` 1–12, summa = narx × oy | `months` — 1, 3, 6 yoki 12; summa chegirma bilan (katalogdagi `prices[].amount`) | Muddat tanlovi — 4 ta tugma |
+| Yangi do‘kon — `free`, muddatsiz | Biznes, **14 kun sinov** (`trialEndsAt`); keyin to‘lov, aks holda 3 kundan so‘ng `suspended` | «Sinov: N kun qoldi» banneri va «Tarifni tanlash» tugmasi |
+| To‘lov faqat Payme/Click havolasi | + karta: checkout’da `card`, «To‘ladim» — `POST /billing/invoices/:id/card-payment`, natija — `billing.invoice` hodisasi ([8.3](#tenant), [9.2](#realtime)) | To‘lov oynasida karta va «To‘ladim» formasi; tarixda «Tekshirilmoqda» / «Rad etildi: sabab» |
+| SMS chegarasi kunlik (`limits.smsPerDay`, `usage.smsToday`) | Oylik (`limits.smsPerMonth`, `usage.smsThisMonth`); 429 da `meta.period` (`month` / `day`) | Tarif sahifasida «SMS: N / oy» |
+| `GET /tenants/current` | + `trialEndsAt`, `paymentCard` (egasining kartasi yoki `null`) | — |
+| Yangi xato kodi yo‘q edi | 422 `PAYMENT_METHOD_UNAVAILABLE` — karta usuli o‘chiq ([7.3](#errors)) | Usullarni `methods` dan ko‘rsating |
 
 **2026-10-19** — kassa daftari, alohida yetkazish narxi, access tokenni darhol bekor qilish (T-145…T-147); frontendga ta’sir qiladi:
 

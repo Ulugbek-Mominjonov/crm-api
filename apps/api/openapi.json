@@ -9160,9 +9160,32 @@
         ]
       }
     },
+    "/api/v1/billing/plans": {
+      "get": {
+        "description": "Ochiq: do‘kon ilovasi, ro‘yxatdan o‘tish sahifasi va egasi paneli narxlarni SHU yerdan oladi (o‘zida yozmaydi). Har tarif — chegaralar va har muddat (1/3/6/12 oy) summasi chegirma bilan; sinov muddati; ishlaydigan to‘lov usullari.",
+        "operationId": "Billing_plans",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanCatalogDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Tariflar va narxlar",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/api/v1/billing/invoices": {
       "post": {
-        "description": "Faqat administrator. Javobda Payme va Click to‘lov sahifalari. Tarif to‘lov TASDIQLANGACH o‘zgaradi.",
+        "description": "Faqat administrator. Summa — `GET /billing/plans` dagi narx (uzoq muddatga chegirma). Javobda Payme va Click sahifalari hamda egasining kartasi (`card`). Tarif to‘lov TASDIQLANGACH o‘zgaradi.",
         "operationId": "Billing_createInvoice",
         "parameters": [],
         "requestBody": {
@@ -9192,7 +9215,7 @@
             "bearer": []
           }
         ],
-        "summary": "Hisob-faktura (tarif × oy)",
+        "summary": "Hisob-faktura (tarif × muddat)",
         "tags": [
           "billing"
         ]
@@ -9222,6 +9245,73 @@
           }
         ],
         "summary": "Hisob-fakturalar tarixi",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
+    "/api/v1/billing/invoices/{id}/card-payment": {
+      "post": {
+        "description": "Faqat administrator. Egasining kartasiga `amount` o‘tkazilgach: kartaning oxirgi 4 raqami, vaqt, ixtiyoriy chek va izoh. Hisob-faktura `pending` (`provider: card`) — egasi bankda ko‘rib tasdiqlaydi (tarif uzayadi) yoki rad etadi (`cancelled`, `rejectReason`); natija — `billing.invoice` hodisasi.",
+        "operationId": "Billing_claimCard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CardClaimDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvoiceDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ALREADY_EXISTS — boshqa karta to‘lovi tekshiruvda (`meta.invoiceId`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — hisob-faktura `created` emas; PAYMENT_METHOD_UNAVAILABLE — egasi kartani kiritmagan; REFERENCE_NOT_FOUND — chek",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "«To‘ladim» — karta orqali to‘lov",
         "tags": [
           "billing"
         ]
@@ -10111,6 +10201,7 @@
               "enum": [
                 "free",
                 "basic",
+                "business",
                 "pro"
               ]
             }
@@ -10124,6 +10215,15 @@
               "minimum": 0,
               "maximum": 365,
               "type": "number"
+            }
+          },
+          {
+            "name": "trial",
+            "required": false,
+            "in": "query",
+            "description": "`true` — hali to‘lamagan, sinovdagi yoki sinovi tugagan do‘konlar (`trialEndsAt` bor); `false` — qolganlari",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -10818,6 +10918,7 @@
                 "payme",
                 "click",
                 "cash",
+                "card",
                 "transfer",
                 "bonus"
               ]
@@ -11532,7 +11633,7 @@
     },
     "/api/v1/platform/stats": {
       "get": {
-        "description": "Do‘konlar holat va tarif bo‘yicha, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy).",
+        "description": "Do‘konlar holat va tarif bo‘yicha, sinovdagilar, shu oyda ochilganlar, 7 kunda tugaydiganlar, muddati o‘tganlar; oylik tushum (12 oy); tekshirish kutayotgan karta to‘lovlari.",
         "operationId": "Platform_getStats",
         "parameters": [],
         "responses": {
@@ -11570,7 +11671,7 @@
     },
     "/api/v1/platform/invoices": {
       "get": {
-        "description": "Holat, provayder (onlayn yoki qo‘lda), sana oralig‘i va do‘kon bo‘yicha filtr; eng yangisi birinchi.",
+        "description": "Holat, provayder (onlayn, karta yoki qo‘lda), sana oralig‘i va do‘kon bo‘yicha filtr; eng yangisi birinchi. Tekshirish navbati — `state=pending&provider=card`.",
         "operationId": "Platform_invoices",
         "parameters": [
           {
@@ -11628,6 +11729,7 @@
                 "payme",
                 "click",
                 "cash",
+                "card",
                 "transfer",
                 "bonus"
               ]
@@ -11718,6 +11820,217 @@
         ]
       }
     },
+    "/api/v1/platform/invoices/{id}/confirm": {
+      "post": {
+        "description": "Bankda tushum bor (summa, karta oxirgi 4 raqami, vaqt mos). Tarif Payme/Click to‘lovi bilan bir xil qoidada uzayadi, `suspended` ochiladi, do‘konga `billing.invoice` va `tenant.status`. Operator ham. Telegram’dagi «✅ Tasdiqlash» tugmasi — xuddi shu amal.",
+        "operationId": "Platform_confirmCard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmCardPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformInvoiceDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — to‘lov tekshiruvda emas (`meta.state`, `meta.provider`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Karta to‘lovini tasdiqlash",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/invoices/{id}/reject": {
+      "post": {
+        "description": "Tushum topilmadi yoki summa mos emas: hisob-faktura `cancelled`, tarif o‘zgarmaydi; sabab do‘kon administratoriga ko‘rinadi (`rejectReason`).",
+        "operationId": "Platform_rejectCard",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectCardPaymentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlatformInvoiceDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "INVALID_STATUS_TRANSITION — to‘lov tekshiruvda emas (`meta.state`, `meta.provider`)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Karta to‘lovini rad etish",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/api/v1/platform/invoices/{id}/receipt": {
+      "get": {
+        "description": "Qisqa muddatli havola (rasm yoki PDF); `hasReceipt: false` — 404.",
+        "operationId": "Platform_receipt",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReceiptUrlDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "AUTH_INVALID_CREDENTIALS — egasi tokeni yo‘q, yaroqsiz yoki do‘kon tokeni",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "NOT_FOUND — hisob-faktura yoki chek yo‘q",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Karta to‘lovi cheki",
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/api/v1/platform/audit": {
       "get": {
         "description": "Kim, qachon, qaysi do‘konga nima qildi (blok, tarif, parol, ochish, o‘chirish); faqat qo‘shiladi.",
@@ -11758,7 +12071,7 @@
             "name": "group",
             "required": false,
             "in": "query",
-            "description": "Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `user`, `platform`",
+            "description": "Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `invoice` (karta to‘lovi tasdig‘i/radi), `user`, `platform`, `request`",
             "schema": {
               "example": "tenant",
               "type": "string"
@@ -16846,7 +17159,8 @@
               "import",
               "tenant_backup",
               "avatar",
-              "store_logo"
+              "store_logo",
+              "payment_receipt"
             ]
           },
           "mime": {
@@ -16892,7 +17206,8 @@
               "import",
               "tenant_backup",
               "avatar",
-              "store_logo"
+              "store_logo",
+              "payment_receipt"
             ]
           },
           "mime": {
@@ -20607,6 +20922,194 @@
           "users"
         ]
       },
+      "PlanPriceDto": {
+        "type": "object",
+        "properties": {
+          "months": {
+            "type": "number",
+            "enum": [
+              1,
+              3,
+              6,
+              12
+            ]
+          },
+          "amount": {
+            "type": "number",
+            "description": "Jami summa (so‘m), chegirma bilan — hisob-faktura aynan shu"
+          },
+          "discountPct": {
+            "type": "number",
+            "example": 20,
+            "description": "Oldindan to‘lov chegirmasi, %"
+          }
+        },
+        "required": [
+          "months",
+          "amount",
+          "discountPct"
+        ]
+      },
+      "PlanLimitsDto": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "number",
+            "description": "Faol kirish hisoblari"
+          },
+          "warehouses": {
+            "type": "number",
+            "description": "Arxivlanmagan omborlar"
+          },
+          "storageBytes": {
+            "type": "number"
+          },
+          "fileBytes": {
+            "type": "number"
+          },
+          "smsPerMonth": {
+            "type": "number",
+            "description": "Oyiga SMS (Toshkent oyi); Telegram xabarlari cheklanmaydi"
+          }
+        },
+        "required": [
+          "users",
+          "warehouses",
+          "storageBytes",
+          "fileBytes",
+          "smsPerMonth"
+        ]
+      },
+      "PlanOfferDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "free",
+              "basic",
+              "business",
+              "pro"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "example": "Start"
+          },
+          "audience": {
+            "type": "string",
+            "example": "1–3 kishilik do‘kon: savdo joyi va ombor"
+          },
+          "sellable": {
+            "type": "boolean",
+            "description": "`false` — sotilmaydi (`free`: platforma egasi beradi); narxlar bo‘sh"
+          },
+          "monthlyPrice": {
+            "type": "number",
+            "example": 99000,
+            "description": "Oylik narx (so‘m)"
+          },
+          "prices": {
+            "description": "Har muddat uchun summa",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanPriceDto"
+            }
+          },
+          "limits": {
+            "$ref": "#/components/schemas/PlanLimitsDto"
+          }
+        },
+        "required": [
+          "key",
+          "label",
+          "audience",
+          "sellable",
+          "monthlyPrice",
+          "prices",
+          "limits"
+        ]
+      },
+      "TrialDto": {
+        "type": "object",
+        "properties": {
+          "plan": {
+            "type": "string",
+            "enum": [
+              "basic",
+              "business",
+              "pro"
+            ],
+            "example": "business"
+          },
+          "days": {
+            "type": "number",
+            "example": 14
+          }
+        },
+        "required": [
+          "plan",
+          "days"
+        ]
+      },
+      "PaymentMethodsDto": {
+        "type": "object",
+        "properties": {
+          "card": {
+            "type": "boolean",
+            "description": "Egasining kartasiga o‘tkazma (egasi tasdiqlaydi)"
+          },
+          "payme": {
+            "type": "boolean"
+          },
+          "click": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "card",
+          "payme",
+          "click"
+        ]
+      },
+      "PlanCatalogDto": {
+        "type": "object",
+        "properties": {
+          "plans": {
+            "description": "Hamma tariflar, arzonidan; do‘konga `sellable` lari ko‘rsatiladi",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PlanOfferDto"
+            }
+          },
+          "trial": {
+            "description": "Yangi do‘kon shu tarifda shuncha kun bepul ishlaydi",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TrialDto"
+              }
+            ]
+          },
+          "methods": {
+            "description": "Hozir ishlaydigan to‘lov usullari",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentMethodsDto"
+              }
+            ]
+          },
+          "sms": {
+            "type": "boolean",
+            "description": "`false` — SMS provayderi ulanmagan: tarif kartasida SMS qatorini yashiring (Telegram ishlaydi)"
+          }
+        },
+        "required": [
+          "plans",
+          "trial",
+          "methods",
+          "sms"
+        ]
+      },
       "CreateInvoiceDto": {
         "type": "object",
         "properties": {
@@ -20614,14 +21117,20 @@
             "type": "string",
             "enum": [
               "basic",
+              "business",
               "pro"
             ]
           },
           "months": {
             "type": "number",
+            "enum": [
+              1,
+              3,
+              6,
+              12
+            ],
             "example": 1,
-            "minimum": 1,
-            "maximum": 12
+            "description": "Oy: 1, 3, 6 yoki 12 — uzoqroq muddatga chegirma (`GET /billing/plans`)"
           }
         },
         "required": [
@@ -20639,6 +21148,7 @@
             "type": "string",
             "enum": [
               "basic",
+              "business",
               "pro"
             ]
           },
@@ -20656,7 +21166,8 @@
               "pending",
               "paid",
               "cancelled"
-            ]
+            ],
+            "description": "`pending` — provayder boshladi yoki karta to‘lovi egasi tekshiruvida (`provider: card`)"
           },
           "provider": {
             "type": "string",
@@ -20664,11 +21175,45 @@
             "enum": [
               "payme",
               "click",
+              "card",
               "cash",
               "transfer",
               "bonus"
             ],
-            "description": "`payme`/`click` — onlayn; `cash`/`transfer`/`bonus` — platforma qo‘lda yozgan (naqd, o‘tkazma, bonus muddat)"
+            "description": "`payme`/`click` — onlayn; `card` — egasining kartasiga o‘tkazma; `cash`/`transfer`/`bonus` — platforma qo‘lda yozgan (naqd, o‘tkazma, bonus muddat)"
+          },
+          "payerCard": {
+            "type": "string",
+            "nullable": true,
+            "example": "6311",
+            "description": "Karta to‘lovi: to‘lovchi kartasining oxirgi 4 raqami"
+          },
+          "payerNote": {
+            "type": "string",
+            "nullable": true,
+            "description": "Karta to‘lovi: administrator izohi"
+          },
+          "transferredAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Karta to‘lovi: o‘tkazma vaqti (administrator aytgani)"
+          },
+          "claimedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Karta to‘lovi: «to‘ladim» bosilgan vaqt"
+          },
+          "receiptFileId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Karta to‘lovi: chek fayli (`payment_receipt`)"
+          },
+          "rejectReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Egasi karta to‘lovini rad etgan sabab (`state: cancelled`)"
           },
           "createdAt": {
             "type": "string",
@@ -20687,8 +21232,34 @@
           "amount",
           "state",
           "provider",
+          "payerCard",
+          "payerNote",
+          "transferredAt",
+          "claimedAt",
+          "receiptFileId",
+          "rejectReason",
           "createdAt",
           "paidAt"
+        ]
+      },
+      "PaymentCardDto": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "example": "8600069195406311",
+            "description": "16 raqam — ko‘rsatishda 4 tadan guruhlang (`8600 0691 9540 6311`)"
+          },
+          "holder": {
+            "type": "string",
+            "nullable": true,
+            "example": "ULUGBEK M.",
+            "description": "Karta egasi — to‘lovchi ilovasi o‘tkazmada ko‘rsatadigan ism bilan solishtiradi"
+          }
+        },
+        "required": [
+          "number",
+          "holder"
         ]
       },
       "CheckoutDto": {
@@ -20706,12 +21277,51 @@
             "type": "string",
             "nullable": true,
             "description": "Click to‘lov sahifasi"
+          },
+          "card": {
+            "nullable": true,
+            "description": "Egasining kartasi: shu kartaga `invoice.amount` o‘tkaziladi, keyin `POST /billing/invoices/:id/card-payment`; `null` — usul o‘chiq",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentCardDto"
+              }
+            ]
           }
         },
         "required": [
           "invoice",
           "payme",
-          "click"
+          "click",
+          "card"
+        ]
+      },
+      "CardClaimDto": {
+        "type": "object",
+        "properties": {
+          "payerCard": {
+            "type": "string",
+            "example": "6311",
+            "description": "Qaysi kartadan o‘tkazildi — oxirgi 4 raqam"
+          },
+          "transferredAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "O‘tkazma vaqti; berilmasa — hozir. Kelajakda emas, 30 kundan eski emas"
+          },
+          "receiptFileId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Chek (skrinshot yoki PDF) — `POST /files/presign` `kind: payment_receipt` bilan yuklangan, tasdiqlangan fayl"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "Akamning kartasidan o‘tkazdim"
+          }
+        },
+        "required": [
+          "payerCard"
         ]
       },
       "PaymeRequestDto": {
@@ -20796,33 +21406,6 @@
           "sign_string"
         ]
       },
-      "PlanLimitsDto": {
-        "type": "object",
-        "properties": {
-          "users": {
-            "type": "number"
-          },
-          "warehouses": {
-            "type": "number"
-          },
-          "storageBytes": {
-            "type": "number"
-          },
-          "fileBytes": {
-            "type": "number"
-          },
-          "smsPerDay": {
-            "type": "number"
-          }
-        },
-        "required": [
-          "users",
-          "warehouses",
-          "storageBytes",
-          "fileBytes",
-          "smsPerDay"
-        ]
-      },
       "PlanUsageDto": {
         "type": "object",
         "properties": {
@@ -20835,16 +21418,16 @@
           "storageBytes": {
             "type": "number"
           },
-          "smsToday": {
+          "smsThisMonth": {
             "type": "number",
-            "description": "Bugun (Toshkent kuni)"
+            "description": "Shu oyda yuborilgan SMS (Toshkent oyi)"
           }
         },
         "required": [
           "users",
           "warehouses",
           "storageBytes",
-          "smsToday"
+          "smsThisMonth"
         ]
       },
       "TenantAccountDto": {
@@ -20861,6 +21444,7 @@
             "enum": [
               "free",
               "basic",
+              "business",
               "pro"
             ]
           },
@@ -20878,6 +21462,12 @@
             "type": "string",
             "nullable": true,
             "format": "date-time"
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Sinov muddati oxiri (T-148): `null` emas — do‘kon hali to‘lamagan (sinovda yoki sinovi tugagan); birinchi to‘lov tozalaydi"
           },
           "deletionScheduledAt": {
             "type": "string",
@@ -20903,6 +21493,16 @@
                 "$ref": "#/components/schemas/PlatformSupportDto"
               }
             ]
+          },
+          "paymentCard": {
+            "nullable": true,
+            "description": "Karta orqali to‘lov uchun egasining kartasi (T-149); `null` — usul o‘chiq",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentCardDto"
+              }
+            ]
           }
         },
         "required": [
@@ -20911,11 +21511,13 @@
           "plan",
           "status",
           "planExpiresAt",
+          "trialEndsAt",
           "deletionScheduledAt",
           "blockedReason",
           "limits",
           "usage",
-          "support"
+          "support",
+          "paymentCard"
         ]
       },
       "DeleteTenantDto": {
@@ -21308,6 +21910,7 @@
             "enum": [
               "free",
               "basic",
+              "business",
               "pro"
             ]
           },
@@ -21326,6 +21929,12 @@
             "nullable": true,
             "format": "date-time",
             "description": "Pullik tarif muddati (`free` — null)"
+          },
+          "trialEndsAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Sinov muddati oxiri (T-148): `null` emas — hali to‘lamagan (sinovda yoki sinovi tugagan); birinchi to‘lov yoki egasi tarifi tozalaydi"
           },
           "deletionScheduledAt": {
             "type": "string",
@@ -21382,6 +21991,7 @@
           "plan",
           "status",
           "planExpiresAt",
+          "trialEndsAt",
           "deletionScheduledAt",
           "blockedAt",
           "blockedReason",
@@ -21425,10 +22035,10 @@
             "enum": [
               "free",
               "basic",
+              "business",
               "pro"
             ],
-            "default": "free",
-            "description": "Boshlang‘ich tarif; pullik bo‘lsa `months` shart (bonus sifatida yoziladi)"
+            "description": "Boshlang‘ich tarif. Berilmasa — sinov: «business» 14 kun (ro‘yxatdan o‘tish bilan bir xil); `free` — muddatsiz bepul; pullik bo‘lsa `months` shart (bonus sifatida yoziladi)"
           },
           "months": {
             "type": "number",
@@ -21486,6 +22096,7 @@
             "enum": [
               "free",
               "basic",
+              "business",
               "pro"
             ]
           },
@@ -21499,14 +22110,15 @@
             "type": "string",
             "enum": [
               "cash",
+              "card",
               "transfer",
               "bonus"
             ],
-            "description": "Pullik tarifda SHART: `cash` naqd, `transfer` o‘tkazma, `bonus` — bepul muddat (summa 0)"
+            "description": "Pullik tarifda SHART: `cash` naqd, `card` — kartaga o‘tkazma, `transfer` bank o‘tkazmasi, `bonus` — bepul muddat (summa 0)"
           },
           "amount": {
             "type": "number",
-            "description": "Olingan summa (so‘m). Berilmasa — tarif narxi × oy; `bonus` — 0"
+            "description": "Olingan summa (so‘m). Berilmasa — `GET /billing/plans` narxi (muddat chegirmasi bilan); `bonus` — 0"
           },
           "note": {
             "type": "string",
@@ -21600,6 +22212,7 @@
             "type": "string",
             "enum": [
               "basic",
+              "business",
               "pro"
             ]
           },
@@ -21617,7 +22230,8 @@
               "pending",
               "paid",
               "cancelled"
-            ]
+            ],
+            "description": "`pending` + `provider: card` — karta to‘lovi tekshiruvingizni kutmoqda"
           },
           "provider": {
             "type": "string",
@@ -21626,13 +22240,47 @@
               "payme",
               "click",
               "cash",
+              "card",
               "transfer",
               "bonus"
             ]
           },
           "note": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "description": "Egasi izohi (qo‘lda to‘lov yoki tasdiqlashda)"
+          },
+          "payerCard": {
+            "type": "string",
+            "nullable": true,
+            "example": "6311",
+            "description": "Karta to‘lovi: to‘lovchi kartasining oxirgi 4 raqami"
+          },
+          "payerNote": {
+            "type": "string",
+            "nullable": true,
+            "description": "Karta to‘lovi: do‘kon izohi"
+          },
+          "transferredAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Karta to‘lovi: o‘tkazma vaqti (do‘kon aytgani)"
+          },
+          "claimedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time",
+            "description": "Karta to‘lovi: «to‘ladim» bosilgan vaqt"
+          },
+          "hasReceipt": {
+            "type": "boolean",
+            "description": "Chek bor — `GET /platform/invoices/:id/receipt`"
+          },
+          "rejectReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Rad etilgan karta to‘lovining sababi"
           },
           "createdAt": {
             "type": "string",
@@ -21654,6 +22302,12 @@
           "state",
           "provider",
           "note",
+          "payerCard",
+          "payerNote",
+          "transferredAt",
+          "claimedAt",
+          "hasReceipt",
+          "rejectReason",
           "createdAt",
           "paidAt"
         ]
@@ -21938,15 +22592,20 @@
           "byPlan": {
             "type": "object",
             "example": {
-              "free": 8,
-              "basic": 3,
-              "pro": 2
+              "free": 2,
+              "basic": 8,
+              "business": 3,
+              "pro": 1
             },
-            "description": "Tarif bo‘yicha"
+            "description": "Tarif bo‘yicha (sinovdagilar — sinov tarifida)"
           },
           "newThisMonth": {
             "type": "number",
             "description": "Shu oyda ochilganlar (Toshkent oyi)"
+          },
+          "trialing": {
+            "type": "number",
+            "description": "Sinov muddatidagilar (hali to‘lamagan, sinovi tugamagan) — ularga qo‘ng‘iroq qilib, ishga tushirishda yordam bering"
           },
           "expiringIn7Days": {
             "type": "number",
@@ -21962,6 +22621,7 @@
           "byStatus",
           "byPlan",
           "newThisMonth",
+          "trialing",
           "expiringIn7Days",
           "overdue"
         ]
@@ -22026,12 +22686,63 @@
           "openRequests": {
             "type": "number",
             "description": "Egasi javobini kutayotgan do‘kon murojaatlari (menyuda belgi; T-140)"
+          },
+          "pendingPayments": {
+            "type": "number",
+            "description": "Tekshirishingizni kutayotgan karta to‘lovlari (menyuda belgi; T-149) — `GET /platform/invoices?state=pending&provider=card`"
           }
         },
         "required": [
           "tenants",
           "revenue",
-          "openRequests"
+          "openRequests",
+          "pendingPayments"
+        ]
+      },
+      "ConfirmCardPaymentDto": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Izoh: bank tranzaksiyasi, kelishuv …"
+          }
+        }
+      },
+      "RejectCardPaymentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 300,
+            "example": "Tushum topilmadi — karta raqami va vaqtni tekshiring",
+            "description": "Do‘kon administratori ko‘radi"
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ReceiptUrlDto": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string",
+            "example": "image/jpeg"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Havola shu paytgacha amal qiladi"
+          }
+        },
+        "required": [
+          "url",
+          "mime",
+          "expiresAt"
         ]
       },
       "PlatformAuditAdminDto": {
@@ -22128,6 +22839,16 @@
           "support": {
             "$ref": "#/components/schemas/PlatformSupportDto"
           },
+          "paymentCard": {
+            "nullable": true,
+            "description": "To‘lov kartasi; `null` — karta orqali to‘lov o‘chiq",
+            "type": "object",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PaymentCardDto"
+              }
+            ]
+          },
           "updatedAt": {
             "type": "string",
             "format": "date-time"
@@ -22141,6 +22862,7 @@
         "required": [
           "registrationMode",
           "support",
+          "paymentCard",
           "updatedAt",
           "updatedBy"
         ]
@@ -22167,6 +22889,22 @@
           }
         }
       },
+      "UpdatePaymentCardDto": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "example": "8600 0691 9540 6311",
+            "description": "16 raqam (bo‘sh joy, chiziqcha bo‘lishi mumkin), nazorat raqami tekshiriladi; `\"\"` — o‘chirish"
+          },
+          "holder": {
+            "type": "string",
+            "maxLength": 64,
+            "example": "ULUGBEK M.",
+            "description": "`\"\"` — o‘chirish"
+          }
+        }
+      },
       "UpdatePlatformSettingsDto": {
         "type": "object",
         "properties": {
@@ -22182,6 +22920,14 @@
             "allOf": [
               {
                 "$ref": "#/components/schemas/UpdatePlatformSupportDto"
+              }
+            ]
+          },
+          "paymentCard": {
+            "description": "To‘lov kartasi: faqat yuborilgan maydonlar o‘zgaradi",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UpdatePaymentCardDto"
               }
             ]
           }

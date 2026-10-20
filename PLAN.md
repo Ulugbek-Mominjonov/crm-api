@@ -58,9 +58,9 @@ Umumiy «tayyor» ta'rifi —
 | E13 | Frontend integratsiyasi | 9 | 0/9 | B4 |
 | E14 | Ma'lumot migratsiyasi | 6 | 4/6 | B4 |
 | E15 | Deploy va ekspluatatsiya | 17 | 13/17 | B4 |
-| E16 | SaaS (obuna) | 6 | 6/6 | B6 |
+| E16 | SaaS (obuna) | 8 | 8/8 | B6 |
 | E17 | Egasi paneli (platforma) | 6 | 5/6 | B6 |
-| | **Jami** | **147** | **131/147** | |
+| | **Jami** | **149** | **133/149** | |
 
 Bosqichlar: **B1** poydevor · **B2** ma'lumot serverda · **B3** moliyaviy
 to'g'rilik · **B4** ishga tushirish · **B5** chidamlilik · **B6** sotish.
@@ -1033,6 +1033,33 @@ Eng nozik epik: bu yerdagi har bir vazifa pul bilan bog'liq.
   - Manba: [08 §8.9](../../backend-tz/core/08-operations.md#89-fiskal-chek-ofd)
   - Qabul: `OFD_ENABLED=false` da ilova to'liq ishlaydi; yoqilganda chek fiskal ma'lumot bilan boyitiladi; OFD ishlamasa sotuv **to'xtamaydi** (navbatga tushadi)
   - Tekshirish: `npm run test:e2e -- ofd-degraded`
+
+- [x] **T-148 · Tariflar qayta ko'rildi — do'kon uchun narx, katalog, sinov muddati, oylik SMS**
+  - Bog'liq: T-125, T-126
+  - Manba: [docs/api/README.md §8.2](docs/api/README.md#tenant), PROGRESS Q126
+  - Qabul: narx DO'KON uchun (foydalanuvchi uchun emas — kichik do'konda 1–2 xodim, bitta hisob ulashiladi): `basic` Start
+    99 000 / `business` Biznes 199 000 / `pro` Pro 399 000 so'm oyiga (hisob 3/10/50, ombor 2/5/20, saqlash 1/5/20 GB,
+    SMS 100/300/1000 oyiga), `free` — sotilmaydi (egasi beradi, avvalgi do'konlar); muddat 1/3/6/12 oy, chegirma 0/5/10/20 %
+    (`planPrice`, 1 000 so'mga pastga yaxlitlash); ochiq `GET /billing/plans` (nom, muddat narxlari, chegaralar, sinov,
+    ishlaydigan usullar, `sms`) — frontendlar narxni o'zida yozmaydi; yangi do'kon (ro'yxatdan o'tish, egasi panelida tarifsiz) —
+    Biznes 14 kun sinov (`tenants.trial_ends_at`), birinchi to'lov tozalaydi (o'sha tarif — qolgan kunlar saqlanadi),
+    to'lanmasa 3 kun imtiyozdan keyin `suspended`; SMS chegarasi oylik (`smsPerMonth`, `usage.smsThisMonth`, 429 `meta.period`)
+    + provayderning kunlik cheklovi; egasi paneli `?trial=`, `stats.tenants.trialing`
+  - Tekshirish: `npm test -w packages/shared -- plans` + `npm run test:e2e -- signup plan-limits billing-webhook messages-rate-limit platform`
+
+- [x] **T-149 · Karta orqali to'lov (yuridik shaxs ochilguncha)**
+  - Bog'liq: T-126, T-135, T-137, T-148
+  - Manba: [docs/api/README.md §8.3](docs/api/README.md#tenant), [docs/api/owner-panel.md §5.6, §5.9, §5.10](docs/api/owner-panel.md), PROGRESS Q126
+  - Qabul: egasining kartasi `platform_settings` da (16 raqam + Luhn, `""` — o'chirish, faqat egasi); checkout'da `card`;
+    «To'ladim» — `POST /billing/invoices/:id/card-payment { payerCard, transferredAt?, receiptFileId?, note? }` → `pending` +
+    `provider: card`, tarif o'zgarmaydi; bitta tekshiruvdagi da'vo (qisman noyob indeks, 409 `meta.invoiceId`); Payme/Click
+    tekshiruvdagi hisob-fakturani olmaydi; chek — `payment_receipt` fayl turi (rasm/PDF ≤ 5 MB, GC bog'langanini
+    o'chirmaydi); egasiga Telegram (chek — fayl) «✅ Tasdiqlash / ❌ Rad etish» tugmalari bilan (`callback_query`, faqat
+    ulangan faol hisob); panel: `GET /platform/invoices?state=pending&provider=card`, `POST …/:id/confirm|reject`,
+    `GET …/:id/receipt`, `stats.pendingPayments`; tasdiq — `applyPayment` (Payme bilan bir xil), rad — `cancelled` +
+    `rejectReason`; do'konga `billing.invoice` hodisasi (Payme/Click to'lovida ham); qo'lda `card` usuli; jurnal
+    `billing.cardClaimed|cardRejected`, egasi jurnali `invoice.confirm|reject` (`via: panel|telegram`)
+  - Tekshirish: `npm run test:e2e -- billing-card isolation every-route-guarded telegram` + `vitest run card telegram.client`
 
 ---
 

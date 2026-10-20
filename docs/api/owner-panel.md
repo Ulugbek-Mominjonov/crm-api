@@ -115,7 +115,7 @@ Do‘kon ilovasi bilan bir xil ([README → 4](README.md#conventions)); bu yerda
 | `status` | Ma’nosi | Do‘kon nima qila oladi | Egasi amallari |
 |---|---|---|---|
 | `active` | Oddiy | Hammasi | Bloklash, tarif/to‘lov, o‘chirish |
-| `suspended` | Pullik tarif muddati + 3 kun o‘tdi (server har kecha 01:00 da qo‘yadi) | Faqat o‘qish + to‘lov | **To‘lov yozish** (`plan`) → `active`; bloklash; o‘chirish |
+| `suspended` | Pullik tarif yoki sinov muddati + 3 kun o‘tdi (server har kecha 01:00 da qo‘yadi) | Faqat o‘qish + to‘lov | **To‘lov yozish** (`plan`) yoki karta to‘lovini tasdiqlash → `active`; bloklash; o‘chirish |
 | `blocked` | **Egasi bloklagan** (`blockedAt`, `blockedReason`) | Faqat o‘qish; kirish ishlaydi; sababni administrator ko‘radi | **Blokdan chiqarish** (`unblock`); tarif/to‘lov (blokni OCHMAYDI); o‘chirish |
 | `deleting` | O‘chirish muhlati (`deletionScheduledAt` — shu vaqtda ma’lumot va fayllar butunlay o‘chadi) | Faqat o‘qish + o‘chirishni bekor qilish | **Qaytarish** (`restore`) |
 
@@ -127,26 +127,35 @@ Tavsiya etilgan belgi ranglari: `active` — yashil, `suspended` — sariq, `blo
 
 ### 4.2 Tariflar
 
-Manba — `packages/shared/src/plans.ts` (egasi paneli bu paketni import qilmaydi — qiymatlarni UI konstantasiga ko‘chiring):
+Narx — do‘kon uchun (foydalanuvchi uchun emas); tariflar hajm bilan farqlanadi, imkoniyatlar hammasida bir xil. Manba —
+`packages/shared/src/plans.ts`, lekin **panel narxni o‘zida yozmaydi: `GET /api/v1/billing/plans` (ochiq, tokensiz) dan
+oladi** — nom (`label`), oylik narx, har muddat summasi (chegirma bilan), chegaralar, sinov va ishlaydigan to‘lov usullari
+([README → 8.2](README.md#tenant)). Hozirgi qiymatlar:
 
-| `plan` | Oylik narx | Foydalanuvchi | Ombor | Saqlash | SMS/kun |
-|---|---|:-:|:-:|:-:|:-:|
-| `free` | 0 | 3 | 2 | 200 MB | 50 |
-| `basic` | 99 000 so‘m | 10 | 5 | 2 GB | 500 |
-| `pro` | 249 000 so‘m | 50 | 20 | 20 GB | 5 000 |
+| `plan` | Nomi | Oyiga | Foydalanuvchi | Ombor | Saqlash | SMS/oy |
+|---|---|---:|:-:|:-:|:-:|:-:|
+| `basic` | Start | 99 000 so‘m | 3 | 2 | 1 GB | 100 |
+| `business` | Biznes | 199 000 so‘m | 10 | 5 | 5 GB | 300 |
+| `pro` | Pro | 399 000 so‘m | 50 | 20 | 20 GB | 1 000 |
+| `free` | Bepul — sotilmaydi, faqat egasi beradi | 0 | 3 | 2 | 200 MB | 50 |
+
+Muddat chegirmasi: 3 oy −5%, 6 oy −10%, 12 oy −20% (summa 1 000 so‘mga pastga yaxlitlanadi). **Sinov:** yangi do‘kon
+Biznes tarifida 14 kun ishlaydi — `trialEndsAt` (birinchi to‘lov `null` qiladi); to‘lanmasa 3 kun imtiyozdan keyin
+`suspended`. Sinovdagi do‘konlar — sotuv imkoniyati: qo‘ng‘iroq qilib, ishga tushirishda yordam bering (`?trial=true`).
 
 Chegaralar javobda ham bor (`limits`), ularni UI hisoblamaydi. `usage` — ishlatilgani (`users`, `warehouses`, `storageBytes`).
 
 ### 4.3 Tarif muddati qanday uzayadi (`POST /platform/tenants/:id/plan`)
 
-- `plan` pullik (`basic`/`pro`): `months` (1–12) va `provider` **shart**; `amount` berilmasa — narx × oy
-  (`bonus` — 0). Natija: `paid` hisob-faktura va:
+- `plan` pullik (`basic`/`business`/`pro`): `months` (1–12) va `provider` **shart**; `amount` berilmasa — katalog narxi
+  (`planPrice`: oylik × oy, 3/6/12 oyga chegirma; `bonus` — 0). Natija: `paid` hisob-faktura va:
   - **o‘sha tarif** va muddati hali o‘tmagan → joriy `planExpiresAt` **dan** `months` oy;
   - **boshqa tarif** yoki muddati o‘tgan → **hozirdan** `months` oy;
-  - `suspended` → `active`; `blocked` o‘zgarmaydi.
-- `plan: "free"` → tarif darhol bepul, `planExpiresAt: null`; `suspended` → `active`.
-- `provider`: `cash` — naqd, `transfer` — bank o‘tkazmasi, `bonus` — bepul muddat (summa 0). Onlayn to‘lovlar
-  (`payme`, `click`) do‘konning o‘zidan keladi — egasi ularni faqat ko‘radi.
+  - `suspended` → `active`; `blocked` o‘zgarmaydi; sinov belgisi (`trialEndsAt`) tozalanadi.
+- `plan: "free"` → tarif darhol bepul, `planExpiresAt: null`, `trialEndsAt: null`; `suspended` → `active`.
+- `provider`: `cash` — naqd, `card` — kartangizga o‘tkazma (do‘kon «to‘ladim» demay to‘lagan bo‘lsa), `transfer` — bank
+  o‘tkazmasi, `bonus` — bepul muddat (summa 0). Onlayn to‘lovlar (`payme`, `click`) va do‘konning «to‘ladim» da’vosi
+  (`card`, [5.6](#card-review)) do‘konning o‘zidan keladi.
 
 ---
 
@@ -174,8 +183,9 @@ kirish hisobni tozalaydi). 401 `AUTH_TOTP_REQUIRED` → shu sahifada **kod maydo
   "tenants": {
     "total": 14,
     "byStatus": { "active": 11, "suspended": 2, "blocked": 1 },
-    "byPlan": { "free": 9, "basic": 3, "pro": 2 },
+    "byPlan": { "free": 2, "basic": 7, "business": 4, "pro": 1 },
     "newThisMonth": 3,
+    "trialing": 2,
     "expiringIn7Days": 2,
     "overdue": 1
   },
@@ -184,28 +194,31 @@ kirish hisobni tozalaydi). 401 `AUTH_TOTP_REQUIRED` → shu sahifada **kod maydo
     "lastMonth": 198000,
     "months": [ { "month": "2026-09-01", "amount": 198000, "invoices": 2 }, { "month": "2026-10-01", "amount": 447000, "invoices": 4 } ]
   },
-  "openRequests": 2
+  "openRequests": 2,
+  "pendingPayments": 1
 }
 ```
 
 Kartalar: jami do‘konlar (holat bo‘yicha taqsimot), tarif bo‘yicha, shu oyda ochilganlar, **7 kunda tugaydiganlar**
 (bosilsa → `/tenants?expiresWithinDays=7`), **muddati o‘tganlar** (`overdue` — 3 kunlik imtiyozda, hali
 to‘xtatilmagan; bosilsa → `/tenants?expiresWithinDays=0`), **javob kutayotgan murojaatlar** (`openRequests`; bosilsa →
-`/requests?status=open`; shu son menyudagi «Murojaatlar» yonida belgi — [5.11](#requests)), joriy/o‘tgan oy tushumi, 12 oylik
+`/requests?status=open`; shu son menyudagi «Murojaatlar» yonida belgi — [5.11](#requests)), **tekshirish kutayotgan karta
+to‘lovlari** (`pendingPayments`; bosilsa → `/invoices?state=pending&provider=card`; menyudagi «To‘lovlar» belgisi —
+[5.6](#card-review)), **sinovdagilar** (`trialing`; bosilsa → `/tenants?trial=true`), joriy/o‘tgan oy tushumi, 12 oylik
 ustunli grafik (`months` — to‘lov bo‘lmagan oy ro‘yxatda **yo‘q**, grafikda 0 deb chizing). `byStatus`/`byPlan` da bo‘lmagan kalit = 0.
 
 ### 5.3 `/tenants` — Do‘konlar ro‘yxati
 
-`GET /platform/tenants?page&pageSize&q&status&plan&expiresWithinDays&sort` → sahifali
+`GET /platform/tenants?page&pageSize&q&status&plan&expiresWithinDays&trial&sort` → sahifali
 [`PlatformTenantDto`](schemas.md#platformtenantdto):
 
 ```json
 {
-  "id": "0192…", "name": "Qurilish Mollari", "plan": "basic", "status": "active",
-  "planExpiresAt": "2026-11-16T09:00:00.000Z", "deletionScheduledAt": null,
+  "id": "0192…", "name": "Qurilish Mollari", "plan": "business", "status": "active",
+  "planExpiresAt": "2026-11-16T09:00:00.000Z", "trialEndsAt": null, "deletionScheduledAt": null,
   "blockedAt": null, "blockedReason": null, "notes": "Telefon orqali kelishildi",
   "createdAt": "2026-10-01T05:20:11.000Z",
-  "limits": { "users": 10, "warehouses": 5, "storageBytes": 2147483648, "fileBytes": 10485760, "smsPerDay": 500 },
+  "limits": { "users": 10, "warehouses": 5, "storageBytes": 5368709120, "fileBytes": 20971520, "smsPerMonth": 300 },
   "usage": { "users": 4, "warehouses": 2, "storageBytes": 15728640 },
   "admin": { "name": "Ali Valiyev", "email": "ali@dokon.uz", "phone": "+998901234567" },
   "activity": { "lastSaleAt": "2026-10-16T14:02:00.000Z", "sales30d": 312 },
@@ -218,8 +231,9 @@ ustunli grafik (`months` — to‘lov bo‘lmagan oy ro‘yxatda **yo‘q**, gra
 | Qidiruv (nom) | `q` (maks. 100 belgi, harf farqsiz) |
 | Filtr: holat, tarif | `status`, `plan` |
 | Filtr: «Tez orada tugaydi» | `expiresWithinDays=7` (muddati o‘tganlar ham kiradi); `0` — faqat o‘tganlar |
+| Filtr: «Sinovdagilar» | `trial=true` — hali to‘lamagan (sinovdagi yoki sinovi tugagan, `trialEndsAt` bor); `false` — qolganlari |
 | Saralash | `sort`: `-createdAt` (sukut), `name`, `-name`, `planExpiresAt`, `-planExpiresAt` |
-| Ustunlar | Nom (yonida murojaat belgisi — `openRequests > 0`), holat (belgi; `blockedAt` bo‘lsa «Bloklangan»), tarif + muddati (qolgan kunlar; `free` — «—»), foydalanuvchi `usage.users/limits.users`, hajm, administrator (ism, telefon), so‘nggi faollik (`activity.lastSaleAt`, `sales30d`), ochilgan sana |
+| Ustunlar | Nom (yonida murojaat belgisi — `openRequests > 0`), holat (belgi; `blockedAt` bo‘lsa «Bloklangan»), tarif + muddati (qolgan kunlar; `free` — «—»; `trialEndsAt` bor — «Sinov» belgisi), foydalanuvchi `usage.users/limits.users`, hajm, administrator (ism, telefon), so‘nggi faollik (`activity.lastSaleAt`, `sales30d`), ochilgan sana |
 | Qator | bosilsa → `/tenants/:id` |
 | Tugma | «Do‘kon ochish» → `/tenants/new` |
 
@@ -236,7 +250,7 @@ ustunli grafik (`months` — to‘lov bo‘lmagan oy ro‘yxatda **yo‘q**, gra
 | `phone` | `+998901234567` ko‘rinishida |
 | `email` | Email (do‘kon ichida noyob; boshqa do‘konda takror bo‘lishi mumkin) |
 | `password` | Kamida 8 belgi, ommabop parol rad etiladi (400, `errors[].field = "password"`) |
-| `plan` | ixtiyoriy, sukut `free`; `basic`/`pro` bo‘lsa `months` **shart** (1–12) — bepul boshlang‘ich muddat (`bonus` hisob-faktura, summa 0) |
+| `plan` | ixtiyoriy. **Yuborilmasa — sinov** (Biznes, 14 kun; ro‘yxatdan o‘tish bilan bir xil); `free` — muddatsiz bepul; `basic`/`business`/`pro` bo‘lsa `months` **shart** (1–12) — bepul boshlang‘ich muddat (`bonus` hisob-faktura, summa 0). Formada sukut — «Sinov (14 kun)» (`plan` yuborilmaydi) |
 | `notes` | ixtiyoriy, egasi izohi (maks. 500) |
 
 Muvaffaqiyatdan keyin: **email va parolni nusxalash** oynasi («Do‘kon egasiga yetkazing» — server parolni qayta
@@ -268,8 +282,9 @@ holat bunga yo‘l qo‘ymaydi (masalan, bloklanmagan do‘konni `unblock`): xab
 `admin.role === "operator"` bo‘lsa «O‘chirish» va «Qaytarish» tugmalarini ko‘rsatmang (API 403 `PERMISSION_DENIED`).
 
 **«Tarif / to‘lov» oynasi** (`POST /platform/tenants/:id/plan`, [`GrantPlanDto`](schemas.md#grantplandto)):
-tarif tanlovi (`free`/`basic`/`pro`); pullik bo‘lsa — oy soni (1–12), usul (`cash` «Naqd», `transfer` «O‘tkazma»,
-`bonus` «Bonus (bepul)»), summa (sukut narx × oy, `bonus` da 0 va o‘zgartirilmaydi), izoh (kvitansiya raqami).
+tarif tanlovi (`GET /billing/plans` → `plans`); pullik bo‘lsa — oy soni (1–12), usul (`cash` «Naqd», `card` «Kartaga»,
+`transfer` «Bank o‘tkazmasi», `bonus` «Bonus (bepul)»), summa (sukut — katalogdagi `prices[months]`, 1/3/6/12 dan boshqa
+oyda `monthlyPrice × oy`; `bonus` da 0 va o‘zgartirilmaydi), izoh (kvitansiya raqami).
 Oynada **yangi muddat qachon tugashini** oldindan ko‘rsating (4.3 qoidasi bilan). Natija — `PlatformTenantDto`
 (`plan`, `planExpiresAt`, `status`).
 
@@ -282,12 +297,15 @@ Xodimning barcha sessiyalari yopiladi; parolni egasi xodimga o‘zi yetkazadi.
 [`PlatformInvoiceDto`](schemas.md#platforminvoicedto):
 
 ```json
-{ "id": "0192…", "tenantId": "0192…", "tenantName": "Qurilish Mollari", "plan": "basic", "months": 1, "amount": 99000,
-  "state": "paid", "provider": "cash", "note": "Kvitansiya №12", "createdAt": "2026-10-17T06:30:00.000Z", "paidAt": "2026-10-17T06:30:00.000Z" }
+{ "id": "0192…", "tenantId": "0192…", "tenantName": "Qurilish Mollari", "plan": "basic", "months": 3, "amount": 282000,
+  "state": "pending", "provider": "card", "note": null, "payerCard": "6311", "payerNote": "Akamning kartasidan",
+  "transferredAt": "2026-10-20T09:32:00.000Z", "claimedAt": "2026-10-20T09:35:10.000Z", "hasReceipt": true, "rejectReason": null,
+  "createdAt": "2026-10-20T09:30:00.000Z", "paidAt": null }
 ```
 
-`state`: `created` (do‘kon hisob-faktura ochdi, hali to‘lamadi) → `pending` (provayder boshladi) → `paid` / `cancelled`.
-`provider`: `payme`, `click` — onlayn; `cash`, `transfer`, `bonus` — egasi yozgan; `null` — hali provayder tanlanmagan.
+`state`: `created` (do‘kon hisob-faktura ochdi, hali to‘lamadi) → `pending` (provayder boshladi yoki karta to‘lovi
+tekshiruvingizni kutmoqda) → `paid` / `cancelled`. `provider`: `payme`, `click` — onlayn; `card` — kartangizga o‘tkazma;
+`cash`, `transfer`, `bonus` — egasi yozgan; `null` — hali provayder tanlanmagan.
 
 **Jurnal.** `GET /platform/audit?tenantId=:id` — shu do‘kon bo‘yicha egasi amallari (5.7).
 
@@ -299,6 +317,27 @@ Xodimning barcha sessiyalari yopiladi; parolni egasi xodimga o‘zi yetkazadi.
 `GET /platform/invoices?page&pageSize&tenantId&state&provider&dateFrom&dateTo` → sahifali `PlatformInvoiceDto`
 (eng yangisi birinchi). Filtrlar: holat, usul, sana oralig‘i; `tenantName` ustuni bosilsa → `/tenants/:tenantId`.
 Jadval tagida sahifadagi `paid` summalar yig‘indisi — UI hisoblaydi (umumiy tushum — bosh sahifada).
+
+<a id="card-review"></a>
+
+**Karta to‘lovlarini tekshirish (T-149).** Yuridik shaxs ochilguncha do‘konlar sizning kartangizga o‘tkazadi: do‘kon
+administratori hisob-faktura ochadi, kartaga o‘tkazadi va «To‘ladim» deydi (kartasining oxirgi 4 raqami, o‘tkazma vaqti,
+ixtiyoriy chek va izoh) — hisob-faktura `pending` + `provider: card`. Sahifada **«Tekshirish kerak»** yorlig‘i:
+`GET /platform/invoices?state=pending&provider=card` (soni — `stats.pendingPayments`, menyuda belgi). Har qatorda: do‘kon,
+summa, `payerCard` («•••• 6311»), `transferredAt`, `payerNote`, chek (`hasReceipt`) — bankdagi tushum bilan solishtiring:
+
+| Tugma | So‘rov | Natija |
+|---|---|---|
+| «Chekni ko‘rish» | `GET /platform/invoices/:id/receipt` → `{ url, mime, expiresAt }` | Qisqa muddatli havola: rasm — oynada, PDF — yangi tabda |
+| «✅ Tasdiqlash» | `POST /platform/invoices/:id/confirm { note? }` (izoh — bank tranzaksiyasi) | `paid`; tarif 4.3 qoidasi bilan uzayadi, `suspended` ochiladi; do‘konga `billing.invoice` va `tenant.status` |
+| «❌ Rad etish» | `POST /platform/invoices/:id/reject { reason }` (3–300 belgi, **majburiy** — do‘kon ko‘radi) | `cancelled`, `rejectReason`; tarif o‘zgarmaydi; do‘kon yangi hisob-faktura bilan qayta yuboradi |
+
+Ikkalasi **200** va yangilangan `PlatformInvoiceDto`; operator ham bajaradi. 422 `INVALID_STATUS_TRANSITION`
+(`meta.state`, `meta.provider`) — to‘lov allaqachon hal qilingan (boshqa hisob yoki Telegram tugmasi) yoki karta to‘lovi
+emas: ro‘yxatni qayta so‘rang. Xuddi shu to‘lov Telegram’ga ham tugmalar bilan keladi ([5.10](#profile)) — qaysi birida
+bossangiz ham natija bir xil, ikkinchi bosish hech narsani o‘zgartirmaydi.
+
+Karta raqamingiz — «Sozlamalar»da ([5.9](#settings)); u bo‘lmasa do‘konlarda karta usuli ko‘rinmaydi.
 
 ### 5.7 `/audit` — Egasi jurnali
 
@@ -314,20 +353,21 @@ Jadval tagida sahifadagi `paid` summalar yig‘indisi — UI hisoblaydi (umumiy 
 |---|---|---|
 | `platform.login` | Egasi kirdi | — |
 | `platform.bootstrap` | Birinchi hisob yaratildi (`admin: null`) | `{ email }` |
-| `tenant.create` | Do‘kon ochildi | `{ name, email, plan, months }` |
+| `tenant.create` | Do‘kon ochildi | `{ name, email, plan, months, trialDays }` (`trialDays` — sinov bilan ochilganda) |
 | `tenant.update` | Nom/izoh | `{ before, after }` |
 | `tenant.block` / `tenant.unblock` | Blok | `{ reason }` / — |
 | `tenant.plan` | Tarif / to‘lov | `{ plan, months, provider, amount, note, planExpiresAt }` |
+| `invoice.confirm` / `invoice.reject` | Karta to‘lovi tasdiqlandi / rad etildi (`entityId` — hisob-faktura) | `{ plan, months, amount, via, note, planExpiresAt }` / `{ plan, months, amount, via, reason }`; `via` — `panel` yoki `telegram` |
 | `tenant.delete` / `tenant.restore` | O‘chirish / qaytarish | — |
 | `user.resetPassword` | Do‘kon hisobiga parol | `entityId` — foydalanuvchi |
 | `platform.admin.create` / `platform.admin.update` | Egasi hisobi ochildi / nom, rol, faollik | `{ email, name, role }` / `{ before, after }` |
 | `platform.admin.resetPassword` / `platform.admin.totpReset` | Hisobga parol / TOTP olib tashlandi | `entityId` — hisob |
 | `platform.totp.enable` / `platform.totp.disable` | O‘zi TOTP yoqdi / o‘chirdi | — |
 | `platform.telegram.link` / `platform.telegram.unlink` | Telegram ulandi / uzildi | — |
-| `platform.settings.update` | Ro‘yxatdan o‘tish rejimi, aloqa | `{ before, after }` — faqat o‘zgargan maydonlar |
+| `platform.settings.update` | Ro‘yxatdan o‘tish rejimi, aloqa, to‘lov kartasi | `{ before, after }` — faqat o‘zgargan maydonlar |
 | `request.reply` / `request.close` | Do‘kon murojaatiga javob / yopish (`entityId` — murojaat) | `{ type }` / `{ type, withMessage }` |
 
-`group` filtri — `tenant`, `user`, `platform`, `request`. `targetTenantName` `null` — do‘kon allaqachon butunlay o‘chirilgan.
+`group` filtri — `tenant`, `user`, `platform`, `request`, `invoice`. `targetTenantName` `null` — do‘kon allaqachon butunlay o‘chirilgan.
 Egasi hisoblari bilan bog‘liq yozuvlarda `targetTenantId` yo‘q, `entityType: "admin"`.
 
 <a id="admins"></a>
@@ -354,9 +394,9 @@ Yagona egasi o‘z TOTP qurilmasini yo‘qotsa — server egasi bazada olib tash
 ### 5.9 `/settings` — Platforma sozlamasi (faqat `owner`)
 
 `GET /platform/settings` → [`PlatformSettingsDto`](schemas.md#platformsettingsdto)
-`{ registrationMode: "open" | "closed", support: { phone, telegram, hours }, updatedAt, updatedBy }` (o‘qish — operator
-uchun ham ochiq); `PATCH /platform/settings { registrationMode?, support? }` → 200 — faqat yuborilgan maydonlar o‘zgaradi,
-darhol kuchga kiradi (qayta ishga tushirish yo‘q). Ikki blok:
+`{ registrationMode: "open" | "closed", support: { phone, telegram, hours }, paymentCard: { number, holder } | null, updatedAt, updatedBy }`
+(o‘qish — operator uchun ham ochiq); `PATCH /platform/settings { registrationMode?, support?, paymentCard? }` → 200 — faqat
+yuborilgan maydonlar o‘zgaradi, darhol kuchga kiradi (qayta ishga tushirish yo‘q). Uch blok:
 
 **Ro‘yxatdan o‘tish.** Almashtirgich «Ro‘yxatdan o‘tish ochiq» bilan izoh: *yopiq bo‘lsa do‘kon ilovasidagi «Do‘kon ochish»
 yo‘qoladi (`POST /tenants/register` → 403 `REGISTRATION_CLOSED`), yangi do‘kon faqat shu paneldan ochiladi.*
@@ -365,6 +405,11 @@ yo‘qoladi (`POST /tenants/register` → 403 `REGISTRATION_CLOSED`), yangi do�
 5–32 belgi; `@` bilan yuborilsa olib tashlanadi; noto‘g‘ri — 400), ish vaqti (maks. 120). Do‘kon ilovasi ularni
 faqat-o‘qish bannerida, murojaat oynasida va yopiq ro‘yxatdan o‘tish sahifasida ko‘rsatadi — telefonga javob berolmagan
 paytda ham do‘kon sizni topa oladi. Maydonni bo‘shatish — `""` yuboriladi (`null` emas); hammasi ixtiyoriy.
+**To‘lov kartasi (T-149).** Do‘konlar obuna pulini shu kartaga o‘tkazadi (do‘kon to‘lov oynasida raqam va egasi
+ko‘rinadi). Raqam — 16 raqam (bo‘sh joy/chiziqcha bilan yuborilsa ham bo‘ladi, saqlashda olib tashlanadi), **nazorat raqami
+tekshiriladi**: xato yozilgan raqam — 400 (do‘konlar pulni begona kartaga o‘tkazib yubormasin). Egasi — kartadagi ism
+(maks. 64; to‘lovchi ilovasi o‘tkazmada shu ismni ko‘rsatadi, do‘kon solishtiradi). `paymentCard: { number: "" }` —
+karta usulini o‘chirish (do‘konlarda «Kartaga o‘tkazish» yo‘qoladi). Ko‘rsatishda raqamni 4 tadan guruhlang.
 `updatedBy` — oxirgi o‘zgartirgan hisob nomi (`null` — hech qachon o‘zgartirilmagan).
 
 <a id="profile"></a>
@@ -390,7 +435,11 @@ sozlanmagan: blokni «Telegram bot sozlanmagan» deb ko‘rsating. `telegramLink
 
 Ulangan hisobga bot yuboradigan xabarlar (hammasi **ulangan faol** hisoblarga, egasi ham, operator ham):
 🆕 yangi do‘kon ro‘yxatdan o‘tdi (nom, administrator ismi, telefon, email); 💳 onlayn to‘lov keldi (do‘kon, summa,
-tarif, oy, Payme/Click — qo‘lda yozilgan to‘lov haqida xabar yo‘q); 🗑 do‘kon administratori o‘chirishni so‘radi
+tarif, oy, Payme/Click — qo‘lda yozilgan to‘lov haqida xabar yo‘q); 💳 **karta to‘lovi — tekshiring** (do‘kon, summa, tarif,
+oy, karta oxirgi 4 raqami, o‘tkazma vaqti, izoh; chek bo‘lsa — fayl, matn uning izohi) **«✅ Tasdiqlash» / «❌ Rad etish»
+tugmalari bilan**: bosgach tugmalar yo‘qoladi va natija javob sifatida yoziladi («✅ Tasdiqlandi: do‘kon — Start,
+20.01.2027 gacha»); Telegram’dan rad etilganda do‘konga standart sabab ko‘rinadi («Tushum topilmadi — …»), aniq sabab
+kerak bo‘lsa panelda rad eting. Tugma faqat botga ulangan faol hisobda ishlaydi; 🗑 do‘kon administratori o‘chirishni so‘radi
 (30 kun muhlat — panelda qaytarish mumkin); 📨 do‘kon murojaat yubordi (do‘kon, tur, blok sababi, kim va telefoni, matn);
 💬 murojaatga qo‘shimcha xabar ([5.11](#requests)). Egasi botni bloklasa ulanish o‘zi olib tashlanadi (`telegramLinked: false`).
 
@@ -494,7 +543,10 @@ Production’da `VITE_API_URL` bo‘sh, so‘rovlar nisbiy; deploy — `DEPLOY.m
 - Ro‘yxat: qidiruv, holat/tarif/muddat filtrlari, saralash, sahifalash — **serverda** (`total`, `pageCount`).
 - Do‘kon ochish: validatsiya xatolari maydon ostida; muvaffaqiyatda email/parol nusxalash oynasi.
 - Karta: holat belgisi va `blockedReason`; blok/blokdan chiqarish/o‘chirish/qaytarish — tasdiq oynasi bilan, javobdagi obyekt bilan yangilanadi; 422 xabari ko‘rsatiladi.
-- Tarif/to‘lov oynasi: pullik tarifda oy va usul majburiy, summa sukut narx × oy, yangi muddat oldindan ko‘rsatiladi; `free` da qolgan maydonlar yashirin.
+- Tariflar, nomlar va narxlar — `GET /billing/plans` dan (panelda qattiq yozilmaydi); do‘kon ochishda sukut — «Sinov (14 kun)».
+- Tarif/to‘lov oynasi: pullik tarifda oy va usul (`card` ham) majburiy, summa sukut — katalog narxi, yangi muddat oldindan ko‘rsatiladi; `free` da qolgan maydonlar yashirin.
+- To‘lovlar: «Tekshirish kerak» yorlig‘i (`pendingPayments` belgisi), chekni ko‘rish, tasdiqlash (izoh bilan) va rad etish (sabab majburiy); 422 da ro‘yxat yangilanadi.
+- Sozlamalar (`owner`): to‘lov kartasi (raqam 4 tadan guruhlangan, egasi; o‘chirish); nazorat raqami xatosi maydon ostida.
 - Hisoblar: ro‘yxat va parolni tiklash (204).
 - To‘lovlar va jurnal sahifalari filtr va sahifalash bilan.
 - Rol: `operator` ga «O‘chirish»/«Qaytarish» tugmalari, «Hisoblar» va «Sozlamalar» menyusi ko‘rinmaydi; 403 kelsa `me` qayta so‘raladi.
@@ -530,5 +582,8 @@ Egasi paneli bilan birga do‘kon API’sida kichik o‘zgarishlar bor ([README 
    `tenant.request` hodisasi; `GET /tenants/current` → `support` (egasining telefoni, Telegram’i, ish vaqti) bannerda
    ([README → 8.5](README.md#support)).
 6. **`GET /tenants/registration`** endi `{ mode, support }` qaytaradi — yopiq ro‘yxatdan o‘tish sahifasida aloqani ko‘rsating.
+7. **Tariflar va karta orqali to‘lov** (T-148, T-149): tariflar katalogi `GET /billing/plans`, yangi do‘kon — 14 kunlik
+   sinov (`trialEndsAt`), «To‘ladim» — `POST /billing/invoices/:id/card-payment`, natija — `billing.invoice` hodisasi
+   ([README → 8.2–8.3](README.md#tenant), [14.2](README.md#muammolar)).
 
 Qolgan hamma narsa o‘zgarmagan.

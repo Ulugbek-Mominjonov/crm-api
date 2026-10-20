@@ -24,7 +24,10 @@ export class PlatformAuditQueryDto {
   @IsUUID()
   tenantId?: string
 
-  @ApiPropertyOptional({ example: 'tenant', description: 'Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `user`, `platform`' })
+  @ApiPropertyOptional({
+    example: 'tenant',
+    description: 'Amal guruhi: `tenant` (`tenant.block`, `tenant.plan` …), `invoice` (karta to‘lovi tasdig‘i/radi), `user`, `platform`, `request`',
+  })
   @IsOptional()
   @Matches(/^[a-z][a-z-]*$/)
   group?: string

@@ -40,6 +40,8 @@ const crud = (resource: 'products' | 'employees'): FileAccess => ({
   view: `${resource}.view`, create: `${resource}.create`, delete: `${resource}.delete`,
 })
 const SETTINGS: FileAccess = { view: 'settings.view', create: 'settings.edit', delete: 'settings.edit' }
+/** To'lov cheki (T-149): obuna — administrator ishi; to'lovchi kartasi ko'rinadi, faqat sozlamani o'zgartiradigan rol */
+const BILLING: FileAccess = { view: 'settings.edit', create: 'settings.edit', delete: 'settings.edit' }
 
 export const FILE_RULES: Readonly<Record<FileKind, FileRule>> = {
   product_image: {
@@ -56,6 +58,8 @@ export const FILE_RULES: Readonly<Record<FileKind, FileRule>> = {
     mimes: IMAGES, maxBytes: 1 * MB, prefix: 'logos', access: SETTINGS, readableByAll: true, attachment: false, bucket: 'media',
     variants: { fit: 'box', quality: 90 },
   },
+  // Karta orqali to'lov cheki: ilova skrinshoti yoki bank PDF'i — egasi tekshiradi
+  payment_receipt: { mimes: [...IMAGES, 'application/pdf'], maxBytes: 5 * MB, prefix: 'receipts', access: BILLING, attachment: false, bucket: 'media' },
 }
 
 export const EXTENSIONS: Readonly<Record<string, string>> = {

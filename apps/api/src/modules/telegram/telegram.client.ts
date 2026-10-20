@@ -8,8 +8,8 @@ const REQUEST_TIMEOUT_MS = 10_000
 /** Fayl yuklash (chek PDF) — kattaroq */
 const UPLOAD_TIMEOUT_MS = 30_000
 
-/** Bot oladigan yangilanishlar: xabar (/start) va botni bloklash/ochish */
-export const ALLOWED_UPDATES = ['message', 'my_chat_member'] as const
+/** Bot oladigan yangilanishlar: xabar (/start), botni bloklash/ochish, egasi xabaridagi tugma (T-149) */
+export const ALLOWED_UPDATES = ['message', 'my_chat_member', 'callback_query'] as const
 
 // Faqat ishlatiladigan maydonlar — Telegram ko'proq yuboradi
 export interface TelegramUser {
@@ -30,16 +30,35 @@ export interface TelegramMessage {
   text?: string
 }
 
+/** Xabardagi tugma bosildi — `data` bot o'zi yozgan qiymat (≤ 64 bayt) */
+export interface TelegramCallbackQuery {
+  id: string
+  from: TelegramUser
+  message?: TelegramMessage
+  data?: string
+}
+
 export interface TelegramUpdate {
   update_id: number
   message?: TelegramMessage
   /** Foydalanuvchi botni bloklasa — `new_chat_member.status = kicked`, qayta ochsa — `member` */
   my_chat_member?: { chat: TelegramChat; new_chat_member: { status: string } }
+  callback_query?: TelegramCallbackQuery
+}
+
+/** Xabar ostidagi tugma: bosilsa bot `callback_query` oladi */
+export interface InlineButton {
+  text: string
+  data: string
 }
 
 export interface SendOptions {
   /** Matn HTML (`<b>` …) — maxsus belgilar oldindan ekranlangan bo'lishi SHART */
   html?: boolean
+  /** Tugmalar qatorlari */
+  buttons?: InlineButton[][]
+  /** Shu xabarga javob sifatida */
+  replyTo?: number
 }
 
 /** Yuboriladigan fayl (chek PDF) */
@@ -60,6 +79,10 @@ export interface TelegramClient {
   sendDocument(chatId: number, file: TelegramFile, caption: string, opts?: SendOptions): Promise<{ message_id: number }>
   setWebhook(url: string, secret: string): Promise<void>
   getUpdates(offset: number, timeoutSec: number, signal: AbortSignal): Promise<TelegramUpdate[]>
+  /** Tugma bosilganiga javob — mijozda qisqa bildirish (`text` bo'lsa) */
+  answerCallbackQuery(id: string, text?: string): Promise<void>
+  /** Xabar ostidagi tugmalarni olib tashlash (amal bajarildi) */
+  removeButtons(chatId: number, messageId: number): Promise<void>
 }
 
 /** DI tokeni; token berilmagan bo'lsa qiymati `null` — Telegram o'chiq */
@@ -98,7 +121,7 @@ export class HttpTelegramClient implements TelegramClient {
   sendMessage(chatId: number, text: string, opts: SendOptions = {}): Promise<{ message_id: number }> {
     return this.call(
       'sendMessage',
-      json({ chat_id: chatId, text, link_preview_options: { is_disabled: true }, ...(opts.html && { parse_mode: 'HTML' }) }),
+      json({ chat_id: chatId, text, link_preview_options: { is_disabled: true }, ...extraParams(opts) }),
     )
   }
 
@@ -107,9 +130,19 @@ export class HttpTelegramClient implements TelegramClient {
     form.set('chat_id', String(chatId))
     form.set('document', new Blob([file.content], { type: file.mime }), file.name)
     form.set('caption', caption)
-    if (opts.html) form.set('parse_mode', 'HTML')
+    // Multipart'da ichki obyekt (tugmalar) — JSON satr (Bot API qoidasi)
+    for (const [key, value] of Object.entries(extraParams(opts))) form.set(key, typeof value === 'string' ? value : JSON.stringify(value))
     // Content-Type (multipart chegarasi bilan) — fetch o'zi qo'yadi
     return this.call('sendDocument', { body: form }, AbortSignal.timeout(UPLOAD_TIMEOUT_MS))
+  }
+
+  async answerCallbackQuery(id: string, text?: string): Promise<void> {
+    await this.call('answerCallbackQuery', json({ callback_query_id: id, ...(text && { text }) }))
+  }
+
+  /** `reply_markup` berilmasa Telegram tugmalarni olib tashlaydi */
+  async removeButtons(chatId: number, messageId: number): Promise<void> {
+    await this.call('editMessageReplyMarkup', json({ chat_id: chatId, message_id: messageId }))
   }
 
   async setWebhook(url: string, secret: string): Promise<void> {
@@ -136,6 +169,17 @@ export class HttpTelegramClient implements TelegramClient {
 
 function json(params: Record<string, unknown>): RequestInit {
   return { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(params) }
+}
+
+/** Ixtiyoriy parametrlar: HTML, tugmalar, javob — Bot API nomlari bilan */
+function extraParams(opts: SendOptions): Record<string, unknown> {
+  return {
+    ...(opts.html && { parse_mode: 'HTML' }),
+    ...(opts.buttons && {
+      reply_markup: { inline_keyboard: opts.buttons.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data }))) },
+    }),
+    ...(opts.replyTo && { reply_parameters: { message_id: opts.replyTo, allow_sending_without_reply: true } }),
+  }
 }
 
 /** Token berilmasa — `null`: bot o'chiq, xabarlar faqat SMS orqali */

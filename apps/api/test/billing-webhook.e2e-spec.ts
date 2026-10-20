@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { INestApplication } from '@nestjs/common'
 import request from 'supertest'
-import { PLAN_MONTHLY_PRICE } from '@crm/shared'
+import { planPrice } from '@crm/shared'
 import { PAYME } from '@/modules/billing/payme.service'
 import { CLICK } from '@/modules/billing/click.service'
 import { createTestApp, resetThrottle } from './helpers/app'
@@ -45,19 +45,21 @@ describe('Obuna to‘lovlari (Payme, Click)', () => {
   const payme = (method: string, params: Record<string, unknown>, authorization = PAYME_AUTH) =>
     api().post('/api/v1/billing/payme').set('Authorization', authorization).send({ jsonrpc: '2.0', id: ++rpcId, method, params }).expect(200)
 
-  it('hisob-faktura: summa tarif × oy, to‘lov havolalari; faqat administrator', async () => {
+  it('hisob-faktura: summa — katalog narxi (muddat chegirmasi bilan), to‘lov havolalari; faqat administrator', async () => {
     const checkout = await invoice('pro', 3)
-    expect(checkout.invoice).toMatchObject({ plan: 'pro', months: 3, amount: PLAN_MONTHLY_PRICE.pro * 3, state: 'created' })
+    expect(checkout.invoice).toMatchObject({ plan: 'pro', months: 3, amount: planPrice('pro', 3), state: 'created' })
     const decoded = Buffer.from(checkout.payme.split('/').at(-1), 'base64').toString()
-    expect(decoded).toBe(`m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${checkout.invoice.id};a=${PLAN_MONTHLY_PRICE.pro * 300}`)
+    expect(decoded).toBe(`m=${process.env.PAYME_MERCHANT_ID};ac.order_id=${checkout.invoice.id};a=${planPrice('pro', 3) * 100}`)
     expect(checkout.click).toContain(`transaction_param=${checkout.invoice.id}`)
     await api().post('/api/v1/billing/invoices').set('Authorization', await bearer(app, a, 'manager')).send({ plan: 'pro', months: 1 }).expect(403)
     await api().post('/api/v1/billing/invoices').set('Authorization', auth).send({ plan: 'free', months: 1 }).expect(400)
+    // Do'kon faqat katalogdagi muddatlarni tanlaydi (1, 3, 6, 12 oy)
+    await api().post('/api/v1/billing/invoices').set('Authorization', auth).send({ plan: 'pro', months: 2 }).expect(400)
   })
 
   describe('Payme', () => {
     it('to‘liq oqim: tekshirish → yaratish → bajarish; tarif faqat bajarilganda, takror — bir marta', async () => {
-      const { invoice: inv } = await invoice('basic', 2)
+      const { invoice: inv } = await invoice('basic', 3)
       const amount = inv.amount * 100
       expect((await payme('CheckPerformTransaction', { amount, account: { order_id: inv.id } })).body.result).toEqual({ allow: true })
 
@@ -73,7 +75,7 @@ describe('Obuna to‘lovlari (Payme, Click)', () => {
       const after = await tenant()
       expect(after.plan).toBe('basic')
       const expires = after.planExpiresAt!.getTime()
-      expect(expires - Date.now()).toBeGreaterThan(58 * 24 * 3_600_000)
+      expect(expires - Date.now()).toBeGreaterThan(88 * 24 * 3_600_000)
 
       // Webhook takrorlandi — tarif ikkinchi marta uzaymaydi
       expect((await payme('PerformTransaction', { id: 'pm-tx-1' })).body.result).toEqual(performed.body.result)

@@ -58,9 +58,11 @@ describe('Tarif chegaralari', () => {
       code: 'PLAN_LIMIT_EXCEEDED',
       errors: [{ field: 'users', meta: { resource: 'users', plan: 'free', limit: PLANS.free.users, used: PLANS.free.users } }],
     })
-    // Tarif oshsa — darhol (to'lov tasdiqlangach, T-126)
+    // Start (`basic`) ham 3 kishilik — kichik do'kon uchun (T-148); Biznes'da joy bor, tarif oshsa — darhol (T-126)
     await setPlan('basic')
-    expect((await createUser(9)).status).toBe(201)
+    expect((await createUser(9)).status).toBe(402)
+    await setPlan('business')
+    expect((await createUser(10)).status).toBe(201)
   })
 
   it('parallel qo‘shish oxirgi joyni birga egallamaydi; qayta faollashtirish va tiklash ham joy egallaydi', async () => {
@@ -104,13 +106,19 @@ describe('Tarif chegaralari', () => {
     await api().post(`/api/v1/warehouses/${second.body.id}/restore`).set('Authorization', auth).expect(402)
   })
 
-  it('SMS: kunlik chegara tarif bo‘yicha (provayder chegarasidan kichigi)', async () => {
-    await testDb.message.create({
-      data: { tenantId: a.tenantId, target: 'all', recipientLabel: 'Hamma', recipients: PLANS.free.smsPerDay, text: 'x', deliveryStatus: 'logged' },
+  it('SMS: tarifdagi OYLIK hajm (T-148) — shu oydagilar sanaladi, oshsa 429 `period: month`', async () => {
+    const message = await testDb.message.create({
+      data: { tenantId: a.tenantId, target: 'all', recipientLabel: 'Hamma', recipients: PLANS.free.smsPerMonth, text: 'x', deliveryStatus: 'logged' },
     })
     await seedClient(a.tenantId)
     const send = () => api().post('/api/v1/messages').set('Authorization', auth).set('Idempotency-Key', randomUUID()).send({ target: 'all', text: 'Salom' })
-    expect((await send().expect(429)).body.errors[0].meta).toEqual({ limit: PLANS.free.smsPerDay, used: PLANS.free.smsPerDay, requested: 1 })
+    expect((await send().expect(429)).body.errors[0].meta).toEqual({ period: 'month', limit: PLANS.free.smsPerMonth, used: PLANS.free.smsPerMonth, requested: 1 })
+    const account = await api().get('/api/v1/tenants/current').set('Authorization', auth).expect(200)
+    expect([account.body.limits.smsPerMonth, account.body.usage.smsThisMonth]).toEqual([PLANS.free.smsPerMonth, PLANS.free.smsPerMonth])
+    // O'tgan oy hisobga kirmaydi
+    await testDb.message.update({ where: { id: message.id }, data: { createdAt: new Date(Date.now() - 40 * 86_400_000) } })
+    await send().expect(201)
+    await testDb.message.update({ where: { id: message.id }, data: { createdAt: new Date() } })
     await setPlan('basic')
     await send().expect(201)
   })

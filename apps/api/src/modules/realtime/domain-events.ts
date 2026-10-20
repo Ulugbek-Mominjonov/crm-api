@@ -33,6 +33,12 @@ export interface DomainEventMap {
    * administrator ilovasi `GET /tenants/current/requests` ni qayta so'raydi (banner, murojaat oynasi)
    */
   'tenant.request': { requestId: string; status: string }
+  /**
+   * Hisob-faktura yakunlandi (T-149): to'lov tasdiqlandi (Payme/Click yoki egasi — karta, qo'lda)
+   * yoki karta to'lovi rad etildi — administrator ilovasi `GET /billing/invoices`, `GET /tenants/current`
+   * va `GET /auth/me` ni qayta so'raydi
+   */
+  'billing.invoice': { invoiceId: string; state: string }
 }
 
 export type DomainEventType = keyof DomainEventMap
